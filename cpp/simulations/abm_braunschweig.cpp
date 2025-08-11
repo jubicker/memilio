@@ -97,7 +97,8 @@ void assign_infection_state(mio::abm::Model& model, mio::abm::TimePoint t, doubl
                                                          infected_symptoms_prob, recovered_prob);
         if (infection_state != mio::abm::InfectionState::Susceptible)
             person.add_new_infection(mio::abm::Infection(rng, mio::abm::VirusVariant::Wildtype, person.get_age(),
-                                                         model.parameters, t, infection_state));
+                                                         model.parameters, t, &mio::abm::sigmoidal_infectivity,
+                                                         infection_state));
     }
 }
 int stringToMinutes(const std::string& input)
@@ -912,7 +913,7 @@ void write_log_to_file_trip_data(const T& history)
 
             int start_index = mobility_data_index - 1;
             using Type      = std::tuple<mio::abm::PersonId, mio::abm::LocationId, mio::abm::TimePoint,
-                                         mio::abm::TransportMode, mio::abm::ActivityType, mio::abm::InfectionState>;
+                                    mio::abm::TransportMode, mio::abm::ActivityType, mio::abm::InfectionState>;
             while (!std::binary_search(std::begin(mobility_data[start_index]), std::end(mobility_data[start_index]),
                                        mobility_data[mobility_data_index][trip_index],
                                        [](const Type& v1, const Type& v2) {

@@ -53,7 +53,8 @@ ScalarType daily_transmissions_by_air(const AirExposureRates& rates, const CellI
 
 void interact(PersonalRandomNumberGenerator& personal_rng, Person& person, const Location& location,
               const AirExposureRates& local_air_exposure, const ContactExposureRates& local_contact_exposure,
-              const TimePoint t, const TimeSpan dt, const Parameters& global_parameters)
+              const TimePoint t, const TimeSpan dt, const Parameters& global_parameters,
+              Infection::InfectivityFunctionType infectivity_func)
 {
     // make sure all dimensions are set correctly and all indices are valid
     assert(location.get_cells().size() == local_air_exposure.size<CellIndex>().get());
@@ -89,7 +90,8 @@ void interact(PersonalRandomNumberGenerator& personal_rng, Person& person, const
                                   local_indiv_trans_prob); // use VirusVariant::Count for no virus submission
             if (virus != VirusVariant::Count) {
                 person.add_new_infection(Infection(personal_rng, virus, age_receiver, global_parameters, t + dt / 2,
-                                                   mio::abm::InfectionState::Exposed, person.get_latest_protection(),
+                                                   infectivity_func, mio::abm::InfectionState::Exposed,
+                                                   person.get_latest_protection(),
                                                    false)); // Starting time in first approximation
             }
         }

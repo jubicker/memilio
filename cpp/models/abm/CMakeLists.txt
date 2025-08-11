@@ -22,6 +22,8 @@ add_library(abm
     mobility_rules.h
     model_functions.cpp
     model_functions.h
+    infectivity_functions.cpp
+    infectivity_functions.h
     trip_list.cpp
     trip_list.h
     lockdown_rules.cpp

@@ -18,8 +18,10 @@
 * limitations under the License.
 */
 #include "abm/household.h"
+#include "abm/infectivity_functions.h"
 #include "abm/lockdown_rules.h"
 #include "abm/model.h"
+#include "abm/infectivity_functions.h"
 #include "abm/common_abm_loggers.h"
 #include "memilio/utils/abstract_parameter_distribution.h"
 
@@ -125,7 +127,8 @@ int main()
         auto rng = mio::abm::PersonalRandomNumberGenerator(person);
         if (infection_state != mio::abm::InfectionState::Susceptible) {
             person.add_new_infection(mio::abm::Infection(rng, mio::abm::VirusVariant::Wildtype, person.get_age(),
-                                                         model.parameters, start_date, infection_state));
+                                                         model.parameters, start_date, &mio::abm::sigmoidal_infectivity,
+                                                         infection_state));
         }
     }
 

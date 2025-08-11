@@ -79,10 +79,12 @@ void add_exposure_contribution(AirExposureRates& local_air_exposure, ContactExpo
  * @param[in] t Current Simulation time.
  * @param[in] dt Length of the current Simulation time step.
  * @param[in] global_parameters Parameters of the Model.
+ * @param[in] infectivity_func Infectivity function to calculate infectivity of an infection.
  */
 void interact(PersonalRandomNumberGenerator& personal_rng, Person& person, const Location& location,
               const AirExposureRates& local_air_exposure, const ContactExposureRates& local_contact_exposure,
-              const TimePoint t, const TimeSpan dt, const Parameters& global_parameters);
+              const TimePoint t, const TimeSpan dt, const Parameters& global_parameters,
+              Infection::InfectivityFunctionType infectivity_func);
 /**
  * @brief Change a persons location to another location.
  * If the person already is at the destination, neither mode nor cells are set.

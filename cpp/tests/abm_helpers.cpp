@@ -30,8 +30,8 @@ mio::abm::Person make_test_person(mio::RandomNumberGenerator& rng, mio::abm::Loc
     mio::abm::Person p(rng, location.get_type(), location.get_id(), location.get_model_id(), age, id);
     if (infection_state != mio::abm::InfectionState::Susceptible) {
         auto rng_p = mio::abm::PersonalRandomNumberGenerator(p);
-        p.add_new_infection(
-            mio::abm::Infection(rng_p, static_cast<mio::abm::VirusVariant>(0), age, params, t, infection_state));
+        p.add_new_infection(mio::abm::Infection(rng_p, static_cast<mio::abm::VirusVariant>(0), age, params, t,
+                                                &mio::abm::sigmoidal_infectivity, infection_state));
     }
     return p;
 }
@@ -67,5 +67,5 @@ void interact_testing(mio::abm::PersonalRandomNumberGenerator& personal_rng, mio
     }
     // run interaction
     mio::abm::interact(personal_rng, person, location, local_air_exposure, local_contact_exposure, t, dt,
-                       global_parameters);
+                       global_parameters, &mio::abm::sigmoidal_infectivity);
 }

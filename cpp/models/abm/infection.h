@@ -21,12 +21,14 @@
 #define MIO_ABM_INFECTION_H
 
 #include "abm/personal_rng.h"
+#include "memilio/config.h"
 #include "memilio/io/default_serialize.h"
 #include "abm/time.h"
 #include "abm/infection_state.h"
 #include "abm/virus_variant.h"
 #include "abm/parameters.h"
 
+#include <boost/numeric/ublas/functional.hpp>
 #include <vector>
 
 namespace mio
@@ -61,6 +63,8 @@ struct ViralLoad {
 class Infection
 {
 public:
+    using InfectivityFunctionType = ScalarType (*)(TimePoint t, const Infection& infection);
+
     /**
      * @brief Create an Infection for a single Person.
      * Draws a random infection course.
@@ -68,13 +72,15 @@ public:
      * @param[in] virus Virus type of the Infection.
      * @param[in] age AgeGroup to determine the ViralLoad course.
      * @param[in] params Parameters of the Model.
-     * @param[in] init_date Date of initializing the Infection.
-     * @param[in] init_state [Default: InfectionState::Exposed] #InfectionState at time of initializing the Infection.
+     * @param[in] start_date Date of initializing the Infection.
+     * @param[in] infectivity_fct Function returning the infectivity at a given time point.
+     * @param[in] start_state [Default: InfectionState::Exposed] #InfectionState at time of initializing the Infection.
      * @param[in] latest_protection [Default: {ProtectionType::NoProtection, TimePoint(0)}] The pair value of last ProtectionType (previous Infection/Vaccination) and TimePoint of that protection.
      * @param[in] detected [Default: false] If the Infection is detected.     
      */
     Infection(PersonalRandomNumberGenerator& rng, VirusVariant virus, AgeGroup age, const Parameters& params,
-              TimePoint start_date, InfectionState start_state = InfectionState::Exposed,
+              TimePoint start_date, InfectivityFunctionType infectivity_fct,
+              InfectionState start_state        = InfectionState::Exposed,
               ProtectionEvent latest_protection = {ProtectionType::NoProtection, TimePoint(0)}, bool detected = false);
 
     /**
@@ -123,6 +129,21 @@ public:
      * @returns Get the start date of the infection.
     */
     TimePoint get_start_date() const;
+
+    /**
+     * @returns Get individual virus shed factor.
+    */
+    ScalarType get_virus_shed_factor() const;
+
+    /**
+     * @returns Get shape parameter for sigmoid function alpha.
+    */
+    ScalarType get_alpha() const;
+
+    /**
+     * @returns Get shape parameter for sigmoid function bata.
+    */
+    ScalarType get_beta() const;
 
     /// This method is used by the default serialization feature.
     auto default_serialize()
@@ -198,6 +219,7 @@ private:
         m_log_norm_beta; ///< Parameters for the infectivity mapping, which is modelled through an invlogit function.
     ScalarType m_individual_virus_shed_factor; ///< Individual virus shed factor.
     bool m_detected; ///< Whether an Infection is detected or not.
+    InfectivityFunctionType m_infectivity_fct; ///< Function that returns the infectivity at a given time point.
 };
 
 } // namespace abm

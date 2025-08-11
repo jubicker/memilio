@@ -20,6 +20,7 @@
 
 #include "abm/infection.h"
 #include "abm/parameters.h"
+#include "memilio/config.h"
 #include "memilio/utils/compiler_diagnostics.h"
 #include <math.h>
 
@@ -29,18 +30,20 @@ namespace abm
 {
 
 Infection::Infection(PersonalRandomNumberGenerator& rng, VirusVariant virus, AgeGroup age, const Parameters& params,
-                     TimePoint init_date, InfectionState init_state, ProtectionEvent latest_protection, bool detected)
+                     TimePoint start_date, InfectivityFunctionType infectivity_fct, InfectionState start_state,
+                     ProtectionEvent latest_protection, bool detected)
     : m_virus_variant(virus)
     , m_detected(detected)
+    , m_infectivity_fct(infectivity_fct)
 {
     assert(age.get() < params.get_num_groups());
-    m_viral_load.start_date = draw_infection_course(rng, age, params, init_date, init_state, latest_protection);
+    m_viral_load.start_date = draw_infection_course(rng, age, params, start_date, start_state, latest_protection);
 
     auto vl_params                    = params.get<ViralLoadDistributions>()[{virus, age}];
     ScalarType high_viral_load_factor = 1;
     if (latest_protection.type != ProtectionType::NoProtection) {
         high_viral_load_factor -= params.get<HighViralLoadProtectionFactor>()[{latest_protection.type, age, virus}](
-            init_date.days() - latest_protection.time.days());
+            start_date.days() - latest_protection.time.days());
     }
     m_viral_load.peak    = vl_params.viral_load_peak.get(rng) * high_viral_load_factor;
     m_viral_load.incline = vl_params.viral_load_incline.get(rng);
@@ -77,7 +80,7 @@ ScalarType Infection::get_infectivity(TimePoint t) const
 {
     if (m_viral_load.start_date >= t || get_infection_state(t) == InfectionState::Exposed)
         return 0;
-    return m_individual_virus_shed_factor / (1 + exp(-(m_log_norm_alpha + m_log_norm_beta * get_viral_load(t))));
+    return m_infectivity_fct(t, *this);
 }
 
 VirusVariant Infection::get_virus_variant() const
@@ -110,6 +113,21 @@ bool Infection::is_detected() const
 TimePoint Infection::get_start_date() const
 {
     return m_viral_load.start_date;
+}
+
+ScalarType Infection::get_virus_shed_factor() const
+{
+    return m_individual_virus_shed_factor;
+}
+
+ScalarType Infection::get_alpha() const
+{
+    return m_log_norm_alpha;
+}
+
+ScalarType Infection::get_beta() const
+{
+    return m_log_norm_beta;
 }
 
 TimePoint Infection::draw_infection_course(PersonalRandomNumberGenerator& rng, AgeGroup age, const Parameters& params,

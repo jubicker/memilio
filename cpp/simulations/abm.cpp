@@ -456,8 +456,8 @@ void assign_infection_state(mio::abm::Model& model, mio::abm::TimePoint t, doubl
                                                          infected_symptoms_prob, recovered_prob);
         if (infection_state != mio::abm::InfectionState::Susceptible) {
             person.add_new_infection(mio::abm::Infection(rng, mio::abm::VirusVariant::Wildtype, person.get_age(),
-                                                         model.parameters, t, infection_state,
-                                                         person.get_latest_protection(), false));
+                                                         model.parameters, t, &mio::abm::sigmoidal_infectivity,
+                                                         infection_state, person.get_latest_protection(), false));
         }
     }
 }

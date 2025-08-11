@@ -21,6 +21,7 @@
 #define MIO_ABM_MODEL_H
 
 #include "abm/model_functions.h"
+#include "abm/infectivity_functions.h"
 #include "abm/location_type.h"
 #include "abm/mobility_data.h"
 #include "abm/parameters.h"
@@ -60,18 +61,20 @@ public:
     using ConstActivenessIterator = std::vector<bool>::const_iterator;
     using MobilityRuleType        = LocationType (*)(PersonalRandomNumberGenerator&, const Person&, TimePoint, TimeSpan,
                                               const Parameters&);
+    using InfectivityFunctionType = Infection::InfectivityFunctionType;
 
     /**
      * @brief Create a Model.
      * @param[in] num_agegroups The number of AgeGroup%s in the simulated Model. Must be less than MAX_NUM_AGE_GROUPS.
      */
-    Model(size_t num_agegroups, int id = 0)
+    Model(size_t num_agegroups, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity, int id = 0)
         : parameters(num_agegroups)
         , m_id(id)
         , m_trip_list()
         , m_use_mobility_rules(true)
         , m_cemetery_id(add_location(LocationType::Cemetery))
         , m_person_ids_equal_index(true)
+        , m_infectivity_function(infectivity_func)
     {
         assert(num_agegroups < MAX_NUM_AGE_GROUPS && "MAX_NUM_AGE_GROUPS exceeded.");
     }
@@ -80,13 +83,14 @@ public:
      * @brief Create a Model.
      * @param[in] params Initial simulation parameters.
      */
-    Model(const Parameters& params, int id = 0)
+    Model(const Parameters& params, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity, int id = 0)
         : parameters(params.get_num_groups())
         , m_id(id)
         , m_trip_list()
         , m_use_mobility_rules(true)
         , m_cemetery_id(add_location(LocationType::Cemetery))
         , m_person_ids_equal_index(true)
+        , m_infectivity_function(infectivity_func)
     {
         parameters = params;
     }
@@ -111,6 +115,7 @@ public:
         , m_cemetery_id(other.m_cemetery_id)
         , m_rng(other.m_rng)
         , m_person_ids_equal_index(true)
+        , m_infectivity_function(other.m_infectivity_function)
     {
     }
     Model& operator=(const Model&) = default;
@@ -577,7 +582,8 @@ protected:
         auto personal_rng = PersonalRandomNumberGenerator(person);
         mio::abm::interact(personal_rng, person, get_location(person.get_location()),
                            m_air_exposure_rates_cache[person.get_location().get()],
-                           m_contact_exposure_rates_cache[person.get_location().get()], t, dt, parameters);
+                           m_contact_exposure_rates_cache[person.get_location().get()], t, dt, parameters,
+                           m_infectivity_function);
     }
 
     /**
@@ -630,6 +636,7 @@ protected:
     LocationId m_cemetery_id; // Central cemetery for all dead persons.
     RandomNumberGenerator m_rng; ///< Global random number generator
     bool m_person_ids_equal_index;
+    InfectivityFunctionType m_infectivity_function; ///< Function used for the infectivity of an infection
 };
 
 } // namespace abm
