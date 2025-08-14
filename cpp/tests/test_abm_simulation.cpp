@@ -26,7 +26,8 @@
 
 TEST(TestSimulation, advance_random)
 {
-    auto model     = mio::abm::Model(num_age_groups);
+    auto model     = mio::abm::Model(num_age_groups, &mio::abm::sigmoidal_infectivity,
+                                     std::vector<mio::abm::Model::MobilityRuleType>{&mio::abm::get_buried});
     auto location1 = model.add_location(mio::abm::LocationType::School);
     auto location2 = model.add_location(mio::abm::LocationType::School);
     auto p1        = model.add_person(location1, age_group_5_to_14);

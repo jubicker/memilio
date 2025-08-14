@@ -24,7 +24,6 @@
 #include "abm/model_functions.h"
 #include "abm/person.h"
 #include "abm/location.h"
-#include "abm/mobility_rules.h"
 #include "abm/person_id.h"
 #include "memilio/epidemiology/age_group.h"
 #include "memilio/utils/logging.h"
@@ -152,16 +151,13 @@ void Model::perform_mobility(TimePoint t, TimeSpan dt)
             // run mobility rules one after the other if the corresponding location type exists
             // shortcutting of bool operators ensures the rules stop after the first rule is applied
             if (m_use_mobility_rules) {
-                (has_locations({LocationType::Cemetery}) && try_mobility_rule(&get_buried)) ||
-                    (has_locations({LocationType::Home}) && try_mobility_rule(&return_home_when_recovered)) ||
-                    (has_locations({LocationType::Hospital}) && try_mobility_rule(&go_to_hospital)) ||
-                    (has_locations({LocationType::ICU}) && try_mobility_rule(&go_to_icu)) ||
-                    (has_locations({LocationType::School, LocationType::Home}) && try_mobility_rule(&go_to_school)) ||
-                    (has_locations({LocationType::Work, LocationType::Home}) && try_mobility_rule(&go_to_work)) ||
-                    (has_locations({LocationType::BasicsShop, LocationType::Home}) && try_mobility_rule(&go_to_shop)) ||
-                    (has_locations({LocationType::SocialEvent, LocationType::Home}) &&
-                     try_mobility_rule(&go_to_event)) ||
-                    (has_locations({LocationType::Home}) && try_mobility_rule(&go_to_quarantine));
+                for (auto rule : m_mobility_rules) {
+                    bool applied = try_mobility_rule(rule);
+                    //only use one mobility rule per person
+                    if (applied) {
+                        break;
+                    }
+                }
             }
             else {
                 // no daily routine mobility, just infection related

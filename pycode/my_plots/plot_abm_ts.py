@@ -1,10 +1,12 @@
 from settings import *
 
-num_sims = 100
+num_sims = 500
 dfs = []
 for i in range(num_sims):
-    result_file = sim_results + f'SMM/{i}_comps.csv'
+    result_file = sim_results + f'ABM/{i}_comps.csv'
     df= pd.read_csv(result_file)
+    df = df.drop(columns=['I_NS', 'I_Sy', 'I_Sev', 'I_Crit', 'D'])
+    df = df.rename(columns={'E': 'I'})
     dfs.append(df)
     
 # Assumes all have the same time points in the same order
@@ -28,4 +30,4 @@ ax.legend()
 ax.set_xlabel('Time [days]')
 ax.set_ylabel('Individuals [#]')
 plt.tight_layout()
-fig.savefig(save_folder + 'smm_sir.png', dpi=dpi)
+fig.savefig(save_folder + 'abm_sir.png', dpi=dpi)

@@ -73,7 +73,7 @@ void run_smm_sim(int sim_num)
 
 int main()
 {
-    int num_sims = 100;
+    int num_sims = 500;
     for (int sim = 0; sim < num_sims; ++sim) {
         run_smm_sim(sim);
     }

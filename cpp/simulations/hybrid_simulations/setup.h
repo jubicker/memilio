@@ -22,8 +22,7 @@ namespace setup
 {
 const double t0   = 0;
 const double tmax = 30;
-const double dt   = 0.1;
 
-const double total_population = 1000;
+const double total_population = 10000;
 const double I0               = 1;
 } // namespace setup

@@ -22,6 +22,7 @@
 
 namespace setup
 {
+double dt = 0.1;
 // Lambda is the rate from S->I (SIR model) or S->E (SEIR/SECIR model)
 double lambda = 0.002;
 //gamma = 1 / T_I is the rate from I->R (SIR model)

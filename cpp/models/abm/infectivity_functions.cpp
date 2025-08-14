@@ -32,5 +32,10 @@ ScalarType sigmoidal_infectivity(TimePoint t, const Infection& infection)
            (1 + exp(-(infection.get_alpha() + infection.get_beta() * infection.get_viral_load(t))));
 }
 
+ScalarType constant_infectivity(TimePoint /*t*/, const Infection& infection)
+{
+    return infection.get_virus_shed_factor();
+}
+
 } // namespace abm
 } // namespace mio

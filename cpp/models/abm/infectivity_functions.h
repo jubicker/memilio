@@ -37,6 +37,13 @@ namespace abm
  */
 ScalarType sigmoidal_infectivity(TimePoint t, const Infection& infection);
 
+/**
+ * @brief Return a constant infectivity over time.
+ * @param[in] t TimePoint of the query. Not relevant for function output.
+ * @param[in] infection Infection of which the infectivity should be calculated.
+ */
+ScalarType constant_infectivity(TimePoint t, const Infection& infection);
+
 } // namespace abm
 } // namespace mio
 

@@ -22,6 +22,7 @@
 
 #include "abm/model_functions.h"
 #include "abm/infectivity_functions.h"
+#include "abm/mobility_rules.h"
 #include "abm/location_type.h"
 #include "abm/mobility_data.h"
 #include "abm/parameters.h"
@@ -67,11 +68,16 @@ public:
      * @brief Create a Model.
      * @param[in] num_agegroups The number of AgeGroup%s in the simulated Model. Must be less than MAX_NUM_AGE_GROUPS.
      */
-    Model(size_t num_agegroups, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity, int id = 0)
+    Model(size_t num_agegroups, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity,
+          std::vector<MobilityRuleType> mobility_rules =
+              std::vector<MobilityRuleType>{&get_buried, &return_home_when_recovered, &go_to_hospital, &go_to_icu,
+                                            &go_to_school, &go_to_work, &go_to_shop, &go_to_event, &go_to_quarantine},
+          int id = 0)
         : parameters(num_agegroups)
         , m_id(id)
         , m_trip_list()
         , m_use_mobility_rules(true)
+        , m_mobility_rules(mobility_rules)
         , m_cemetery_id(add_location(LocationType::Cemetery))
         , m_person_ids_equal_index(true)
         , m_infectivity_function(infectivity_func)
@@ -83,11 +89,16 @@ public:
      * @brief Create a Model.
      * @param[in] params Initial simulation parameters.
      */
-    Model(const Parameters& params, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity, int id = 0)
+    Model(const Parameters& params, InfectivityFunctionType infectivity_func = &sigmoidal_infectivity,
+          std::vector<MobilityRuleType> mobility_rules =
+              std::vector<MobilityRuleType>{&get_buried, &return_home_when_recovered, &go_to_hospital, &go_to_icu,
+                                            &go_to_school, &go_to_work, &go_to_shop, &go_to_event, &go_to_quarantine},
+          int id = 0)
         : parameters(params.get_num_groups())
         , m_id(id)
         , m_trip_list()
         , m_use_mobility_rules(true)
+        , m_mobility_rules(mobility_rules)
         , m_cemetery_id(add_location(LocationType::Cemetery))
         , m_person_ids_equal_index(true)
         , m_infectivity_function(infectivity_func)
