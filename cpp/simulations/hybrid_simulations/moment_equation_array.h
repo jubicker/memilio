@@ -75,7 +75,9 @@ public:
     MomentEquationArray(std::vector<double> initial_populations)
         : m_moments(make_index<count, typename MType::Index>(Order), 0.0)
     {
+        assert(Order >= 2);
         assert(initial_populations.size() == count);
+        m_moments[make_index<count, typename MType::Index>(0)] = 1.0; // Set the zeroth moment to 1
         m_means = Eigen::Map<const Eigen::Array<ScalarType, Eigen::Dynamic, 1>>(initial_populations.data(),
                                                                                 initial_populations.size());
     }
@@ -95,7 +97,9 @@ public:
      */
     size_t get_moment_index(MType::Index index) const
     {
-        return int(InfectionState::Count) + m_moments.get_flat_index(index);
+        size_t flat_index = m_moments.get_flat_index(index);
+        // Add the offset for the expected values, which are stored before the moment equations.
+        return static_cast<size_t>(InfectionState::Count) + flat_index;
     }
 
 private:

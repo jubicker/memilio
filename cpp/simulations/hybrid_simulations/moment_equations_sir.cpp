@@ -192,7 +192,7 @@ int main()
     for (int i = 0; i < num_steps; ++i) {
         interpolation_tps[i] = i * 0.1;
     }
-    auto finished =
-        mio::interpolate_simulation_result(result, interpolation_tps).export_csv(output_file, {"muS", "muI", "muR"});
+    const std::vector<std::string> second_order = {"muS", "muI", "muR", "M_000", "M_100", "M_010", "M_001"};
+    auto finished = mio::interpolate_simulation_result(result, interpolation_tps).export_csv(output_file, second_order);
     return 0;
 }
