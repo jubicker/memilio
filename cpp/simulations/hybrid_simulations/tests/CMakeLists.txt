@@ -1,0 +1,7 @@
+add_executable(test_sir_moments2 test_sir_moments_equations_order2.cpp)
+target_link_libraries(test_sir_moments2 PRIVATE memilio ode_sir moments)
+target_compile_options(test_sir_moments2 PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
+add_executable(test_sir_moments3 test_sir_moments_equations_order3.cpp)
+target_link_libraries(test_sir_moments3 PRIVATE memilio ode_sir moments)
+target_compile_options(test_sir_moments3 PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})

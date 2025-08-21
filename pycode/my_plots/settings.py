@@ -17,6 +17,7 @@ matplotlib.rcParams.update({
 plt.rcParams['lines.linewidth'] = 1
 
 colors = {"S": "#3868b0", "I": "#a51919", "R": "#7B7B7B"}
+other_colors = ['orange', 'blue', 'red', 'green', 'gray', 'black', 'teal', 'brown']
 dpi = 300
 sim_results = '/home/bick_ju/Documents/TemporalHybridModel/sim_outputs/'
 save_folder = '/home/bick_ju/Documents/TemporalHybridModel/visualizations/'
