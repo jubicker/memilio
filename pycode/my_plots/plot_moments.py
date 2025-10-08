@@ -132,16 +132,108 @@ def plot_mean_var_infected(I0_list, width_in_cm, height_in_cm):
     plt.tight_layout()
     fig.savefig(save_folder + f'moments/CovarSI_sir.png', dpi=dpi)
     
+    # Plot error expected value
+    figsize = (width_in_cm/2.54, height_in_cm/2.54)
+    # expected value
+    fig, ax = plt.subplots(figsize=figsize)
+    for index, I0 in enumerate(I0_list):
+        # Read smm df
+        moment_df_smm = pd.read_csv(sim_results + f'SMM/I0={I0}/moments.csv')
+        # Read moment df
+        moment_df = pd.read_csv(sim_results + f'moments/I0={I0}/sir_order3.csv')
+        # Merge smm and moment df
+        df = pd.merge(moment_df_smm, moment_df, on="Time", how="outer", suffixes=("_df1", "_df2"))
+        # Sort values by time
+        df = df.sort_values("Time").reset_index(drop=True)
+        # Interpolate missing values
+        df = df.interpolate(method="linear")
+        df["diff_muI"] = abs(df["muI_df1"] - df["muI_df2"])
+        ax.plot(df.Time, df.diff_muI, color=other_colors[index], label=f'I0={I0}')
+    ax.legend()
+    ax.set_xlabel('Time [days]')
+    ax.set_ylabel('Error muI')
+    plt.tight_layout()
+    fig.savefig(save_folder + f'moments/error_muI_sir.png', dpi=dpi)
+    
+    # Plot error expected value relative
+    figsize = (width_in_cm/2.54, height_in_cm/2.54)
+    # expected value
+    fig, ax = plt.subplots(figsize=figsize)
+    for index, I0 in enumerate(I0_list):
+        # Read smm df
+        moment_df_smm = pd.read_csv(sim_results + f'SMM/I0={I0}/moments.csv')
+        # Read moment df
+        moment_df = pd.read_csv(sim_results + f'moments/I0={I0}/sir_order3.csv')
+        # Merge smm and moment df
+        df = pd.merge(moment_df_smm, moment_df, on="Time", how="outer", suffixes=("_df1", "_df2"))
+        # Sort values by time
+        df = df.sort_values("Time").reset_index(drop=True)
+        # Interpolate missing values
+        df = df.interpolate(method="linear")
+        df["diff_muI_rel"] = abs(df["muI_df1"] - df["muI_df2"])/df["muI_df1"]
+        ax.plot(df.Time, df.diff_muI_rel, color=other_colors[index], label=f'I0={I0}')
+    ax.legend()
+    ax.set_xlabel('Time [days]')
+    ax.set_ylabel('Error muI')
+    plt.tight_layout()
+    fig.savefig(save_folder + f'moments/error_rel_muI_sir.png', dpi=dpi)
+    
+    # Plot error variance
+    figsize = (width_in_cm/2.54, height_in_cm/2.54)
+    # expected value
+    fig, ax = plt.subplots(figsize=figsize)
+    for index, I0 in enumerate(I0_list):
+        # Read smm df
+        moment_df_smm = pd.read_csv(sim_results + f'SMM/I0={I0}/moments.csv')
+        # Read moment df
+        moment_df = pd.read_csv(sim_results + f'moments/I0={I0}/sir_order3.csv')
+        # Merge smm and moment df
+        df = pd.merge(moment_df_smm, moment_df, on="Time", how="outer", suffixes=("_df1", "_df2"))
+        # Sort values by time
+        df = df.sort_values("Time").reset_index(drop=True)
+        # Interpolate missing values
+        df = df.interpolate(method="linear")
+        df["diff_M020"] = abs(df["M020_df1"] - df["M020_df2"])
+        ax.plot(df.Time, df["diff_M020"], color=other_colors[index], label=f'I0={I0}')
+    ax.legend()
+    ax.set_xlabel('Time [days]')
+    ax.set_ylabel('Error Var(I)')
+    plt.tight_layout()
+    fig.savefig(save_folder + f'moments/error_VarI_sir.png', dpi=dpi)
+    
+    # Plot error covariance
+    figsize = (width_in_cm/2.54, height_in_cm/2.54)
+    # expected value
+    fig, ax = plt.subplots(figsize=figsize)
+    for index, I0 in enumerate(I0_list):
+        # Read smm df
+        moment_df_smm = pd.read_csv(sim_results + f'SMM/I0={I0}/moments.csv')
+        # Read moment df
+        moment_df = pd.read_csv(sim_results + f'moments/I0={I0}/sir_order3.csv')
+        # Merge smm and moment df
+        df = pd.merge(moment_df_smm, moment_df, on="Time", how="outer", suffixes=("_df1", "_df2"))
+        # Sort values by time
+        df = df.sort_values("Time").reset_index(drop=True)
+        # Interpolate missing values
+        df = df.interpolate(method="linear")
+        df["diff_M110"] = abs(df["M110_df1"] - df["M110_df2"])
+        ax.plot(df.Time, df["diff_M110"], color=other_colors[index], label=f'I0={I0}')
+    ax.legend()
+    ax.set_xlabel('Time [days]')
+    ax.set_ylabel('Error Covar(S,I)')
+    plt.tight_layout()
+    fig.savefig(save_folder + f'moments/error_CovSI_sir.png', dpi=dpi)
+    
 width_in_cm = 15
 height_in_cm = 10
 orders = [3]
-I0_list = [1] #2, 3, 4, 5, 10, 50, 100
+I0_list = [2, 3, 4, 5, 10, 50, 100]
 
-for I0 in I0_list:
-    setup = f'I0={I0}RKStep'  # Initially infected individuals
-    for order in orders:
-        plot_moments(setup, order, width_in_cm, height_in_cm)
+# for I0 in I0_list:
+#     setup = f'I0={I0}'  # Initially infected individuals
+#     # for order in orders:
+#     #     plot_moments(setup, order, width_in_cm, height_in_cm)
 
-    plot_errors(setup, orders, width_in_cm, height_in_cm)
+#     plot_errors(setup, orders, width_in_cm, height_in_cm)
     
-#plot_mean_var_infected(I0_list, width_in_cm, height_in_cm)
+plot_mean_var_infected(I0_list, width_in_cm, height_in_cm)
