@@ -1,11 +1,11 @@
-#include "hybrid_simulations/moment_equation_array.h"
+#include "hybrid_simulations/sir/moment_equation_array.h"
 #include "memilio/math/euler.h"
 #include "memilio/math/integrator.h"
 #include "ode_sir/infection_state.h"
 
 void second_and_third_order_moments(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
                                     Eigen::Ref<Eigen::VectorX<ScalarType>> dydt, double lambda, double gamma,
-                                    const MomentEquationArray<mio::osir::InfectionState, 4>& values)
+                                    const MomentEquationArray<mio::osir::InfectionState, 1, 4>& values)
 {
     double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
     double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];

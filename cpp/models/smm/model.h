@@ -77,7 +77,7 @@ public:
                 influences +=
                     rate.influences[i].factor * x[pop.get_flat_index({rate.region, rate.influences[i].status})];
             }
-            return (N > 0) ? (rate.factor * x[source] * influences / N) : 0;
+            return (N > 0) ? (rate.factor * x[source] * influences) : 0; //Note Julia: Normalisierung mit N rausgenommen
         }
     }
 

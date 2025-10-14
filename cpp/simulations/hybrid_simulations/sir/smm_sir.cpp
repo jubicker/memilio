@@ -26,7 +26,7 @@
 #include "smm/parameters.h"
 #include "memilio/data/analyze_result.h"
 #include "memilio/epidemiology/adoption_rate.h"
-#include "hybrid_simulations/moment_equation_array.h"
+#include "hybrid_simulations/sir/moment_equation_array.h"
 #include "setup.cpp"
 #include <boost/math/special_functions/math_fwd.hpp>
 #include <string>

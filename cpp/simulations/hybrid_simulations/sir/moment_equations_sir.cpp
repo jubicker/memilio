@@ -24,7 +24,7 @@
 #include "memilio/math/euler.h"
 #include "memilio/math/integrator.h"
 #include "memilio/utils/time_series.h"
-#include "hybrid_simulations/moment_equation_array.h"
+#include "hybrid_simulations/sir/moment_equation_array.h"
 #include "models/ode_sir/infection_state.h"
 #include "models/ode_sir/model.h"
 #include "setup.cpp"

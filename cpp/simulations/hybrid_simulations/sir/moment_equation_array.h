@@ -52,13 +52,11 @@ struct MakeArray {
  * @tparam InfectionState The infection state enum.
  * @tparam Order The maximum order of the moment equations.
  */
-template <class InfectionState, int Order>
+template <class InfectionState, size_t NumRegions, int Order>
 class MomentEquationArray
 {
-    // Number of infection states defining the size of the expected values array, the number of moment indices and hence the number of dimensions in the CustomIndexArray.
-    static constexpr std::size_t count = static_cast<std::size_t>(InfectionState::Count);
-    // CustomIndexArray for moment equations, with one index per infection state and the order of the moment defined by the template parameter Order.
-    using MType = typename MakeArray<count, Order>::type;
+    // Number of infection states and regions defining the size of the expected values array, the number of moment indices and hence the number of dimensions in the CustomIndexArray.
+    static constexpr std::size_t count = static_cast<std::size_t>(InfectionState::Count) * NumRegions;
 
     // Build an MType::Index with N copies of MyIndex(Order)
     template <class Index, std::size_t... Is>
@@ -74,6 +72,9 @@ class MomentEquationArray
     }
 
 public:
+    // CustomIndexArray for moment equations, with one index per infection state and the order of the moment defined by the template parameter Order.
+    using MType = typename MakeArray<count, Order>::type;
+
     MomentEquationArray(std::vector<double> initial_populations)
         : m_moments(make_index<count, typename MType::Index>(Order), 0.0)
     {
@@ -101,7 +102,7 @@ public:
     {
         size_t flat_index = m_moments.get_flat_index(index);
         // Add the offset for the expected values, which are stored before the moment equations.
-        return static_cast<size_t>(InfectionState::Count) + flat_index;
+        return static_cast<size_t>(InfectionState::Count) * NumRegions + flat_index;
     }
 
 private:
@@ -366,7 +367,7 @@ public:
         return std::make_pair(moment_ts, names);
     }
 
-    MomentEquationArray<mio::osir::InfectionState, Order> values;
+    MomentEquationArray<mio::osir::InfectionState, 1, Order> values;
 };
 
 } // namespace SIR
