@@ -19,7 +19,7 @@
 */
 
 #include "config/config.cpp"
-#include "lib/smm_helper.h"
+#include "library/smm_helper.h"
 #include "memilio/data/analyze_result.h"
 #include "memilio/timer/basic_timer.h"
 #include "ode_sir/infection_state.h"
