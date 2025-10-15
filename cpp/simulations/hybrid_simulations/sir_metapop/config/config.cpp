@@ -34,10 +34,10 @@ Config get_config(ConfigType type)
         config.t0                = 0;
         config.tmax              = 60;
         config.dt                = 0.01;
-        config.lambdas           = {0.0001};
+        config.lambdas           = {0.000001};
         config.gamma             = 1. / 5.;
         config.I0s               = {{0, 1}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {10000};
+        config.total_populations = {1000000};
         return config;
         break;
     case ConfigType::Config2:
