@@ -1,5 +1,6 @@
 add_library(moments
-    sir/moment_equation_array.h
+    sir_metapop/library/moments/model.h
+    sir_metapop/library/moments/parameters.h
 )
 target_link_libraries(moments PUBLIC memilio)
 target_include_directories(moments PUBLIC
@@ -8,22 +9,10 @@ target_include_directories(moments PUBLIC
 )
 target_compile_options(moments PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
 
-add_executable(sir sir/ode_sir.cpp)
-target_link_libraries(sir PRIVATE memilio ode_sir)
-target_compile_options(sir PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
-
-add_executable(smm_sir sir/smm_sir.cpp)
-target_link_libraries(smm_sir PRIVATE memilio ode_sir smm moments)
-target_compile_options(smm_sir PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
-
-add_executable(abm_sir sir/abm_sir.cpp)
-target_link_libraries(abm_sir PRIVATE memilio abm)
-target_compile_options(abm_sir PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
-
-add_executable(moments_sir sir/moment_equations_sir.cpp)
-target_link_libraries(moments_sir PRIVATE memilio ode_sir moments)
-target_compile_options(moments_sir PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
-
 add_executable(smm_config sir_metapop/simulation_metapop.cpp)
 target_link_libraries(smm_config PRIVATE memilio ode_sir smm moments)
 target_compile_options(smm_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
+add_executable(test_moments sir_metapop/tests/test_moment_equations.cpp)
+target_link_libraries(test_moments PRIVATE memilio ode_sir moments)
+target_compile_options(test_moments PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})

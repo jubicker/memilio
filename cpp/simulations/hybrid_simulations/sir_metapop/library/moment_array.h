@@ -47,7 +47,7 @@ public:
     /**
      * @brief Takes an array of indices (one for each subpopulation/species i.e. one per region and infection state) and calculates the flat index of the corresponding moment.
      */
-    size_t flatten_index(const std::array<int, NumInfectionStates * NumRegions>& indices)
+    size_t flatten_index(const std::array<int, NumInfectionStates * NumRegions>& indices) const
     {
         size_t index = 0;
         for (size_t i = 0; i < indices.size(); ++i) {
