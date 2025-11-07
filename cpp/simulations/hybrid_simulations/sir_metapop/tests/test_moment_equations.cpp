@@ -268,6 +268,9 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
     double M_210000 = y[model.moments.flatten_index({2, 1, 0, 0, 0, 0}) + model.populations.get_num_compartments()];
     double M_120000 = y[model.moments.flatten_index({1, 2, 0, 0, 0, 0}) + model.populations.get_num_compartments()];
     double M_111000 = y[model.moments.flatten_index({1, 1, 1, 0, 0, 0}) + model.populations.get_num_compartments()];
+    double M_000210 = y[model.moments.flatten_index({0, 0, 0, 2, 1, 0}) + model.populations.get_num_compartments()];
+    double M_000120 = y[model.moments.flatten_index({0, 0, 0, 1, 2, 0}) + model.populations.get_num_compartments()];
+    double M_000111 = y[model.moments.flatten_index({0, 0, 0, 1, 1, 1}) + model.populations.get_num_compartments()];
     //expected values
     dydt[static_cast<size_t>(mio::osir::InfectionState::Susceptible)] =
         -lambda1 * mu_S1 * mu_I1 - lambda1 * M_110000 - k12_S * mu_S1 + k21_S * mu_S2;
@@ -306,12 +309,41 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
     index       = model.moments.flatten_index({0, 2, 0, 0, 0, 0}) + model.populations.get_num_compartments();
     dydt[index] = lambda1 * mu_S1 * mu_I1 + gamma * mu_I1 + k12_I * mu_I1 + k21_I * mu_I2 +
                   (2 * lambda1 * mu_I1 + lambda1) * M_110000 +
-                  (2 * lambda1 * mu_S1 + -2 * gamma - 2 * k12_I) * M_020000 + 2 * lambda1 * M_120000 +
+                  (2 * lambda1 * mu_S1 - 2 * gamma - 2 * k12_I) * M_020000 + 2 * lambda1 * M_120000 +
                   2 * k21_I * M_010010;
     //M002000
     index       = model.moments.flatten_index({0, 0, 2, 0, 0, 0}) + model.populations.get_num_compartments();
-    dydt[index] = gamma * mu_I1 + 2 * gamma * M_011000 + k12_R * mu_R1 + k21_R * mu_R2 + -2 * k12_R * M_002000 +
+    dydt[index] = gamma * mu_I1 + 2 * gamma * M_011000 + k12_R * mu_R1 + k21_R * mu_R2 - 2 * k12_R * M_002000 +
                   2 * k21_R * M_001001;
+    //M000110
+    index       = model.moments.flatten_index({0, 0, 0, 1, 1, 0}) + model.populations.get_num_compartments();
+    dydt[index] = -lambda2 * mu_S2 * mu_I2 + lambda2 * mu_I2 * M_000200 +
+                  (lambda2 * mu_S2 - lambda2 * mu_I2 - gamma - k21_S - k21_I - lambda2) * M_000110 -
+                  lambda2 * mu_S2 * M_000020 + k12_S * M_100010 + k12_I * M_010100 + lambda2 * M_000210 -
+                  lambda2 * M_000120;
+    //M000101
+    index       = model.moments.flatten_index({0, 0, 0, 1, 0, 1}) + model.populations.get_num_compartments();
+    dydt[index] = (-lambda2 * mu_I2 - k21_R - k21_S) * M_000101 - lambda2 * mu_S2 * M_000011 + gamma * M_000110 +
+                  k12_S * M_100001 + k12_R * M_001100 - lambda2 * M_000111;
+    //M000011
+    index       = model.moments.flatten_index({0, 0, 0, 0, 1, 1}) + model.populations.get_num_compartments();
+    dydt[index] = -gamma * mu_I2 - lambda2 * mu_I2 * M_000101 + (lambda2 * mu_S2 - gamma - k21_I - k21_R) * M_000011 +
+                  gamma * M_000020 + k12_I * M_010001 + k12_R * M_001010 + lambda2 * M_000111;
+    //M000200
+    index       = model.moments.flatten_index({0, 0, 0, 2, 0, 0}) + model.populations.get_num_compartments();
+    dydt[index] = lambda2 * mu_S2 * mu_I2 + k12_S * mu_S1 + k21_S * mu_S2 +
+                  (-2 * lambda2 * mu_I2 - 2 * k21_S) * M_000200 + (-2 * lambda2 * mu_S2 + lambda2) * M_000110 +
+                  2 * k12_S * M_100100 - 2 * lambda2 * M_000210;
+    //M000020
+    index       = model.moments.flatten_index({0, 0, 0, 0, 2, 0}) + model.populations.get_num_compartments();
+    dydt[index] = lambda2 * mu_S2 * mu_I2 + gamma * mu_I2 + k12_I * mu_I1 + k21_I * mu_I2 +
+                  (2 * lambda2 * mu_I2 + lambda2) * M_000110 +
+                  (2 * lambda2 * mu_S2 - 2 * gamma - 2 * k21_I) * M_000020 + 2 * k12_I * M_010010 +
+                  2 * lambda2 * M_000120;
+    //M000002
+    index       = model.moments.flatten_index({0, 0, 0, 0, 0, 2}) + model.populations.get_num_compartments();
+    dydt[index] = gamma * mu_I2 + k12_R * mu_R1 + k21_R * mu_R2 + 2 * gamma * M_000011 + 2 * k12_R * M_001001 -
+                  2 * k21_R * M_000002;
 }
 
 int main()
