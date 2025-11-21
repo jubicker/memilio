@@ -209,7 +209,6 @@ endif()
 
 if(MEMILIO_BUILD_HYBRID)
     add_subdirectory(simulations/hybrid_simulations)
-    add_subdirectory(simulations/hybrid_simulations/tests)
 endif()
 
 if(MEMILIO_BUILD_BENCHMARKS)
