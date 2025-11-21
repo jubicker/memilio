@@ -12,8 +12,11 @@ const double lambda1    = 0.0001;
 const double lambda2    = 0.0002;
 const double gamma      = 1. / 5.;
 const double k_12_S     = 0.1;
+const double k_21_S     = 0.025;
 const double k_12_I     = 0.01;
 const double k_21_I     = 0.003;
+const double k_12_R     = 0.04;
+const double k_21_R     = 0.0035;
 const double total_pop1 = 10000;
 const double total_pop2 = 10000;
 const double I1         = 10;
@@ -170,6 +173,7 @@ void moments_one_region(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarTy
 
 void test_one_region()
 {
+    std::cerr << "Running test one region..." << std::endl;
     // Initialize model and set parameters
     smm_moments::Model<1, 4> model;
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] =
@@ -230,7 +234,7 @@ void test_one_region()
 void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
                          Eigen::Ref<Eigen::VectorX<ScalarType>> dydt, double lambda1, double lambda2, double gamma,
                          double k12_S, double k21_S, double k12_I, double k21_I, double k12_R, double k21_R,
-                         smm_moments::Model<2, 4>& model)
+                         smm_moments::Model<2, 3>& model)
 {
     double mu_S1 = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
     double mu_I1 = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
@@ -271,6 +275,13 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
     double M_000210 = y[model.moments.flatten_index({0, 0, 0, 2, 1, 0}) + model.populations.get_num_compartments()];
     double M_000120 = y[model.moments.flatten_index({0, 0, 0, 1, 2, 0}) + model.populations.get_num_compartments()];
     double M_000111 = y[model.moments.flatten_index({0, 0, 0, 1, 1, 1}) + model.populations.get_num_compartments()];
+    double M_110100 = y[model.moments.flatten_index({1, 1, 0, 1, 0, 0}) + model.populations.get_num_compartments()];
+    double M_100110 = y[model.moments.flatten_index({1, 0, 0, 1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_110010 = y[model.moments.flatten_index({1, 1, 0, 0, 1, 0}) + model.populations.get_num_compartments()];
+    double M_110001 = y[model.moments.flatten_index({1, 1, 0, 0, 0, 1}) + model.populations.get_num_compartments()];
+    double M_010110 = y[model.moments.flatten_index({0, 1, 0, 1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_001110 = y[model.moments.flatten_index({0, 0, 1, 1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_011001 = y[model.moments.flatten_index({0, 1, 1, 0, 0, 1}) + model.populations.get_num_compartments()];
     //expected values
     dydt[static_cast<size_t>(mio::osir::InfectionState::Susceptible)] =
         -lambda1 * mu_S1 * mu_I1 - lambda1 * M_110000 - k12_S * mu_S1 + k21_S * mu_S2;
@@ -327,7 +338,7 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
                   k12_S * M_100001 + k12_R * M_001100 - lambda2 * M_000111;
     //M000011
     index       = model.moments.flatten_index({0, 0, 0, 0, 1, 1}) + model.populations.get_num_compartments();
-    dydt[index] = -gamma * mu_I2 - lambda2 * mu_I2 * M_000101 + (lambda2 * mu_S2 - gamma - k21_I - k21_R) * M_000011 +
+    dydt[index] = -gamma * mu_I2 + lambda2 * mu_I2 * M_000101 + (lambda2 * mu_S2 - gamma - k21_I - k21_R) * M_000011 +
                   gamma * M_000020 + k12_I * M_010001 + k12_R * M_001010 + lambda2 * M_000111;
     //M000200
     index       = model.moments.flatten_index({0, 0, 0, 2, 0, 0}) + model.populations.get_num_compartments();
@@ -344,10 +355,143 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
     index       = model.moments.flatten_index({0, 0, 0, 0, 0, 2}) + model.populations.get_num_compartments();
     dydt[index] = gamma * mu_I2 + k12_R * mu_R1 + k21_R * mu_R2 + 2 * gamma * M_000011 + 2 * k12_R * M_001001 -
                   2 * k21_R * M_000002;
+    //M100100
+    index       = model.moments.flatten_index({1, 0, 0, 1, 0, 0}) + model.populations.get_num_compartments();
+    dydt[index] = -k12_S * mu_S1 - k21_S * mu_S2 + (-lambda1 * mu_I1 - k21_S - k12_S - lambda2 * mu_I2) * M_100100 -
+                  lambda1 * mu_S1 * M_010100 - lambda2 * mu_S2 * M_100010 + k12_S * M_200000 + k21_S * M_000200 -
+                  lambda1 * M_110100 - lambda2 * M_100110;
+    //M100010
+    index       = model.moments.flatten_index({1, 0, 0, 0, 1, 0}) + model.populations.get_num_compartments();
+    dydt[index] = (-lambda1 * mu_I1 - k12_S - k21_I + lambda2 * mu_S2 - gamma) * M_100010 - lambda1 * mu_S1 * M_010010 +
+                  k21_S * M_000110 + k12_I * M_110000 - lambda1 * M_110010 + lambda2 * mu_I2 * M_100100 +
+                  lambda2 * M_100110;
+    //M100001
+    index       = model.moments.flatten_index({1, 0, 0, 0, 0, 1}) + model.populations.get_num_compartments();
+    dydt[index] = (-lambda1 * mu_I1 - k12_S - k21_R) * M_100001 - lambda1 * mu_S1 * M_010001 + k21_S * M_000101 +
+                  k12_R * M_101000 + gamma * M_100010 - lambda1 * M_110001;
+    //M010100
+    index       = model.moments.flatten_index({0, 1, 0, 1, 0, 0}) + model.populations.get_num_compartments();
+    dydt[index] = lambda1 * mu_I1 * M_100100 + (lambda1 * mu_S1 - gamma - k21_S - k12_I - lambda2 * mu_I2) * M_010100 +
+                  k12_S * M_110000 + k21_I * M_000110 - lambda2 * mu_S2 * M_010010 + lambda1 * M_110100 -
+                  lambda2 * M_010110;
+    //M010010
+    index       = model.moments.flatten_index({0, 1, 0, 0, 1, 0}) + model.populations.get_num_compartments();
+    dydt[index] = -k12_I * mu_I1 - k21_I * mu_I2 + lambda1 * mu_I1 * M_100010 + lambda2 * mu_I2 * M_010100 +
+                  (lambda1 * mu_S1 + lambda2 * mu_S2 - 2. * gamma - k21_I - k12_I) * M_010010 + k12_I * M_020000 +
+                  k21_I * M_000020 + lambda1 * M_110010 + lambda2 * M_010110;
+    //M010001
+    index       = model.moments.flatten_index({0, 1, 0, 0, 0, 1}) + model.populations.get_num_compartments();
+    dydt[index] = lambda1 * mu_I1 * M_100001 + (lambda1 * mu_S1 - gamma - k12_I - k21_R) * M_010001 + gamma * M_010010 +
+                  k21_I * M_000011 + k12_R * M_011000 + lambda1 * M_011001;
+    //M001100
+    index       = model.moments.flatten_index({0, 0, 1, 1, 0, 0}) + model.populations.get_num_compartments();
+    dydt[index] = (-lambda2 * mu_I2 - k21_S - k12_R) * M_001100 - lambda2 * mu_S2 * M_001010 + gamma * M_010100 +
+                  k12_S * M_101000 + k21_R * M_000101 - lambda2 * M_001110;
+    //M001010
+    index       = model.moments.flatten_index({0, 0, 1, 0, 1, 0}) + model.populations.get_num_compartments();
+    dydt[index] = lambda2 * mu_I2 * M_001100 + (lambda2 * mu_S2 - gamma - k21_I - k12_R) * M_001010 + gamma * M_010010 +
+                  k12_I * M_011000 + k21_R * M_000011 + lambda2 * M_001110;
+    //M001001
+    index       = model.moments.flatten_index({0, 0, 1, 0, 0, 1}) + model.populations.get_num_compartments();
+    dydt[index] = -k12_R * mu_R1 - k21_R * mu_R2 + gamma * M_010001 + gamma * M_001010 + k12_R * M_002000 +
+                  k21_R * M_000002 + (-k21_R - k12_R) * M_001001;
+}
+
+void test_two_regions()
+{
+    std::cerr << "Running test two regions..." << std::endl;
+    // Initialize model and set parameters
+    smm_moments::Model<2, 3> model;
+    // Region 0
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] =
+        params::total_pop1 - params::I1;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]              = params::I1;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]             = 0.0;
+    model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(0)]        = params::lambda1;
+    model.parameters.template get<smm_moments::RecoveryRate>()                                     = params::gamma;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Susceptible, mio::regions::Region(0), mio::regions::Region(1)}] = params::k_12_S;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Infected, mio::regions::Region(0), mio::regions::Region(1)}]    = params::k_12_I;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Recovered, mio::regions::Region(0), mio::regions::Region(1)}]   = params::k_12_R;
+    //Region 1
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Susceptible}] =
+        params::total_pop2 - params::I2;
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Infected}]              = params::I2;
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Recovered}]             = 0.0;
+    model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(1)]        = params::lambda2;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Susceptible, mio::regions::Region(1), mio::regions::Region(0)}] = params::k_21_S;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Infected, mio::regions::Region(1), mio::regions::Region(0)}]    = params::k_21_I;
+    model.parameters.template get<smm_moments::TransitionRate>()[{
+        mio::osir::InfectionState::Recovered, mio::regions::Region(1), mio::regions::Region(0)}]   = params::k_21_R;
+
+    Eigen::VectorX<ScalarType> y =
+        Eigen::VectorX<ScalarType>::Zero(model.moments.moments().size() + model.populations.get_num_compartments());
+    // mu_S, mu_I, mu_R
+    // Region 0
+    y[0] = params::total_pop1 - params::I1;
+    y[1] = params::I1;
+    y[2] = 0.0;
+    // Region 1
+    y[3] = params::total_pop2 - params::I2;
+    y[4] = params::I2;
+    y[5] = 0.0;
+    y[model.moments.flatten_index({0, 0, 0, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.0; // M000
+    // second order moments
+    // Region 0
+    y[model.moments.flatten_index({2, 0, 0, 0, 0, 0}) + model.populations.get_num_compartments()] = 2.0; // M200000
+    y[model.moments.flatten_index({0, 2, 0, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.9; // M020000
+    y[model.moments.flatten_index({0, 0, 2, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.8; // M002000
+    y[model.moments.flatten_index({1, 1, 0, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.7; // M110000
+    y[model.moments.flatten_index({1, 0, 1, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.6; // M101000
+    y[model.moments.flatten_index({0, 1, 1, 0, 0, 0}) + model.populations.get_num_compartments()] = 1.5; // M011000
+    // Region 1
+    y[model.moments.flatten_index({0, 0, 0, 2, 0, 0}) + model.populations.get_num_compartments()] = 6.0; // M000200
+    y[model.moments.flatten_index({0, 0, 0, 0, 2, 0}) + model.populations.get_num_compartments()] = 5.9; // M000020
+    y[model.moments.flatten_index({0, 0, 0, 0, 0, 2}) + model.populations.get_num_compartments()] = 5.8; // M000002
+    y[model.moments.flatten_index({0, 0, 0, 1, 1, 0}) + model.populations.get_num_compartments()] = 5.7; // M000110
+    y[model.moments.flatten_index({0, 0, 0, 1, 0, 1}) + model.populations.get_num_compartments()] = 5.6; // M000101
+    y[model.moments.flatten_index({0, 0, 0, 0, 1, 1}) + model.populations.get_num_compartments()] = 5.5; // M000011
+    // Mixed
+    y[model.moments.flatten_index({1, 0, 0, 1, 0, 0}) + model.populations.get_num_compartments()] = -10.0; // M100100
+    y[model.moments.flatten_index({1, 0, 0, 0, 1, 0}) + model.populations.get_num_compartments()] = -9.9; // M100010
+    y[model.moments.flatten_index({1, 0, 0, 0, 0, 1}) + model.populations.get_num_compartments()] = -9.8; // M100001
+    y[model.moments.flatten_index({0, 1, 0, 1, 0, 0}) + model.populations.get_num_compartments()] = -9.7; // M010100
+    y[model.moments.flatten_index({0, 1, 0, 0, 1, 0}) + model.populations.get_num_compartments()] = -9.6; // M010010
+    y[model.moments.flatten_index({0, 1, 0, 0, 0, 1}) + model.populations.get_num_compartments()] = -9.5; // M010001
+    y[model.moments.flatten_index({0, 0, 1, 1, 0, 0}) + model.populations.get_num_compartments()] = -9.4; // M001100
+    y[model.moments.flatten_index({0, 0, 1, 0, 1, 0}) + model.populations.get_num_compartments()] = -9.3; // M001010
+    y[model.moments.flatten_index({0, 0, 1, 0, 0, 1}) + model.populations.get_num_compartments()] = -9.2; // M001001
+
+    Eigen::VectorX<ScalarType> dydt1 = Eigen::VectorX<ScalarType>::Zero(y.size());
+    Eigen::VectorX<ScalarType> dydt2 = Eigen::VectorX<ScalarType>::Zero(y.size());
+
+    model.get_derivatives(y, 0.0, dydt1);
+    moments_two_regions(y, 0.0, dydt2, params::lambda1, params::lambda2, params::gamma, params::k_12_S, params::k_21_S,
+                        params::k_12_I, params::k_21_I, params::k_12_R, params::k_21_R, model);
+
+    double tol = 1e-10;
+    for (size_t i = 0; i < static_cast<size_t>(dydt1.size()); ++i) {
+        if (std::abs(dydt1[i] - dydt2[i]) > tol) {
+            std::cerr << "Discrepancy found at index " << i << ": " << dydt1[i] << " vs " << dydt2[i] << std::endl;
+            if (i >= 6) {
+                auto multi_idx = model.moments.unflatten_index(i - model.populations.get_num_compartments());
+                std::cerr << "  corresponding to moment M_";
+                for (auto&& idx : multi_idx) {
+                    std::cerr << idx;
+                }
+                std::cerr << std::endl;
+            }
+        }
+    }
 }
 
 int main()
 {
     test_one_region();
+    test_two_regions();
     return 0;
 }

@@ -23,6 +23,7 @@
 
 #include "memilio/config.h"
 #include "memilio/epidemiology/populations.h"
+#include "memilio/utils/compiler_diagnostics.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moments/parameters.h"
 #include <boost/math/special_functions/math_fwd.hpp>
@@ -51,8 +52,8 @@ public:
                          Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
     {
         std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> indices;
-        indices.fill(0);
         for (size_t l = 0; l < NumRegions; ++l) {
+            indices.fill(0);
             // Indices for S, I, R in region l
             size_t Sl = this->populations.get_flat_index({Region(l), InfectionState::Susceptible});
             size_t Il = this->populations.get_flat_index({Region(l), InfectionState::Infected});
@@ -107,17 +108,17 @@ public:
                         }
                         size_t flat_index = moments.flatten_index(indices) +
                                             populations.get_num_compartments(); // flat index of current moment
+                        dydt[flat_index] = 0.;
                         for (size_t l = 0; l < NumRegions; ++l) {
                             // Indices for S, I, R in region l
-                            size_t Sl = this->populations.get_flat_index({Region(l), InfectionState::Susceptible});
-                            size_t Il = this->populations.get_flat_index({Region(l), InfectionState::Infected});
-                            size_t Rl = this->populations.get_flat_index({Region(l), InfectionState::Recovered});
-                            dydt[flat_index] = 0.;
-                            size_t i_S_l     = indices[l * static_cast<size_t>(InfectionState::Count) +
+                            size_t Sl    = this->populations.get_flat_index({Region(l), InfectionState::Susceptible});
+                            size_t Il    = this->populations.get_flat_index({Region(l), InfectionState::Infected});
+                            size_t Rl    = this->populations.get_flat_index({Region(l), InfectionState::Recovered});
+                            size_t i_S_l = indices[l * static_cast<size_t>(InfectionState::Count) +
                                                    static_cast<size_t>(InfectionState::Susceptible)];
-                            size_t i_I_l     = indices[l * static_cast<size_t>(InfectionState::Count) +
+                            size_t i_I_l = indices[l * static_cast<size_t>(InfectionState::Count) +
                                                    static_cast<size_t>(InfectionState::Infected)];
-                            size_t i_R_l     = indices[l * static_cast<size_t>(InfectionState::Count) +
+                            size_t i_R_l = indices[l * static_cast<size_t>(InfectionState::Count) +
                                                    static_cast<size_t>(InfectionState::Recovered)];
                             for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
                                 for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
