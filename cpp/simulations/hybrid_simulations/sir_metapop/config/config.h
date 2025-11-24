@@ -29,6 +29,7 @@
 
 namespace Config
 {
+const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
 
 struct Config {
     // Config name

@@ -68,7 +68,7 @@ public:
     {
         return Base::advance(
             [this](auto&& y, auto&& t, auto&& dydt) {
-                Base::get_model().get_derivatives(y, t, dydt);
+                Base::get_model().eval_right_hand_side(y, y, t, dydt);
             },
             tmax, Base::get_result());
     }
@@ -80,10 +80,10 @@ public:
     mio::TimeSeries<double> get_expected_values_time_series() const
     {
         mio::TimeSeries<double> expected_values_ts(static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions);
-        for (size_t t = 0; t < Base::get_result().get_num_time_points(); ++t) {
+        for (auto t = 0; t < Base::get_result().get_num_time_points(); ++t) {
             auto y = Base::get_result().get_value(t);
             expected_values_ts.add_time_point(Base::get_result().get_time(t),
-                                              y.head(Base::get_model().populations.get_size()));
+                                              y.head(Base::get_model().populations.get_num_compartments()));
         }
         return expected_values_ts;
     }
@@ -93,7 +93,7 @@ public:
      * @param order Maximum order of moments to extract.
      * @return Pair of time series of moments and corresponding moment names.
      */
-    std::pair<mio::TimeSeries<double>, std::vector<std::string>> get_moment_time_series(size_t order) const
+    std::pair<mio::TimeSeries<double>, std::vector<std::string>> get_moment_time_series(size_t order)
     {
         assert(order <= ClosureOrder);
         mio::TimeSeries<double> moment_ts(Base::get_model().moments.moments_up_to_order(order).size());
@@ -102,7 +102,7 @@ public:
         size_t index               = 0;
         Eigen::VectorXd moment_vec = Eigen::VectorXd::Zero(moment_ts.get_num_elements());
         auto y0                    = Base::get_result().get_value(0);
-        for (size_t i = 0; i < y0.size() - Base::get_model().populations.get_size(); i++) {
+        for (size_t i = 0; i < y0.size() - Base::get_model().populations.get_num_compartments(); i++) {
             auto multi_idx = Base::get_model().moments.unflatten_index(i);
             int sum        = 0;
             for (auto&& idx : multi_idx) {
@@ -123,7 +123,7 @@ public:
         }
         moment_ts.add_time_point(Base::get_result().get_time(0), moment_vec);
         // Add remaining time points
-        for (size_t t = 1; t < Base::get_result().get_num_time_points(); ++t) {
+        for (auto t = 1; t < Base::get_result().get_num_time_points(); ++t) {
             index      = 0;
             moment_vec = Eigen::VectorXd::Zero(moment_ts.get_num_elements());
             auto y     = Base::get_result().get_value(t);

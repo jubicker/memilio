@@ -64,8 +64,8 @@ int main()
     const size_t num_regions = 1;
     std::vector<mio::TimeSeries<double>> sim_results(
         num_runs, mio::TimeSeries<double>(static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions));
-    std::string save_file = "/hpc_data/bick_ju/TemporalHybrid/SMM/";
-    save_file += config.name + "/";
+    std::string save_file = Config::SAVE_DIR + "SMM/";
+    save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
 
     if (!created_directory) {
@@ -74,6 +74,7 @@ int main()
     }
 
     std::vector<double> time(num_runs);
+    save_file += "/";
 
 // Run multiple simulations
 #pragma omp parallel for

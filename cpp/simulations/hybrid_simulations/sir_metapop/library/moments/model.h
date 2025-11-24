@@ -636,6 +636,14 @@ public:
         return initial_values;
     }
 
+    void eval_right_hand_side(Eigen::Ref<const Eigen::VectorX<ScalarType>> /*pop*/,
+                              Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType t,
+                              Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
+    {
+        dydt.setZero();
+        this->get_derivatives(y, t, dydt);
+    }
+
     ParametersBase parameters{};
     MomentArray<static_cast<size_t>(InfectionState::Count), NumRegions, ClosureOrder> moments{};
     mio::Populations<ScalarType, Region, InfectionState> populations;

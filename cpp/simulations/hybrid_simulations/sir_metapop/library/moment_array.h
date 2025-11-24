@@ -74,6 +74,11 @@ public:
     /**
      * @brief Returns reference to internally stored flat array.
      */
+    ArrayType moments() const
+    {
+        return m_moments;
+    }
+
     ArrayType& moments()
     {
         return m_moments;

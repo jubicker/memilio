@@ -21,8 +21,14 @@
 #define MOMENT_HELPER_H
 
 #include "hybrid_simulations/sir_metapop/config/config.h"
+#include "hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "hybrid_simulations/sir_metapop/library/moments/model.h"
+#include "hybrid_simulations/sir_metapop/library/moments/parameters.h"
+#include "ode_sir/infection_state.h"
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
 #include <cstddef>
+#include <numeric>
 
 namespace moment_helper
 {
@@ -38,11 +44,13 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
     assert(moments_init.rows() == model.moments.moments().rows() && "Initial moments do not have correct size");
     // Set transmission rates
     for (auto& rate : config.transition_rates) {
-        model.parameters.template get<smm_moments::TransmissionRate>()[{rate.status, rate.from, rate.to}] = rate.factor;
+        model.parameters.template get<smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] = rate.factor;
     }
     // Set recovery rate
     model.parameters.template get<smm_moments::RecoveryRate>() = config.gamma;
     for (size_t r = 0; r < NumRegions; ++r) {
+        // Set transmission rates
+        model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(r)] = config.lambdas[r];
         // Set initial expected values
         model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
             expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
@@ -57,6 +65,115 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
     // Set initial moments
     model.moments.moments() = moments_init;
     return model;
+}
+
+void split_line(std::string string, std::vector<double>* row)
+{
+    std::vector<std::string> strings;
+    boost::split(strings, string, boost::is_any_of(","));
+    std::transform(strings.begin(), strings.end(), std::back_inserter(*row), [&](std::string s) {
+        return std::stod(s);
+    });
+}
+
+template <size_t NumInfectionStates, size_t NumRegions>
+std::array<int, NumInfectionStates * NumRegions> moment_to_indices(std::string moment)
+{
+    std::array<int, NumInfectionStates * NumRegions> moment_index{};
+    for (size_t i = 0; i < moment_index.size(); ++i) {
+        moment_index[i] = moment[i + 1] - '0'; // convert char to int
+    }
+    return moment_index;
+}
+
+Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& file_path, double time)
+{
+    const boost::filesystem::path f = file_path;
+    if (!boost::filesystem::exists(f)) {
+        mio::log_error("Cannot read in data. Expected values file does not exist.");
+    }
+    // File pointer
+    std::fstream fin_f;
+    // Open an existing file
+    fin_f.open(f, std::ios::in);
+    std::string line_f;
+    // Read the Titles from the Data file
+    std::getline(fin_f, line_f);
+    //line_hosp.erase(std::remove(line_hosp.begin(), line_hosp.end(), '\r'), line_hosp.end());
+    std::vector<std::string> titles;
+    boost::split(titles, line_f, boost::is_any_of(","));
+    uint32_t col_count = titles.size();
+    // First column is time, so we subtract 1
+    Eigen::Array<double, Eigen::Dynamic, 1> expected_values_init(col_count - 1);
+    // Read until the correct time is found
+    std::vector<double> row;
+    while (std::getline(fin_f, line_f)) {
+        row.clear();
+        // read columns in this row
+        split_line(line_f, &row);
+        if (row[0] == time) {
+            for (size_t i = 1; i < col_count; ++i) {
+                expected_values_init[i - 1] = row[i];
+            }
+            break;
+        }
+    }
+    fin_f.close();
+    return expected_values_init;
+}
+
+template <size_t NumRegions, size_t ClosureOrder>
+Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_path, double time)
+{
+    const boost::filesystem::path f = file_path;
+    if (!boost::filesystem::exists(f)) {
+        mio::log_error("Cannot read in data. Moment file does not exist.");
+    }
+    // File pointer
+    std::fstream fin_f;
+    // Open an existing file
+    fin_f.open(f, std::ios::in);
+    std::string line_f;
+    // Read the Titles from the Data file
+    std::getline(fin_f, line_f);
+    //line_hosp.erase(std::remove(line_hosp.begin(), line_hosp.end(), '\r'), line_hosp.end());
+    std::vector<std::string> titles;
+    boost::split(titles, line_f, boost::is_any_of(","));
+    uint32_t col_count = 0;
+    // Get title by index
+    std::map<std::string, uint32_t> index = {};
+    for (auto const& title : titles) {
+        index.insert({title, col_count});
+        col_count++;
+    }
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, ClosureOrder> moments_array;
+    // Read until the correct time is found
+    std::vector<double> row;
+    while (std::getline(fin_f, line_f)) {
+        row.clear();
+        // read columns in this row
+        split_line(line_f, &row);
+        if (row[index["Time"]] == time) {
+            for (const auto& [key, _] : index) {
+                if (key == "Time") {
+                    continue;
+                }
+                // Get multi-index from string
+                const auto moment_index =
+                    moment_to_indices<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions>(key);
+                auto order = std::accumulate(moment_index.begin(), moment_index.end(), 0);
+                if (static_cast<size_t>(order) >= ClosureOrder) {
+                    continue;
+                }
+                // Get flat index from multi-index
+                size_t flat_index                   = moments_array.flatten_index(moment_index);
+                moments_array.moments()[flat_index] = row[index[key]];
+            }
+            break;
+        }
+    }
+    fin_f.close();
+    return moments_array.moments();
 }
 
 } // namespace moment_helper
