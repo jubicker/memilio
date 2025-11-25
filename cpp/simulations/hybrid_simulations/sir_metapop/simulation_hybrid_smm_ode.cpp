@@ -31,6 +31,7 @@
 #include "hybrid_simulations/sir_metapop/library/moments/simulation.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include <cstddef>
+#include <cstdint>
 #include <omp.h>
 
 template <size_t NumRegions>
@@ -39,6 +40,8 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 {
     // Initialize smm
     auto smm_model = smm_helper::initialize_model<NumRegions>(config);
+    // Set seed
+    smm_model.get_rng().seed({static_cast<uint32_t>(sim_num)});
 
     // Initialize expected values
     Eigen::Array<double, Eigen::Dynamic, 1> expected_values_init(NumRegions *
@@ -118,11 +121,11 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
-    const size_t num_runs         = 1000;
+    const size_t num_runs         = 10000;
     const size_t max_order        = 3;
     const auto config             = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 0.0001;
+    const double rel_switch_value = 0.3;
     std::string save_file         = Config::SAVE_DIR + "Hybrid1/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
