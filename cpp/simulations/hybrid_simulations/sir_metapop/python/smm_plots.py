@@ -43,6 +43,7 @@ def plot_percentiles(num_runs, result_dir, save_dir, percentiles):
     time = []
 
     for run in range(num_runs):
+        print(run)
         data = pd.read_csv(os.path.join(result_dir, f"{run}_comps.csv"))
         if len(time) == 0:
             time = data["Time"].values
@@ -264,17 +265,18 @@ def plot_third_order_moments(result_dir, save_dir):
     fig.savefig(save_dir + "all_third_order_moments.png", dpi=dpi)
     plt.close(fig)
 
-dir = "V:/bick_ju/TemporalHybrid/SMM/"
+dir = "V:/bick_ju/TemporalHybrid/Hybrid1/"
 config = "config_1r"
+switch_value = "switch_value_0.000100"
 num_runs = 1000
 
-result_dir = dir + config + "/"
-save_dir = "H:/Documents/TemporalHybridModel/SMM/" + config + "/"
+result_dir = dir + config + "/" + switch_value + "/"
+save_dir = "H:/Documents/TemporalHybridModel/Hybrid1/" + config + "/" + switch_value + "/"
 os.makedirs(save_dir, exist_ok=True)
 
-# plot_all_runs(num_runs, result_dir, save_dir)
-# plot_percentiles(num_runs, result_dir, save_dir, [5, 95])
-# plot_mean_var(result_dir, save_dir)
-# plot_variances(result_dir, save_dir)
-# plot_covariances(result_dir, save_dir)
-plot_third_order_moments(result_dir, save_dir)
+#plot_all_runs(num_runs, result_dir, save_dir)
+plot_percentiles(num_runs, result_dir, save_dir, [5, 95])
+plot_mean_var(result_dir, save_dir)
+plot_variances(result_dir, save_dir)
+plot_covariances(result_dir, save_dir)
+# plot_third_order_moments(result_dir, save_dir)
