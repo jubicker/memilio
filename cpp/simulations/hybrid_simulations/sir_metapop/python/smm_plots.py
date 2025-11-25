@@ -111,14 +111,16 @@ def plot_mean_var(result_dir, save_dir):
     moments = pd.read_csv(result_dir + f"moments.csv")
     figsize = (6,4)
     time = means["Time"]
+    total_pop = means['muS_r0'][0] + means['muI_r0'][0] + means['muR_r0'][0]
     
     # Susceptible
     fig, ax = plt.subplots(figsize=figsize)
     ax.plot(time, means['muS_r0'], color=compartment_colors["S"], label = "Mean")
     ax.fill_between(time, means['muS_r0'] - np.sqrt(moments['M200']), means['muS_r0'] + np.sqrt(moments['M200']), color=compartment_colors["S"], alpha=0.5, label = "Stddev")
-    ax.fill_between(time, means['muS_r0'] - 2*np.sqrt(moments['M200']), means['muS_r0'] + 2*np.sqrt(moments['M200']), color=compartment_colors["S"], alpha=0.2, label = "2 Stddev")
+    ax.fill_between(time, means['muS_r0'] - moments['M200'], means['muS_r0'] + moments['M200'], color=compartment_colors["S"], alpha=0.2, label = "Var")
     ax.set_xlabel("Time [days]")
     ax.set_ylabel("Susceptible [#]")
+    ax.set_ylim(-0.1*total_pop, total_pop)
     ax.legend()
     fig.tight_layout()
     fig.savefig(save_dir + "mean_var_S.png", dpi=dpi)
@@ -127,9 +129,10 @@ def plot_mean_var(result_dir, save_dir):
     fig, ax = plt.subplots(figsize=figsize)
     ax.plot(time, means['muI_r0'], color=compartment_colors["I"], label = "Mean")
     ax.fill_between(time, means['muI_r0'] - np.sqrt(moments['M020']), means['muI_r0'] + np.sqrt(moments['M020']), color=compartment_colors["I"], alpha=0.5, label = "Stddev")
-    ax.fill_between(time, means['muI_r0'] - 2*np.sqrt(moments['M020']), means['muI_r0'] + 2*np.sqrt(moments['M020']), color=compartment_colors["I"], alpha=0.2, label = "2 Stddev")
+    ax.fill_between(time, means['muI_r0'] - moments['M020'], means['muI_r0'] + moments['M020'], color=compartment_colors["I"], alpha=0.2, label = "Var")
     ax.set_xlabel("Time [days]")
     ax.set_ylabel("Infected [#]")
+    ax.set_ylim(-0.1*total_pop, total_pop)
     ax.legend()
     fig.tight_layout()
     fig.savefig(save_dir + "mean_var_I.png", dpi=dpi)
@@ -138,9 +141,10 @@ def plot_mean_var(result_dir, save_dir):
     fig, ax = plt.subplots(figsize=figsize)
     ax.plot(time, means['muR_r0'], color=compartment_colors["R"], label = "Mean")
     ax.fill_between(time, means['muR_r0'] - np.sqrt(moments['M002']), means['muR_r0'] + np.sqrt(moments['M002']), color=compartment_colors["R"], alpha=0.5, label = "Stddev")
-    ax.fill_between(time, means['muR_r0'] - 2*np.sqrt(moments['M002']), means['muR_r0'] + 2*np.sqrt(moments['M002']), color=compartment_colors["R"], alpha=0.2, label = "2 Stddev")
+    ax.fill_between(time, means['muR_r0'] - moments['M002'], means['muR_r0'] + moments['M002'], color=compartment_colors["R"], alpha=0.2, label = "Var")
     ax.set_xlabel("Time [days]")
     ax.set_ylabel("Recovered [#]")
+    ax.set_ylim(-0.1*total_pop, total_pop)
     ax.legend()
     fig.tight_layout()
     fig.savefig(save_dir + "mean_var_R.png", dpi=dpi)
@@ -267,15 +271,15 @@ def plot_third_order_moments(result_dir, save_dir):
 
 dir = "V:/bick_ju/TemporalHybrid/Hybrid1/"
 config = "config_1r"
-switch_value = "switch_value_0.000100"
-num_runs = 1000
+switch_value = "switch_value_1.000000"
+num_runs = 10000
 
 result_dir = dir + config + "/" + switch_value + "/"
 save_dir = "H:/Documents/TemporalHybridModel/Hybrid1/" + config + "/" + switch_value + "/"
 os.makedirs(save_dir, exist_ok=True)
 
-#plot_all_runs(num_runs, result_dir, save_dir)
-plot_percentiles(num_runs, result_dir, save_dir, [5, 95])
+# plot_all_runs(num_runs, result_dir, save_dir)
+# plot_percentiles(num_runs, result_dir, save_dir, [5, 95])
 plot_mean_var(result_dir, save_dir)
 plot_variances(result_dir, save_dir)
 plot_covariances(result_dir, save_dir)

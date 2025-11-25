@@ -121,6 +121,8 @@ def plot_err_mean(result_dir, save_dir, switching_values):
     
     MAEs = {}
     RMSEs = {}
+    MAPEs = {}
+    xlabels = []
     
     for sv in switching_values:
         means = pd.read_csv(result_dir + f"switch_value_{sv}/means.csv")
@@ -135,6 +137,7 @@ def plot_err_mean(result_dir, save_dir, switching_values):
         ax_S.plot(time, (df['muS_r0'] - true['muS_r0']).abs(), label = "Switch" + sv)
         ax_I.plot(time, (df['muI_r0'] - true['muI_r0']).abs(), label = "Switch" + sv)
         ax_R.plot(time, (df['muR_r0'] - true['muR_r0']).abs(), label = "Switch" + sv)
+        xlabels.append(sv[:6])
         
         # Calculate total error
         MAEs[sv] = {
@@ -146,6 +149,11 @@ def plot_err_mean(result_dir, save_dir, switching_values):
             'S': np.sqrt(((df['muS_r0'] - true['muS_r0'])**2).mean()),
             'I': np.sqrt(((df['muI_r0'] - true['muI_r0'])**2).mean()),
             'R': np.sqrt(((df['muR_r0'] - true['muR_r0'])**2).mean())
+        }
+        MAPEs[sv] = {
+            'S': ( (df['muS_r0'] - true['muS_r0']).abs() / true['muS_r0'].replace(0, np.nan) ).mean(),
+            'I': ( (df['muI_r0'] - true['muI_r0']).abs() / true['muI_r0'].replace(0, np.nan) ).mean(),
+            'R': ( (df['muR_r0'] - true['muR_r0']).abs() / true['muR_r0'].replace(0, np.nan) ).mean()
         }
         
     ax_S.set_xlabel("Time [days]")
@@ -169,45 +177,63 @@ def plot_err_mean(result_dir, save_dir, switching_values):
     fig_R.savefig(save_dir + "Err_ts_R.png", dpi=dpi)
     plt.close(fig_R)
     
-    # Grouped bar plot with total MAE and MSE
+        # Grouped bar plot with total MAE and MSE
     labels = list(MAEs.keys())
     x = range(len(labels))
     
     fig_bar_S, ax_bar_S = plt.subplots(figsize=(6, 4))
+    ax_bar_S_MAPE = ax_bar_S.twinx()
     vals_mae_S = [MAEs[k]['S'] for k in labels]
     vals_rmse_S = [RMSEs[k]['S'] for k in labels]
-    ax_bar_S.bar([i - 0.2 for i in x], vals_mae_S, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_S.bar([i + 0.2 for i in x], vals_rmse_S, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_S = ax_bar_S.bar([i - 0.2 for i in x], vals_mae_S, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_S = ax_bar_S.bar([i + 0.2 for i in x], vals_rmse_S, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_S = ax_bar_S_MAPE.bar(x, [MAPEs[k]['S'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_S.set_xticks(x)
     ax_bar_S.set_xticklabels(labels)
     ax_bar_S.set_yscale('log')
-    ax_bar_S.legend()
+    ax_bar_S_MAPE.set_yscale('log')
+    ax_bar_S_MAPE.set_ylabel("MAPE")
+    ax_bar_S.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_S.legend([h_mae_S[0], h_rmse_S[0], h_mape_S[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_S.tight_layout()
     fig_bar_S.savefig(save_dir + "Err_S.png", dpi=dpi)
     plt.close(fig_bar_S)
     
     fig_bar_I, ax_bar_I = plt.subplots(figsize=(6, 4))
+    ax_bar_I_MAPE = ax_bar_I.twinx()
     vals_mae_I = [MAEs[k]['I'] for k in labels]
     vals_rmse_I = [RMSEs[k]['I'] for k in labels]
-    ax_bar_I.bar([i - 0.2 for i in x], vals_mae_I, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_I.bar([i + 0.2 for i in x], vals_rmse_I, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_I = ax_bar_I.bar([i - 0.2 for i in x], vals_mae_I, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_I = ax_bar_I.bar([i + 0.2 for i in x], vals_rmse_I, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_I = ax_bar_I_MAPE.bar(x, [MAPEs[k]['I'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_I.set_xticks(x)
     ax_bar_I.set_xticklabels(labels)
     ax_bar_I.set_yscale('log')
-    ax_bar_I.legend()
+    ax_bar_I_MAPE.set_yscale('log')
+    ax_bar_I_MAPE.set_ylabel("MAPE")
+    ax_bar_I.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_I.legend([h_mae_I[0], h_rmse_I[0], h_mape_I[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_I.tight_layout()
     fig_bar_I.savefig(save_dir + "Err_I.png", dpi=dpi)
     plt.close(fig_bar_I)
     
     fig_bar_R, ax_bar_R = plt.subplots(figsize=(6, 4))
+    ax_bar_R_MAPE = ax_bar_R.twinx()
     vals_mae_R = [MAEs[k]['R'] for k in labels]
     vals_rmse_R = [RMSEs[k]['R'] for k in labels]
-    ax_bar_R.bar([i - 0.2 for i in x], vals_mae_R, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_R.bar([i + 0.2 for i in x], vals_rmse_R, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_R = ax_bar_R.bar([i - 0.2 for i in x], vals_mae_R, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_R = ax_bar_R.bar([i + 0.2 for i in x], vals_rmse_R, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_R = ax_bar_R_MAPE.bar(x, [MAPEs[k]['R'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_R.set_xticks(x)
     ax_bar_R.set_xticklabels(labels)
     ax_bar_R.set_yscale('log')
-    ax_bar_R.legend()
+    ax_bar_R_MAPE.set_yscale('log')
+    ax_bar_R_MAPE.set_ylabel("MAPE")
+    ax_bar_R.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_R.legend([h_mae_R[0], h_rmse_R[0], h_mape_R[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_R.tight_layout()
     fig_bar_R.savefig(save_dir + "Err_R.png", dpi=dpi)
     plt.close(fig_bar_R)
@@ -224,6 +250,7 @@ def plot_err_var(result_dir, save_dir, switching_values):
     
     MAEs = {}
     RMSEs = {}
+    MAPEs = {}  # added mapes
     
     for sv in switching_values:
         means = pd.read_csv(result_dir + f"switch_value_{sv}/moments.csv")
@@ -250,6 +277,11 @@ def plot_err_var(result_dir, save_dir, switching_values):
             'I': np.sqrt(((df['M020'] - true['M020'])**2).mean()),
             'R': np.sqrt(((df['M002'] - true['M002'])**2).mean())
         }
+        MAPEs[sv] = {
+            'S': ( (df['M200'] - true['M200']).abs() / true['M200'].replace(0, np.nan) ).mean(),
+            'I': ( (df['M020'] - true['M020']).abs() / true['M020'].replace(0, np.nan) ).mean(),
+            'R': ( (df['M002'] - true['M002']).abs() / true['M002'].replace(0, np.nan) ).mean()
+        }
         
     ax_S.set_xlabel("Time [days]")
     ax_S.set_ylabel("Err(Var(S))")
@@ -272,45 +304,63 @@ def plot_err_var(result_dir, save_dir, switching_values):
     fig_R.savefig(save_dir + "Err_ts_VarR.png", dpi=dpi)
     plt.close(fig_R)
     
-    # Grouped bar plot with total MAE and MSE
+    # Grouped bar plot with total MAE, RMSE and MAPE
     labels = list(MAEs.keys())
     x = range(len(labels))
     
     fig_bar_S, ax_bar_S = plt.subplots(figsize=(6, 4))
+    ax_bar_S_MAPE = ax_bar_S.twinx()
     vals_mae_S = [MAEs[k]['S'] for k in labels]
     vals_rmse_S = [RMSEs[k]['S'] for k in labels]
-    ax_bar_S.bar([i - 0.2 for i in x], vals_mae_S, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_S.bar([i + 0.2 for i in x], vals_rmse_S, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_S = ax_bar_S.bar([i - 0.2 for i in x], vals_mae_S, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_S = ax_bar_S.bar([i + 0.2 for i in x], vals_rmse_S, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_S = ax_bar_S_MAPE.bar(x, [MAPEs[k]['S'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_S.set_xticks(x)
     ax_bar_S.set_xticklabels(labels)
     ax_bar_S.set_yscale('log')
-    ax_bar_S.legend()
+    ax_bar_S_MAPE.set_yscale('log')
+    ax_bar_S_MAPE.set_ylabel("MAPE")
+    ax_bar_S.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_S.legend([h_mae_S[0], h_rmse_S[0], h_mape_S[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_S.tight_layout()
     fig_bar_S.savefig(save_dir + "Err_VarS.png", dpi=dpi)
     plt.close(fig_bar_S)
     
     fig_bar_I, ax_bar_I = plt.subplots(figsize=(6, 4))
+    ax_bar_I_MAPE = ax_bar_I.twinx()
     vals_mae_I = [MAEs[k]['I'] for k in labels]
     vals_rmse_I = [RMSEs[k]['I'] for k in labels]
-    ax_bar_I.bar([i - 0.2 for i in x], vals_mae_I, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_I.bar([i + 0.2 for i in x], vals_rmse_I, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_I = ax_bar_I.bar([i - 0.2 for i in x], vals_mae_I, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_I = ax_bar_I.bar([i + 0.2 for i in x], vals_rmse_I, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_I = ax_bar_I_MAPE.bar(x, [MAPEs[k]['I'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_I.set_xticks(x)
     ax_bar_I.set_xticklabels(labels)
     ax_bar_I.set_yscale('log')
-    ax_bar_I.legend()
+    ax_bar_I_MAPE.set_yscale('log')
+    ax_bar_I_MAPE.set_ylabel("MAPE")
+    ax_bar_I.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_I.legend([h_mae_I[0], h_rmse_I[0], h_mape_I[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_I.tight_layout()
     fig_bar_I.savefig(save_dir + "Err_VarI.png", dpi=dpi)
     plt.close(fig_bar_I)
     
     fig_bar_R, ax_bar_R = plt.subplots(figsize=(6, 4))
+    ax_bar_R_MAPE = ax_bar_R.twinx()
     vals_mae_R = [MAEs[k]['R'] for k in labels]
     vals_rmse_R = [RMSEs[k]['R'] for k in labels]
-    ax_bar_R.bar([i - 0.2 for i in x], vals_mae_R, width=0.4, label='MAE', color = colors['dark blue'])
-    ax_bar_R.bar([i + 0.2 for i in x], vals_rmse_R, width=0.4, label='RMSE', color = colors['dark green'])
+    h_mae_R = ax_bar_R.bar([i - 0.2 for i in x], vals_mae_R, width=0.2, label='MAE', color = colors['dark blue'])
+    h_rmse_R = ax_bar_R.bar([i + 0.2 for i in x], vals_rmse_R, width=0.2, label='RMSE', color = colors['dark green'])
+    h_mape_R = ax_bar_R_MAPE.bar(x, [MAPEs[k]['R'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
     ax_bar_R.set_xticks(x)
     ax_bar_R.set_xticklabels(labels)
     ax_bar_R.set_yscale('log')
-    ax_bar_R.legend()
+    ax_bar_R_MAPE.set_yscale('log')
+    ax_bar_R_MAPE.set_ylabel("MAPE")
+    ax_bar_R.set_ylabel("MAE / RMSE")
+    # combined legend
+    fig_bar_R.legend([h_mae_R[0], h_rmse_R[0], h_mape_R[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
     fig_bar_R.tight_layout()
     fig_bar_R.savefig(save_dir + "Err_VarR.png", dpi=dpi)
     plt.close(fig_bar_R)
@@ -352,6 +402,6 @@ os.makedirs(save_dir, exist_ok=True)
 # plot_means(result_dir, save_dir, switching_values)
 # plot_variances(result_dir, save_dir, switching_values)
 # plot_covariances(result_dir, save_dir, switching_values)
-# plot_err_mean(result_dir, save_dir, switching_values)
-# plot_err_var(result_dir, save_dir, switching_values)
-plot_runtimes(result_dir, save_dir, switching_values)
+plot_err_mean(result_dir, save_dir, switching_values)
+plot_err_var(result_dir, save_dir, switching_values)
+# plot_runtimes(result_dir, save_dir, switching_values)
