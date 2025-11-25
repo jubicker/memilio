@@ -49,12 +49,12 @@ void run_moments_simulation(std::string save_dir, const Config::Config& config,
 int main()
 {
     auto config                = Config::get_config(Config::ConfigType::Config1);
-    const size_t closure_order = 3;
+    const size_t closure_order = 15;
     const size_t num_regions   = 1;
     double min_step_size       = 0.00001;
     double init_time           = 0.0;
     std::string save_file      = Config::SAVE_DIR + "Moments/";
-    save_file += config.name; //+ "/closure_order_" + std::to_string(closure_order) + "/" + std::to_string(init_time);
+    save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -73,7 +73,7 @@ int main()
         return -1;
     }
 
-    config.t0 -= init_time;
+    config.t0 += init_time;
     std::string file_expected_values = Config::SAVE_DIR + "SMM/" + config.name + "/means.csv";
     std::string file_moment_values   = Config::SAVE_DIR + "SMM/" + config.name + "/moments.csv";
     auto ecpected_values             = moment_helper::read_expected_values(file_expected_values, init_time);

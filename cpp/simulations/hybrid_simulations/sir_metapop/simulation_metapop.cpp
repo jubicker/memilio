@@ -32,7 +32,7 @@
 template <int NumRegions>
 mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Config::Config& config)
 {
-    auto model = initialize_model<NumRegions>(config);
+    auto model = smm_helper::initialize_model<NumRegions>(config);
     auto sim   = mio::smm::Simulation(model, config.t0, config.dt);
     sim.advance(config.tmax);
 
@@ -95,9 +95,9 @@ int main()
         auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"runtime"});
     }
     // Calculate moments and expected values from the simulation results
-    auto means       = calculate_means_from_sim<num_regions>(sim_results);
+    auto means       = smm_helper::calculate_means_from_sim<num_regions>(sim_results);
     auto mean_string = means.second;
-    auto moments     = calculate_moments_from_sim<max_order, num_regions>(sim_results);
+    auto moments     = smm_helper::calculate_moments_from_sim<max_order, num_regions>(sim_results);
     auto finished    = means.first.export_csv(save_file + "means.csv", means.second);
     finished         = moments.first.export_csv(save_file + "moments.csv", moments.second);
 }

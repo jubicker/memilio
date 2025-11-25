@@ -27,6 +27,7 @@
 #include "smm/simulation.h"
 #include "memilio/compartments/simulation.h"
 #include "ode_secir/model.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/moments/simulation.h"
 
 namespace mio
 {
@@ -50,6 +51,14 @@ void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState
 template <>
 void convert_model(const mio::Simulation<double, mio::osecir::Model<double>>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model);
+
+template <>
+void convert_model(const smm::Simulation<1, mio::osir::InfectionState>& current_model,
+                   smm_moments::Simulation<1, 2>& target_model);
+
+template <>
+void convert_model(const smm_moments::Simulation<1, 2>& current_model,
+                   smm::Simulation<1, mio::osir::InfectionState>& target_model);
 
 } //namespace hybrid
 

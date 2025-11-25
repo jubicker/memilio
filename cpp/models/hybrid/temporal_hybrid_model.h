@@ -90,8 +90,10 @@ public:
      */
     void advance(double tmax, const switching_condition& switch_model)
     {
+        // Check in the beginning which model to use
+        bool condition = switch_model(get_result_model1(), get_result_model2(), m_using_model1);
         while (m_t < tmax) {
-            bool condition = switch_model(get_result_model1(), get_result_model2(), m_using_model1);
+            condition = switch_model(get_result_model1(), get_result_model2(), m_using_model1);
             if (m_using_model1 &&
                 condition) { //currently model1 is used, but the condition to switch to model2 is fulfilled
                 convert_model(m_model1, m_model2);

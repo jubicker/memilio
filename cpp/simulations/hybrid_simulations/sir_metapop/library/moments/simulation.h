@@ -20,7 +20,7 @@
 #ifndef MOMENTS_SIMULATION_H
 #define MOMENTS_SIMULATION_H
 
-#include "hybrid_simulations/sir_metapop/library/moments/model.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/moments/model.h"
 #include "memilio/compartments/simulation_base.h"
 #include "memilio/config.h"
 #include "memilio/math/stepper_wrapper.h"

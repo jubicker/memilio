@@ -29,6 +29,9 @@
 #include <string>
 #include <utility>
 
+namespace smm_helper
+{
+
 /**
 * @brief Initializes an SMM with given regions and the S-I-R infection states with the given config.
 * @param[in] config The configuration containing the model parameters (adoption and transition rates), initial populations and initially infected per region.
@@ -253,5 +256,7 @@ calculate_moments_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_r
     }
     return std::make_pair(moment_ts, moments.names_up_to_order(Order));
 }
+
+} // namespace smm_helper
 
 #endif // SMM_HELPER_H
