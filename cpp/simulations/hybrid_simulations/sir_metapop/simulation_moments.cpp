@@ -74,9 +74,9 @@ int main()
     }
 
     config.t0 += init_time;
-    std::string file_expected_values = Config::SAVE_DIR + "SMM/" + config.name + "/means.csv";
-    std::string file_moment_values   = Config::SAVE_DIR + "SMM/" + config.name + "/moments.csv";
-    auto ecpected_values             = moment_helper::read_expected_values(file_expected_values, init_time);
+    std::string file_expected_values = Config::SAVE_DIR + "Hybrid1/" + config.name + "switch_value_1.000000/means.csv";
+    std::string file_moment_values = Config::SAVE_DIR + "Hybrid1/" + config.name + "switch_value_1.000000/moments.csv";
+    auto ecpected_values           = moment_helper::read_expected_values(file_expected_values, init_time);
     auto moments = moment_helper::read_moments<num_regions, closure_order>(file_moment_values, init_time);
     run_moments_simulation<num_regions, closure_order>(save_file, config, ecpected_values, moments, min_step_size);
     return 0;

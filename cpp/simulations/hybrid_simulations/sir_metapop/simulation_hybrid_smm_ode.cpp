@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <omp.h>
+#include <vector>
 
 template <size_t NumRegions>
 mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, const Config::Config& config,
@@ -125,7 +126,7 @@ int main()
     const size_t max_order        = 3;
     const auto config             = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 0.3;
+    const double rel_switch_value = 1.0;
     std::string save_file         = Config::SAVE_DIR + "Hybrid1/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
@@ -142,15 +143,17 @@ int main()
     save_file += "/";
 
     // Run multiple simulations
-    std::vector<mio::TimeSeries<double>> sim_results(
-        num_runs, mio::TimeSeries<double>(static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions));
+    // Structure has to match the one for ensemble percentile function
+    std::vector<std::vector<mio::TimeSeries<double>>> sim_results(
+        num_runs, std::vector<mio::TimeSeries<double>>(
+                      1, mio::TimeSeries<double>(static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions)));
     std::vector<double> time(num_runs);
 
 #pragma omp parallel for
     for (size_t run = 0; run < num_runs; ++run) {
         mio::timing::BasicTimer timer;
         timer.start();
-        sim_results[run] = run_hybrid_sim<num_regions>(run, save_file, config, rel_switch_value);
+        sim_results[run][0] = run_hybrid_sim<num_regions>(run, save_file, config, rel_switch_value);
         timer.stop();
         time[run] = timer.get_elapsed_time();
     }
@@ -168,8 +171,18 @@ int main()
     auto means       = smm_helper::calculate_means_from_sim<num_regions>(sim_results);
     auto mean_string = means.second;
     auto moments     = smm_helper::calculate_moments_from_sim<max_order, num_regions>(sim_results);
+    auto p05         = mio::ensemble_percentile(sim_results, 0.05);
+    auto p25         = mio::ensemble_percentile(sim_results, 0.25);
+    auto p50         = mio::ensemble_percentile(sim_results, 0.5);
+    auto p75         = mio::ensemble_percentile(sim_results, 0.75);
+    auto p95         = mio::ensemble_percentile(sim_results, 0.95);
     auto finished    = means.first.export_csv(save_file + "means.csv", means.second);
     finished         = moments.first.export_csv(save_file + "moments.csv", moments.second);
+    finished         = p05[0].export_csv(save_file + "p05.csv");
+    finished         = p25[0].export_csv(save_file + "p25.csv");
+    finished         = p50[0].export_csv(save_file + "p50.csv");
+    finished         = p75[0].export_csv(save_file + "p75.csv");
+    finished         = p95[0].export_csv(save_file + "p95.csv");
 
     return 0;
 }

@@ -131,7 +131,7 @@ calculate_moment(const Eigen::Matrix<ScalarType, Eigen::Dynamic,
 */
 template <int NumRegions>
 std::pair<mio::TimeSeries<ScalarType>, std::vector<std::string>>
-calculate_means_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_results)
+calculate_means_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarType>>>& sim_results)
 {
     constexpr int num_states  = static_cast<int>(mio::osir::InfectionState::Count);
     constexpr int num_regions = static_cast<int>(NumRegions);
@@ -140,7 +140,7 @@ calculate_means_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_res
     means.setZero();
     std::vector<std::string> names(static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions);
     mio::TimeSeries<double> mean_ts(static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions);
-    for (int t = 0; t < sim_results[0].get_num_time_points(); ++t) {
+    for (int t = 0; t < sim_results[0][0].get_num_time_points(); ++t) {
         Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions>
             result =
                 Eigen::Matrix<ScalarType, Eigen::Dynamic,
@@ -150,14 +150,14 @@ calculate_means_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_res
         for (size_t i = 0; i < sim_results.size(); i++) {
             for (size_t r = 0; r < NumRegions; ++r) {
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 0) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 1) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Infected)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Infected)];
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 2) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Recovered)];
             }
         }
         //Expected values
@@ -182,7 +182,7 @@ calculate_means_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_res
                     .mean(); // muR
         }
 
-        mean_ts.add_time_point(sim_results[0].get_time(t), means);
+        mean_ts.add_time_point(sim_results[0][0].get_time(t), means);
     }
     for (size_t r = 0; r < NumRegions; ++r) {
         names[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
@@ -202,11 +202,11 @@ calculate_means_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_res
 */
 template <int Order, int NumRegions>
 std::pair<mio::TimeSeries<ScalarType>, std::vector<std::string>>
-calculate_moments_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_results)
+calculate_moments_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarType>>>& sim_results)
 {
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, Order> moments;
     mio::TimeSeries<double> moment_ts(moments.moments_up_to_order(Order).size());
-    for (int t = 0; t < sim_results[0].get_num_time_points(); ++t) {
+    for (int t = 0; t < sim_results[0][0].get_num_time_points(); ++t) {
         Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions>
             result =
                 Eigen::Matrix<ScalarType, Eigen::Dynamic,
@@ -216,14 +216,14 @@ calculate_moments_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_r
         for (size_t i = 0; i < sim_results.size(); i++) {
             for (size_t r = 0; r < NumRegions; ++r) {
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 0) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 1) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Infected)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Infected)];
                 result(i, static_cast<size_t>(mio::osir::InfectionState::Count) * r + 2) =
-                    sim_results[i].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                                static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+                    sim_results[i][0].get_value(t)[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                   static_cast<size_t>(mio::osir::InfectionState::Recovered)];
             }
         }
 
@@ -252,7 +252,7 @@ calculate_moments_from_sim(const std::vector<mio::TimeSeries<ScalarType>>& sim_r
         // Get only moments up to the given order
         auto moment_values   = moments.moments_up_to_order(Order);
         Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
-        moment_ts.add_time_point(sim_results[0].get_time(t), data);
+        moment_ts.add_time_point(sim_results[0][0].get_time(t), data);
     }
     return std::make_pair(moment_ts, moments.names_up_to_order(Order));
 }
