@@ -34,8 +34,8 @@ Config get_config(ConfigType type)
         config.t0                = 0;
         config.tmax              = 90;
         config.dt                = 0.01;
-        config.lambdas           = {0.0000001};
-        config.gamma             = 1. / 5.;
+        config.lambdas           = {0.00000007};
+        config.gamma             = 1. / 7.;
         config.I0s               = {{0, 1}}; // Tuple of (region_id, initial infected)
         config.total_populations = {10000000};
         return config;
