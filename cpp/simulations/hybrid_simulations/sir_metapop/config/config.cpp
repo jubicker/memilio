@@ -29,15 +29,15 @@ Config get_config(ConfigType type)
     Config config;
     switch (type) {
     case ConfigType::Config1:
-        config.name              = "config_1r";
+        config.name              = "config_1r_I0_1";
         config.num_regions       = 1;
         config.t0                = 0;
-        config.tmax              = 60;
+        config.tmax              = 90;
         config.dt                = 0.01;
-        config.lambdas           = {0.000001};
+        config.lambdas           = {0.0000001};
         config.gamma             = 1. / 5.;
         config.I0s               = {{0, 1}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {1000000};
+        config.total_populations = {10000000};
         return config;
         break;
     case ConfigType::Config2:
