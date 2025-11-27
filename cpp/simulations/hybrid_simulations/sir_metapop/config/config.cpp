@@ -100,6 +100,30 @@ Config get_config(ConfigType type)
         config.total_populations = {10000000};
         return config;
         break;
+    case ConfigType::Config7:
+        config.name              = "config1_1r_I0_2";
+        config.num_regions       = 1;
+        config.t0                = 0;
+        config.tmax              = 90;
+        config.dt                = 0.01;
+        config.lambdas           = {0.00000007};
+        config.gamma             = 1. / 7.;
+        config.I0s               = {{0, 2}}; // Tuple of (region_id, initial infected)
+        config.total_populations = {10000000};
+        return config;
+        break;
+    case ConfigType::Config8:
+        config.name              = "config2_1r_I0_2";
+        config.num_regions       = 1;
+        config.t0                = 0;
+        config.tmax              = 90;
+        config.dt                = 0.01;
+        config.lambdas           = {0.00000014};
+        config.gamma             = 1. / 7.;
+        config.I0s               = {{0, 2}}; // Tuple of (region_id, initial infected)
+        config.total_populations = {10000000};
+        return config;
+        break;
         // case ConfigType::Config2:
         //     config.name                         = "config_2r";
         //     config.num_regions                  = 2;
