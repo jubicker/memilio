@@ -60,6 +60,14 @@ template <>
 void convert_model(const smm_moments::Simulation<1, 2>& current_model,
                    smm::Simulation<1, mio::osir::InfectionState>& target_model);
 
+template <>
+void convert_model(const smm::Simulation<2, mio::osir::InfectionState>& current_model,
+                   smm_moments::Simulation<2, 2>& target_model);
+
+template <>
+void convert_model(const smm_moments::Simulation<2, 2>& current_model,
+                   smm::Simulation<2, mio::osir::InfectionState>& target_model);
+
 } //namespace hybrid
 
 } //namespace mio
