@@ -134,7 +134,7 @@ Config get_config(ConfigType type)
         config.dt                    = 0.01;
         config.lambdas               = {0.0000002, 0.0000002};
         config.gamma                 = 1. / 7.;
-        config.I0s                   = {{0, 1}, {1, 0}};
+        config.I0s                   = {{0, 10}, {1, 0}};
         config.total_populations     = {5000000, 5000000};
         infected_commuting_reduc_fac = 1.0;
         transition_rate              = 0.00001;
