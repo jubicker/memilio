@@ -36,7 +36,7 @@ def plot_expected_values(smm_res, save_dir, moment_res, init_times):
         ax.plot(df_clean.Time, df_clean.C2, label=f"Moments t={t}")
     ax.set_xlabel("Time [days]")
     ax.set_ylabel("Infected [#]")
-    ax.set_ylim(bottom=-10, top= max_I * 1.1)
+    ax.set_ylim(bottom=-10, top= max(means['muI_r0']) * 2)
     ax.legend()
     fig.tight_layout()
     fig.savefig(save_dir + "I.png", dpi=dpi)
@@ -168,13 +168,13 @@ def plot_covariances(smm_res, save_dir, moment_res, init_times):
     plt.close(fig)
 
 dir_moments = "V:/bick_ju/TemporalHybrid/Moments/"
-dir_smm = "V:/bick_ju/TemporalHybrid/SMM/"
-config = "config_1r"
-closure_order = "15"
-init_time = ["0.000000", "10.000000", "15.000000", "20.000000", "25.000000"]
+dir_smm = "V:/bick_ju/TemporalHybrid/Hybrid1/"
+config = "config1_1r_I0_100"
+closure_order = "11"
+init_time = ["0.000000", "10.000000", "20.000000", "30.000000", "40.000000"]
 
 result_dir_moments = dir_moments + config + "/closure_order_" + closure_order + "/"
-result_dir_smm = dir_smm + config + "/"
+result_dir_smm = dir_smm + config + "/switch_value_1.000000/"
 save_dir = "H:/Documents/TemporalHybridModel/Moments/" + config + "/closure_order_" + closure_order + "/"
 os.makedirs(save_dir, exist_ok=True)
 
