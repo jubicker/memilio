@@ -1,7 +1,7 @@
-#include "hybrid_simulations/sir_metapop/library/moments/simulation.h"
-#include "hybrid_simulations/sir_metapop/library/moments/model.h"
-#include "hybrid_simulations/sir_metapop/library/moments/parameters.h"
-#include "hybrid_simulations/sir_metapop/library/moment_array.h"
+#include "smm_moments/simulation.h"
+#include "smm_moments/model.h"
+#include "smm_moments/parameters.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "ode_sir/infection_state.h"
 #include <cstddef>
 #include <ostream>
@@ -26,7 +26,7 @@ const double I2         = 5;
 
 void moments_one_region(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
                         Eigen::Ref<Eigen::VectorX<ScalarType>> dydt, double lambda, double gamma,
-                        smm_moments::Model<1, 4>& model)
+                        mio::smm_moments::Model<1, 4>& model)
 {
     double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
     double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
@@ -175,13 +175,13 @@ void test_one_region()
 {
     std::cerr << "Running test one region..." << std::endl;
     // Initialize model and set parameters
-    smm_moments::Model<1, 4> model;
+    mio::smm_moments::Model<1, 4> model;
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] =
         params::total_pop1 - params::I1;
-    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]       = params::I1;
-    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]      = 0.0;
-    model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(0)] = params::lambda1;
-    model.parameters.template get<smm_moments::RecoveryRate>()                              = params::gamma;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]            = params::I1;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]           = 0.0;
+    model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(0)] = params::lambda1;
+    model.parameters.template get<mio::smm_moments::RecoveryRate>()                              = params::gamma;
 
     Eigen::VectorX<ScalarType> y =
         Eigen::VectorX<ScalarType>::Zero(model.moments.moments().size() + model.populations.get_num_compartments());
@@ -234,7 +234,7 @@ void test_one_region()
 void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
                          Eigen::Ref<Eigen::VectorX<ScalarType>> dydt, double lambda1, double lambda2, double gamma,
                          double k12_S, double k21_S, double k12_I, double k21_I, double k12_R, double k21_R,
-                         smm_moments::Model<2, 3>& model)
+                         mio::smm_moments::Model<2, 3>& model)
 {
     double mu_S1 = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
     double mu_I1 = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
@@ -401,31 +401,31 @@ void test_two_regions()
 {
     std::cerr << "Running test two regions..." << std::endl;
     // Initialize model and set parameters
-    smm_moments::Model<2, 3> model;
+    mio::smm_moments::Model<2, 3> model;
     // Region 0
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] =
         params::total_pop1 - params::I1;
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]              = params::I1;
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]             = 0.0;
-    model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(0)]        = params::lambda1;
-    model.parameters.template get<smm_moments::RecoveryRate>()                                     = params::gamma;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(0)]   = params::lambda1;
+    model.parameters.template get<mio::smm_moments::RecoveryRate>()                                = params::gamma;
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Susceptible, mio::regions::Region(0), mio::regions::Region(1)}] = params::k_12_S;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Infected, mio::regions::Region(0), mio::regions::Region(1)}]    = params::k_12_I;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Recovered, mio::regions::Region(0), mio::regions::Region(1)}]   = params::k_12_R;
     //Region 1
     model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Susceptible}] =
         params::total_pop2 - params::I2;
     model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Infected}]              = params::I2;
     model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Recovered}]             = 0.0;
-    model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(1)]        = params::lambda2;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(1)]   = params::lambda2;
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Susceptible, mio::regions::Region(1), mio::regions::Region(0)}] = params::k_21_S;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Infected, mio::regions::Region(1), mio::regions::Region(0)}]    = params::k_21_I;
-    model.parameters.template get<smm_moments::TransitionRate>()[{
+    model.parameters.template get<mio::smm_moments::TransitionRate>()[{
         mio::osir::InfectionState::Recovered, mio::regions::Region(1), mio::regions::Region(0)}]   = params::k_21_R;
 
     Eigen::VectorX<ScalarType> y =

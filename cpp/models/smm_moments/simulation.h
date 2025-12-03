@@ -20,7 +20,7 @@
 #ifndef MOMENTS_SIMULATION_H
 #define MOMENTS_SIMULATION_H
 
-#include "simulations/hybrid_simulations/sir_metapop/library/moments/model.h"
+#include "smm_moments/model.h"
 #include "memilio/compartments/simulation_base.h"
 #include "memilio/config.h"
 #include "memilio/math/stepper_wrapper.h"
@@ -30,6 +30,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+namespace mio
+{
 
 namespace smm_moments
 {
@@ -59,8 +62,7 @@ public:
 
     /**
      * @brief Run the simulation up to a given time.
-     * The time tmax must be greater than `get_result().get_last_time_point()`, which is used as the starting point. The
-     * initial value is `get_result().get_last_value()`.
+     * The time tmax must be greater than `get_result().get_last_time_point()`, which is used as the starting point. The initial value is `get_result().get_last_value()`.
      * @param[in] tmax Next stopping point of the simulation.
      * @return The simulation result at tmax.
      */
@@ -148,5 +150,7 @@ public:
 };
 
 } // namespace smm_moments
+
+} // namespace mio
 
 #endif // MOMENTS_SIMULATION_H

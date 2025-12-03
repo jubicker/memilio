@@ -20,10 +20,10 @@
 #ifndef MOMENT_HELPER_H
 #define MOMENT_HELPER_H
 
-#include "hybrid_simulations/sir_metapop/config/config.h"
-#include "hybrid_simulations/sir_metapop/library/moment_array.h"
-#include "hybrid_simulations/sir_metapop/library/moments/model.h"
-#include "hybrid_simulations/sir_metapop/library/moments/parameters.h"
+#include "simulations/hybrid_simulations/sir_metapop/config/config.h"
+#include "moment_array.h"
+#include "smm_moments/model.h"
+#include "smm_moments/parameters.h"
 #include "ode_sir/infection_state.h"
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -34,23 +34,25 @@ namespace moment_helper
 {
 
 template <size_t NumRegions, size_t ClosureOrder>
-smm_moments::Model<NumRegions, ClosureOrder>
+mio::smm_moments::Model<NumRegions, ClosureOrder>
 initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
                  Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config)
 {
-    smm_moments::Model<NumRegions, ClosureOrder> model;
+    mio::smm_moments::Model<NumRegions, ClosureOrder> model;
     assert(expected_values_init.rows() == NumRegions * static_cast<size_t>(mio::osir::InfectionState::Count) &&
            "Initial expected values do not have correct size");
     assert(moments_init.rows() == model.moments.moments().rows() && "Initial moments do not have correct size");
     // Set transmission rates
     for (auto& rate : config.transition_rates) {
-        model.parameters.template get<smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] = rate.factor;
+        model.parameters.template get<mio::smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] =
+            rate.factor;
     }
     // Set recovery rate
-    model.parameters.template get<smm_moments::RecoveryRate>() = config.gamma;
+    model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
     for (size_t r = 0; r < NumRegions; ++r) {
         // Set transmission rates
-        model.parameters.template get<smm_moments::TransmissionRate>()[mio::regions::Region(r)] = config.lambdas[r];
+        model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(r)] =
+            config.lambdas[r];
         // Set initial expected values
         model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
             expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +

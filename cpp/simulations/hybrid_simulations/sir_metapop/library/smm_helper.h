@@ -20,7 +20,7 @@
 #ifndef SMM_HELPER_H
 #define SMM_HELPER_H
 
-#include "hybrid_simulations/sir_metapop/config/config.h"
+#include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "memilio/utils/time_series.h"
 #include "ode_sir/infection_state.h"
 #include "smm/model.h"

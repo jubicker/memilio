@@ -27,7 +27,7 @@
 #include "smm/simulation.h"
 #include "memilio/compartments/simulation.h"
 #include "ode_secir/model.h"
-#include "simulations/hybrid_simulations/sir_metapop/library/moments/simulation.h"
+#include "smm_moments/simulation.h"
 
 namespace mio
 {

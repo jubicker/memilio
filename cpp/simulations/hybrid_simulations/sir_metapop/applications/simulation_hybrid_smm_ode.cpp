@@ -19,23 +19,32 @@
 */
 
 #include "hybrid/temporal_hybrid_model.h"
-#include "hybrid_simulations/sir_metapop/config/config.cpp"
-#include "hybrid_simulations/sir_metapop/library/moment_helper.h"
-#include "hybrid_simulations/sir_metapop/library/smm_helper.h"
+#include "ode_sir/infection_state.h"
+#include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
+#include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/smm_helper.h"
 #include "memilio/data/analyze_result.h"
 #include "memilio/timer/basic_timer.h"
 #include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/logging.h"
 #include "memilio/utils/time_series.h"
-#include "ode_sir/infection_state.h"
 #include "smm/simulation.h"
-#include "hybrid_simulations/sir_metapop/library/moments/simulation.h"
+#include "smm_moments/simulation.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include <cstddef>
 #include <cstdint>
 #include <omp.h>
 #include <vector>
 
+/**
+ * @brief Run one simulation of the temporal-hybrid smm-ode-sir model. The comps.csv is saved as result.
+ * @tparam NumRegions Number of regions
+ * @param[in] sim_num Simulation number used as seed for the simulation.
+ * @param[in] save_file File simulation output timeseries is saved to.
+ * @param[in] config Simulation config i.e. parameters and populations used to initialize the model.
+ * @param[in] rel_switch_value If this percentage of the total population is infected, it is switched from smm to ode.
+ * @return Simulation time series i.e. merged time series of smm and ode.
+ */
 template <size_t NumRegions>
 mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, const Config::Config& config,
                                        double rel_switch_value)
@@ -49,44 +58,59 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
     Eigen::Array<double, Eigen::Dynamic, 1> expected_values_init(NumRegions *
                                                                  static_cast<size_t>(mio::osir::InfectionState::Count));
     expected_values_init.setZero();
+    // Initialize moment expected values with smm populations
+    for (size_t r = 0; r < NumRegions; ++r) {
+        for (size_t s = 0; s < static_cast<size_t>(mio::osir::InfectionState::Count); ++s) {
+            expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) + s] =
+                smm_model.populations[{mio::regions::Region(r), mio::osir::InfectionState(s)}];
+        }
+    }
+    // Moment are all zero
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, 1> moments_array;
     moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
+    //Initialize moment model
     auto moment_model =
         moment_helper::initialize_model<NumRegions, 2>(expected_values_init, moments_array.moments(), config);
 
     // Create simulations
     auto sim_smm     = mio::smm::Simulation<NumRegions, mio::osir::InfectionState>(smm_model, config.t0, config.dt);
-    auto sim_moments = smm_moments::Simulation<NumRegions, 2>(moment_model, config.t0, config.dt);
+    auto sim_moments = mio::smm_moments::Simulation<NumRegions, 2>(moment_model, config.t0, config.dt);
 
     // Define result functions
     const auto result_fct_smm = [](const mio::smm::Simulation<NumRegions, mio::osir::InfectionState>& sim,
                                    double /*t*/) {
         return sim.get_result();
     };
-    const auto result_fct_moments = [](const smm_moments::Simulation<NumRegions, 2>& sim, double /*t*/) {
+    const auto result_fct_moments = [](const mio::smm_moments::Simulation<NumRegions, 2>& sim, double /*t*/) {
         return sim.get_expected_values_time_series();
     };
 
-    // Define switching conditions
+    // Define switching conditions - Model switches when total number of infected is bigger that given percentage of the total population
     const auto condition = [rel_switch_value, &config](const mio::TimeSeries<double>& result_smm,
                                                        const mio::TimeSeries<double>& result_ode, bool smm_used) {
+        double total_population = 0;
+        for (size_t r = 0; r < NumRegions; ++r) {
+            total_population += config.total_populations[r];
+        }
         if (smm_used) {
-            auto& last_value = result_smm.get_last_value().eval();
-            auto total_infected =
-                last_value[(int)mio::osir::InfectionState::Infected] +
-                last_value[(int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
-            auto total_pop = config.total_populations[0] + config.total_populations[1];
-            if ((total_infected > rel_switch_value * total_pop) || (total_pop < 1)) {
+            auto& last_value      = result_smm.get_last_value().eval();
+            double total_infected = 0;
+            for (size_t r = 0; r < NumRegions; ++r) {
+                total_infected +=
+                    last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
+            }
+            if ((total_infected > rel_switch_value * total_population) || (total_infected < 1)) {
                 return true;
             }
         }
         else {
-            auto& last_value = result_ode.get_last_value().eval();
-            auto total_infected =
-                last_value[(int)mio::osir::InfectionState::Infected] +
-                last_value[(int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
-            auto total_pop = config.total_populations[0] + config.total_populations[1];
-            if ((total_infected <= rel_switch_value * total_pop) && (total_infected >= 1)) {
+            auto& last_value      = result_ode.get_last_value().eval();
+            double total_infected = 0;
+            for (size_t r = 0; r < NumRegions; ++r) {
+                total_infected +=
+                    last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
+            }
+            if ((total_infected <= rel_switch_value * total_population) && (total_infected >= 1)) {
                 return true;
             }
         }
@@ -102,24 +126,20 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 
     hybrid_sim.advance(config.tmax, condition);
 
+    // If both time series contain the same time point (which is the case at the switching time point and at simulation start), the values of the first model are taken
     auto hybrid_result = mio::merge_time_series(hybrid_sim.get_result_model1(), hybrid_sim.get_result_model2()).value();
     std::string output_file = save_file + std::to_string(sim_num) + "_comps.csv";
 
+    // Interpolate to dt time steps
     int num_steps = static_cast<int>(config.tmax / config.dt) + 1;
-
     std::vector<double> interpolation_tps(num_steps);
 
     for (int i = 0; i < num_steps; ++i) {
         interpolation_tps[i] = i * config.dt;
     }
     auto result = mio::interpolate_simulation_result(hybrid_result, interpolation_tps);
-    std::vector<std::string> names(NumRegions * 3);
-    for (size_t r = 0; r < NumRegions; ++r) {
-        names.push_back("S" + std::to_string(r));
-        names.push_back("I" + std::to_string(r));
-        names.push_back("R" + std::to_string(r));
-    }
-    auto done = result.export_csv(output_file, names);
+
+    auto done = result.export_csv(output_file);
 
     return result;
 }
@@ -127,18 +147,24 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
-    const size_t num_runs         = 1;
+    const size_t num_runs         = 10000;
     const size_t max_order        = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config2r1);
-    const size_t num_regions      = 2;
-    const double rel_switch_value = 0.0;
-    std::string save_file         = Config::SAVE_DIR + "Hybrid1/";
+    const auto config             = Config::get_config(Config::ConfigType::Config1);
+    const size_t num_regions      = 1;
+    const double rel_switch_value = 1.0;
+    if (num_regions != config.num_regions) {
+        mio::log_error("Number of regions doesn't match number of regions in config.");
+    }
+
+    std::string save_file = Config::SAVE_DIR + "Hybrid1/";
     save_file += config.name;
+
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
+
     save_file += "/switch_value_" + std::to_string(rel_switch_value);
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
@@ -164,7 +190,7 @@ int main()
     }
 #pragma omp single
     {
-        // Convert time to timeseries to make exporting to csv easier
+        // Convert time vector to timeseries to make exporting to csv easier
         mio::TimeSeries<double> time_ts(1);
         for (size_t i = 0; i < num_runs; i++) {
             time_ts.add_time_point(i, Eigen::VectorXd::Constant(1, time[i]));
@@ -181,13 +207,14 @@ int main()
     auto p50         = mio::ensemble_percentile(sim_results, 0.5);
     auto p75         = mio::ensemble_percentile(sim_results, 0.75);
     auto p95         = mio::ensemble_percentile(sim_results, 0.95);
-    auto finished    = means.first.export_csv(save_file + "means.csv", means.second);
-    finished         = moments.first.export_csv(save_file + "moments.csv", moments.second);
-    finished         = p05[0].export_csv(save_file + "p05.csv");
-    finished         = p25[0].export_csv(save_file + "p25.csv");
-    finished         = p50[0].export_csv(save_file + "p50.csv");
-    finished         = p75[0].export_csv(save_file + "p75.csv");
-    finished         = p95[0].export_csv(save_file + "p95.csv");
+    // Save means, moments and percentiles in csv file
+    auto finished = means.first.export_csv(save_file + "means.csv", means.second);
+    finished      = moments.first.export_csv(save_file + "moments.csv", moments.second);
+    finished      = p05[0].export_csv(save_file + "p05.csv");
+    finished      = p25[0].export_csv(save_file + "p25.csv");
+    finished      = p50[0].export_csv(save_file + "p50.csv");
+    finished      = p75[0].export_csv(save_file + "p75.csv");
+    finished      = p95[0].export_csv(save_file + "p95.csv");
 
     return 0;
 }

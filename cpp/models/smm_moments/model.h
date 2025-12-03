@@ -25,17 +25,24 @@
 #include "memilio/epidemiology/populations.h"
 #include "memilio/utils/compiler_diagnostics.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
-#include "simulations/hybrid_simulations/sir_metapop/library/moments/parameters.h"
+#include "smm_moments/parameters.h"
 #include <boost/math/special_functions/math_fwd.hpp>
 #include <cstddef>
 
 #include <boost/math/special_functions/binomial.hpp>
 
 template double boost::math::binomial_coefficient<double>(unsigned, unsigned);
+namespace mio
+{
 
 namespace smm_moments
 {
 
+/**
+ * @brief Moment equation model for SIR-SMM.
+ * @tparam NumRegions Number of regions.
+ * @tparam ClosureOrder Order used for zero cumulant closure.
+ */
 template <size_t NumRegions, size_t ClosureOrder>
 class Model
 {
@@ -48,6 +55,11 @@ public:
     {
     }
 
+    /**
+     * @brief Evaluates right-hand-side of ODEs describing expected values and moments up to ClosureOrder.
+     * @param[in] y Current state of the expected values (first entries) and the moments (following entries).
+     * @param[in] dydt Reference to the calculated output.
+     */
     void get_derivatives(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
                          Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
     {
@@ -622,20 +634,29 @@ public:
      */
     Eigen::VectorX<ScalarType> get_initial_values() const
     {
+        // Expected values are stored as Populations
         auto expected_values = populations.get_compartments();
-        auto moment_vec      = moments.moments();
+        // Moment array (this contains also entries for moments > ClosureOrder as the MomentArray gets ClosureOrder as maximum value for every index)
+        auto moment_vec = moments.moments();
         Eigen::VectorX<ScalarType> initial_values(expected_values.size() + moment_vec.size());
         initial_values.setZero();
+        // Expected values are the first vector entries
         initial_values.head(expected_values.size()) = expected_values;
+        // Moment values are copied to the vector afterwards
         for (auto i = 0; i < moment_vec.size(); ++i) {
             initial_values[expected_values.size() + i] = moment_vec[i];
         }
         std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> zero_index;
         zero_index.fill(0);
+        // M0 is 1
         initial_values[expected_values.size() + moments.flatten_index(zero_index)] = 1.0;
         return initial_values;
     }
 
+    /**
+     * @brief This function evaluates the right-hand-side f of the ODE dydt = f(y, t).
+     * See get_derivatives.
+     */
     void eval_right_hand_side(Eigen::Ref<const Eigen::VectorX<ScalarType>> /*pop*/,
                               Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType t,
                               Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
@@ -644,11 +665,14 @@ public:
         this->get_derivatives(y, t, dydt);
     }
 
-    ParametersBase parameters{};
-    MomentArray<static_cast<size_t>(InfectionState::Count), NumRegions, ClosureOrder> moments{};
-    mio::Populations<ScalarType, Region, InfectionState> populations;
+    ParametersBase parameters{}; ///< Model's parameter set.
+    MomentArray<static_cast<size_t>(InfectionState::Count), NumRegions, ClosureOrder>
+        moments{}; ///< Array with initial moment values
+    mio::Populations<ScalarType, Region, InfectionState> populations; ///< Array with initial values for expected values
 };
 
 } // namespace smm_moments
+
+} // namespace mio
 
 #endif // MOMENTS_MODEL_H

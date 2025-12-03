@@ -27,11 +27,14 @@
 #include "memilio/utils/parameter_set.h"
 #include "ode_sir/infection_state.h"
 
+namespace mio
+{
+
 namespace smm_moments
 {
 
 /**
- * @brief Rate from S to I.
+ * @brief Rate from S to I. Is region-dependent.
  */
 struct TransmissionRate {
     using Type = mio::CustomIndexArray<ScalarType, mio::regions::Region>;
@@ -60,6 +63,9 @@ struct RecoveryRate {
     }
 };
 
+/**
+ * @brief Spatial transition rate from region k to region l. Is dependent on infection state.
+ */
 struct TransitionRate {
     using Type =
         mio::CustomIndexArray<ScalarType, mio::osir::InfectionState, mio::regions::Region, mio::regions::Region>;
@@ -77,5 +83,7 @@ struct TransitionRate {
 using ParametersBase = mio::ParameterSet<TransmissionRate, RecoveryRate, TransitionRate>;
 
 } // namespace smm_moments
+
+} // namespace mio
 
 #endif // MOMENTS_PARAMETERS_H
