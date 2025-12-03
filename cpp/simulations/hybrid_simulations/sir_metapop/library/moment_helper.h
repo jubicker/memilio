@@ -33,26 +33,39 @@
 namespace moment_helper
 {
 
+/**
+ * @brief Initialize moment model.
+ * @tparam NumRegions Number of regions.
+ * @tparam ClosureOrder Order used for zero cumulant closure.
+ * @param[in] expected_values_init Initial expected values.
+ * @param[in] moment_init Initial moment values.
+ * @param[in] config Configuration
+ */
 template <size_t NumRegions, size_t ClosureOrder>
 mio::smm_moments::Model<NumRegions, ClosureOrder>
 initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
                  Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config)
 {
     mio::smm_moments::Model<NumRegions, ClosureOrder> model;
+    // Check whether initial expected values and moments have the correct size
     assert(expected_values_init.rows() == NumRegions * static_cast<size_t>(mio::osir::InfectionState::Count) &&
            "Initial expected values do not have correct size");
     assert(moments_init.rows() == model.moments.moments().rows() && "Initial moments do not have correct size");
-    // Set transmission rates
+
+    // Set spatial transition rates
     for (auto& rate : config.transition_rates) {
         model.parameters.template get<mio::smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] =
             rate.factor;
     }
+
     // Set recovery rate
     model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
+
     for (size_t r = 0; r < NumRegions; ++r) {
         // Set transmission rates
         model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(r)] =
             config.lambdas[r];
+
         // Set initial expected values
         model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
             expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
@@ -69,6 +82,9 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
     return model;
 }
 
+/**
+ * @brief Split line by comma.
+ */
 void split_line(std::string string, std::vector<double>* row)
 {
     std::vector<std::string> strings;
@@ -78,6 +94,9 @@ void split_line(std::string string, std::vector<double>* row)
     });
 }
 
+/**
+ * @brief Convert Moment string to the corresponding multi-index.
+ */
 template <size_t NumInfectionStates, size_t NumRegions>
 std::array<int, NumInfectionStates * NumRegions> moment_to_indices(std::string moment)
 {
@@ -88,6 +107,12 @@ std::array<int, NumInfectionStates * NumRegions> moment_to_indices(std::string m
     return moment_index;
 }
 
+/**
+ * @brief Read expected values from csv timeseries file.
+ * @param[in] file_path Csv file.
+ * @param[in] time Time point from which values should be taken.
+ * @return Array with expected values.
+ */
 Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& file_path, double time)
 {
     const boost::filesystem::path f = file_path;
@@ -96,12 +121,11 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& 
     }
     // File pointer
     std::fstream fin_f;
-    // Open an existing file
+    // Open file
     fin_f.open(f, std::ios::in);
     std::string line_f;
-    // Read the Titles from the Data file
+    // Read the titles from file
     std::getline(fin_f, line_f);
-    //line_hosp.erase(std::remove(line_hosp.begin(), line_hosp.end(), '\r'), line_hosp.end());
     std::vector<std::string> titles;
     boost::split(titles, line_f, boost::is_any_of(","));
     uint32_t col_count = titles.size();
@@ -124,6 +148,12 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& 
     return expected_values_init;
 }
 
+/**
+ * @brief Read moments from csv timeseries file.
+* @param[in] file_path Csv file.
+ * @param[in] time Time point from which values should be taken.
+ * @return Array with moments.
+ */
 template <size_t NumRegions, size_t ClosureOrder>
 Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_path, double time)
 {
@@ -133,10 +163,10 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_pat
     }
     // File pointer
     std::fstream fin_f;
-    // Open an existing file
+    // Open file
     fin_f.open(f, std::ios::in);
     std::string line_f;
-    // Read the Titles from the Data file
+    // Read the titles from file
     std::getline(fin_f, line_f);
     //line_hosp.erase(std::remove(line_hosp.begin(), line_hosp.end(), '\r'), line_hosp.end());
     std::vector<std::string> titles;
