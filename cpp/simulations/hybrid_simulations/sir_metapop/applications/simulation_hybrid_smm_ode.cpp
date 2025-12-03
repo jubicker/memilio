@@ -43,12 +43,16 @@
  * @param[in] save_file File simulation output timeseries is saved to.
  * @param[in] config Simulation config i.e. parameters and populations used to initialize the model.
  * @param[in] rel_switch_value If this percentage of the total population is infected, it is switched from smm to ode.
+ * @param[in, out] timer_init Timer used to time initialization.
+ * @param[in, out] timer_sim Timer used to time simulation.
  * @return Simulation time series i.e. merged time series of smm and ode.
  */
 template <size_t NumRegions>
 mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, const Config::Config& config,
-                                       double rel_switch_value)
+                                       double rel_switch_value, mio::timing::BasicTimer& timer_init,
+                                       mio::timing::BasicTimer& timer_sim)
 {
+    timer_init.start();
     // Initialize smm
     auto smm_model = smm_helper::initialize_model<NumRegions>(config);
     // Set seed
@@ -123,8 +127,11 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
                                           mio::TimeSeries<double>>
         hybrid_sim(std::move(sim_smm), std::move(sim_moments), result_fct_smm, result_fct_moments, true, config.t0,
                    dt_switch);
+    timer_init.stop();
 
+    timer_sim.start();
     hybrid_sim.advance(config.tmax, condition);
+    timer_sim.stop();
 
     // If both time series contain the same time point (which is the case at the switching time point and at simulation start), the values of the first model are taken
     auto hybrid_result = mio::merge_time_series(hybrid_sim.get_result_model1(), hybrid_sim.get_result_model2()).value();
@@ -178,24 +185,29 @@ int main()
     std::vector<std::vector<mio::TimeSeries<double>>> sim_results(
         num_runs, std::vector<mio::TimeSeries<double>>(
                       1, mio::TimeSeries<double>(static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions)));
-    std::vector<double> time(num_runs);
+    std::vector<double> time_init(num_runs);
+    std::vector<double> time_sim(num_runs);
 
 #pragma omp parallel for
     for (size_t run = 0; run < num_runs; ++run) {
-        mio::timing::BasicTimer timer;
-        timer.start();
-        sim_results[run][0] = run_hybrid_sim<num_regions>(run, save_file, config, rel_switch_value);
-        timer.stop();
-        time[run] = timer.get_elapsed_time();
+        mio::timing::BasicTimer timer_init;
+        mio::timing::BasicTimer timer_sim;
+        sim_results[run][0] =
+            run_hybrid_sim<num_regions>(run, save_file, config, rel_switch_value, timer_init, timer_sim);
+        time_init[run] = timer_init.get_elapsed_time();
+        time_sim[run]  = timer_sim.get_elapsed_time();
     }
 #pragma omp single
     {
         // Convert time vector to timeseries to make exporting to csv easier
-        mio::TimeSeries<double> time_ts(1);
+        mio::TimeSeries<double> time_ts(2);
         for (size_t i = 0; i < num_runs; i++) {
-            time_ts.add_time_point(i, Eigen::VectorXd::Constant(1, time[i]));
+            Eigen::VectorXd time = Eigen::VectorXd::Zero(2);
+            time[0]              = time_init[i];
+            time[1]              = time_sim[i];
+            time_ts.add_time_point(i, time);
         }
-        auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"runtime"});
+        auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"init,sim"});
     }
 
     // Calculate moments and expected values from the simulation results
