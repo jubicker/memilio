@@ -4,6 +4,8 @@ add_library(smm
     model.cpp
     simulation.h
     simulation.cpp
+    simulation_set.h
+    simulation_set.cpp
 )
 target_link_libraries(smm PUBLIC memilio)
 target_include_directories(smm PUBLIC

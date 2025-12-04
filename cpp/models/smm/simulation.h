@@ -40,7 +40,7 @@ namespace smm
 template <size_t regions, class Status>
 class Simulation
 {
-public:
+
 public:
     using Model = smm::Model<regions, Status>;
 
