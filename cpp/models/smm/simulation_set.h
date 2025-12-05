@@ -27,6 +27,7 @@
 #include "memilio/utils/time_series.h"
 #include "smm/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
+#include "memilio/data/analyze_result.h"
 #include <cstddef>
 #include <vector>
 
@@ -61,8 +62,10 @@ public:
         , m_moments(1)
         , m_results(num_runs, TimeSeries<ScalarType>(static_cast<size_t>(Status::Count) * regions))
         , m_dt(dt)
+        , m_t(t0)
+        , m_t_index(0)
         , m_sim_time(num_runs, 0.)
-        , m_advance_time(0.)
+        , m_total_time(0.)
     {
         for (auto& m : m_models) {
             m.get_rng().seed(m.get_rng().generate_seeds());
@@ -73,64 +76,83 @@ public:
     }
 
     /**
-     * @brief Advance all simulations until tmax and calculate interpolated results, mean and moment time series.
-     * Additionally, the advance time per run and the total time of the function are saved.
+     * @brief Advance all simulations until tmax.
+     * Additionally, the advance time per run is saved and total time is increased by runtime of this function.
      * @param[in] tmax Simulation end time point.
      */
     void advance(double tmax)
     {
         timing::BasicTimer total_timer;
         total_timer.start();
-        // Run simulations
-#ifdef MEMILIO_ENABLE_OPENMP
-// Parallel
+// Run simulations
 #pragma omp parallel for
         for (size_t run = 0; run < m_sims.size(); ++run) {
             timing::BasicTimer timer;
             timer.start();
             m_sims[run].advance(tmax);
             timer.stop();
-            m_sim_time[run] = timer.get_elapsed_time();
+            m_sim_time[run] += timer.get_elapsed_time();
         }
-#else
-        // Serial
-        for (size_t run = 0; run < m_sims.size(); ++run) {
-            timing::BasicTimer timer;
-            timer.start();
-            m_sims[run].advance(tmax);
-            timer.stop();
-            m_sim_time[run] = timer.get_elapsed_time();
-        }
-#endif
 
+        m_t = tmax;
+        total_timer.stop();
+        m_total_time += total_timer.get_elapsed_time();
+    }
+
+    /**
+     * @brief Calculate interpolated results, mean and moment time series.
+     */
+    void calculate_outputs()
+    {
+        timing::BasicTimer total_timer;
+        total_timer.start();
+        double t = 0;
+        if (m_means.get_num_time_points() > 0) {
+            t = m_means.get_last_time();
+        }
         // Time steps for interpolation
-        int num_steps = static_cast<int>(tmax / m_dt) + 1;
+        int num_steps = static_cast<int>((m_t - t) / m_dt) + 1;
         std::vector<double> interpolation_tps(num_steps);
         for (int i = 0; i < num_steps; ++i) {
-            interpolation_tps[i] = i * m_dt;
+            interpolation_tps[i] = t + i * m_dt;
         }
 
 // Interpolate results
-#ifdef MEMILIO_ENABLE_OPENMP
-// Parallel
 #pragma omp parallel for
         for (size_t run = 0; run < m_sims.size(); ++run) {
-            m_results[run] = interpolate_simulation_result(m_sims[run].get_result(), interpolation_tps);
+            auto& sim_ts         = m_sims[run].get_result();
+            auto interpolated_ts = interpolate_simulation_result(sim_ts, interpolation_tps);
+            sim_ts               = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
+            while (interpolated_ts.get_num_time_points() > 1) {
+                if (m_results[run].get_num_time_points() == 0 ||
+                    m_results[run].get_last_time() < interpolated_ts.get_time(0)) {
+                    m_results[run].add_time_point(interpolated_ts.get_time(0), interpolated_ts.get_value(0));
+                }
+                interpolated_ts.remove_time_point(0);
+            }
+            m_results[run].add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
+            sim_ts.add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
         }
-#else
-        // Serial
-        for (size_t run = 0; run < m_sims.size(); ++run) {
-            m_results[run] = interpolate_simulation_result(m_sims[run].get_result(), interpolation_tps);
-        }
-#endif
 
         // Fill moment and means time series
-        calculate_means();
-        calculate_moments();
+        update_means();
+        update_moments();
 
         // Stop total timer and return elapsed time
         total_timer.stop();
-        m_advance_time += total_timer.get_elapsed_time();
+        m_total_time += total_timer.get_elapsed_time();
+    }
+
+    /**
+     * @brief Get all simulations.
+     */
+    std::vector<Simulation>& get_simulations()
+    {
+        return m_sims;
+    }
+    const std::vector<Simulation>& get_simulations() const
+    {
+        return m_sims;
     }
 
     /**
@@ -196,19 +218,19 @@ public:
     /**
      * @brief Get total advance time.
      */
-    double get_advance_time() const
+    double get_total_time() const
     {
-        return m_advance_time;
+        return m_total_time;
     }
 
 private:
     /**
      * @brief Calculate mean time series from simulation results.
      */
-    void calculate_means()
+    void update_means()
     {
         const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
-        for (auto t = 0; t < m_results[0].get_num_time_points(); ++t) {
+        for (auto t = m_t_index; t < m_results[0].get_num_time_points(); ++t) {
             Eigen::Matrix<ScalarType, num_elements, 1> means;
             means.setZero();
             if (m_means.get_num_time_points() >= t + 1 && m_means.get_time(t) == m_results[0].get_time(t)) {
@@ -254,10 +276,10 @@ private:
     /**
      * @brief Calculate moment time series from simulation results.
      */
-    void calculate_moments()
+    void update_moments()
     {
         const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
-        for (int t = 0; t < m_results[0].get_num_time_points(); ++t) {
+        for (int t = m_t_index; t < m_results[0].get_num_time_points(); ++t) {
             if (m_moments.get_num_time_points() >= t + 1 && m_moments.get_time(t) == m_results[0].get_time(t)) {
                 log_warning("Moment time series already has time point t={}.", m_moments.get_time(t));
                 continue;
@@ -300,6 +322,7 @@ private:
             auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
             Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
             m_moments.add_time_point(m_results[0].get_time(t), data);
+            m_t_index += 1;
         }
     }
 
@@ -310,8 +333,10 @@ private:
     std::vector<TimeSeries<ScalarType>> m_results; ///< Interpolated simulation results.
     std::vector<std::string> m_moment_names; ///< Moment names as they are saved in m_moments.
     double m_dt; ///< Interpolation time step.
+    double m_t; ///< Current time.
+    int m_t_index; ///< Current result time point index.
     std::vector<double> m_sim_time; ///< Simulation time per run.
-    double m_advance_time; ///< Time the advance function took in total.
+    double m_total_time; ///< Total time for calculations in this class.
     MomentArray<static_cast<size_t>(Status::Count), regions, MaxMomentOrder>
         m_mom_array{}; // Moment array used to calculate moments and their names.
 };

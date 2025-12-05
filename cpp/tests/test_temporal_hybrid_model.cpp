@@ -73,14 +73,14 @@ struct MockModel2 {
 };
 
 template <>
-void mio::hybrid::convert_model(const MockModel1& model1, MockModel2& model2)
+void mio::hybrid::convert_model(MockModel1& model1, MockModel2& model2)
 {
     model2.pop = model1.a1 + model1.a2;
     model2.update_result();
 }
 
 template <>
-void mio::hybrid::convert_model(const MockModel2& model2, MockModel1& model1)
+void mio::hybrid::convert_model(MockModel2& model2, MockModel1& model1)
 {
     model1.a1 = model2.pop / 2.;
     model1.a2 = model2.pop / 2.;

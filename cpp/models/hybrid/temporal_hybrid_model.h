@@ -37,7 +37,7 @@ namespace hybrid
  * @param[in,out] TargetModel Simulation of target model.
  */
 template <class CurrentModel, class TargetModel>
-void convert_model(const CurrentModel&, TargetModel&) = delete;
+void convert_model(CurrentModel&, TargetModel&) = delete;
 
 /**
  * @brief A temporal-hybrid simulation. 

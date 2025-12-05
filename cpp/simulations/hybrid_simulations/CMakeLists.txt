@@ -10,6 +10,10 @@ add_executable(hybrid1_config sir_metapop/applications/simulation_hybrid_smm_ode
 target_link_libraries(hybrid1_config PRIVATE memilio ode_sir smm moments hybrid)
 target_compile_options(hybrid1_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
 
+add_executable(hybrid2_config sir_metapop/applications/simulation_hybrid_smm_set_moments.cpp)
+target_link_libraries(hybrid2_config PRIVATE memilio ode_sir smm moments hybrid)
+target_compile_options(hybrid2_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
 add_executable(test_moments sir_metapop/tests/test_moment_equations.cpp)
 target_link_libraries(test_moments PRIVATE memilio ode_sir moments)
 target_compile_options(test_moments PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
