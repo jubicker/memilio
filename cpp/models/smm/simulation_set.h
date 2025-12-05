@@ -22,6 +22,7 @@
 #define MIO_SMM_SIMULATION_SET_H
 
 #include "memilio/config.h"
+#include "memilio/timer/basic_timer.h"
 #include "memilio/utils/logging.h"
 #include "memilio/utils/time_series.h"
 #include "smm/simulation.h"
@@ -59,6 +60,8 @@ public:
         , m_results(num_runs, TimeSeries<ScalarType>(static_cast<size_t>(Status::Count) * regions))
         , m_moment_names(m_mom_array.names_up_to_order(MaxMomentOrder))
         , m_dt(dt)
+        , m_sim_time(num_runs, 0.)
+        , m_advance_time(0.)
     {
         for (auto& m : m_models) {
             m_sims.push_back(Simulation(m, t0, dt));
@@ -67,27 +70,63 @@ public:
 
     /**
      * @brief Advance all simulations until tmax and calculate interpolated results, mean and moment time series.
+     * Additionally, the advance time per run and the total time of the function are saved.
      * @param[in] tmax Simulation end time point.
      */
     void advance(double tmax)
     {
+        timing::BasicTimer total_timer;
+        total_timer.start();
         // Run simulations
-        for (auto& sim : m_sims) {
-            sim.advance(tmax);
+#ifdef MEMILIO_ENABLE_OPENMP
+// Parallel
+#pragma omp parallel for
+        for (size_t run = 0; run < m_sims.size(); ++run) {
+            timing::BasicTimer timer;
+            timer.start();
+            m_sims[run].advance(tmax);
+            timer.stop();
+            m_sim_time[run] = timer.get_elapsed_time();
         }
+#else
+        // Serial
+        for (size_t run = 0; run < m_sims.size(); ++run) {
+            timing::BasicTimer timer;
+            timer.start();
+            m_sims[run].advance(tmax);
+            timer.stop();
+            m_sim_time[run] = timer.get_elapsed_time();
+        }
+#endif
 
-        // Interpolate results
+        // Time steps for interpolation
         int num_steps = static_cast<int>(tmax / m_dt) + 1;
         std::vector<double> interpolation_tps(num_steps);
         for (int i = 0; i < num_steps; ++i) {
             interpolation_tps[i] = i * m_dt;
         }
+
+// Interpolate results
+#ifdef MEMILIO_ENABLE_OPENMP
+// Parallel
+#pragma omp parallel for
         for (size_t run = 0; run < m_sims.size(); ++run) {
             m_results[run] = interpolate_simulation_result(m_sims[run].get_result(), interpolation_tps);
         }
+#else
+        // Serial
+        for (size_t run = 0; run < m_sims.size(); ++run) {
+            m_results[run] = interpolate_simulation_result(m_sims[run].get_result(), interpolation_tps);
+        }
+#endif
+
         // Fill moment and means time series
         calculate_means();
         calculate_moments();
+
+        // Stop total timer and return elapsed time
+        total_timer.stop();
+        m_advance_time += total_timer.get_elapsed_time();
     }
 
 private:
@@ -199,6 +238,8 @@ private:
     std::vector<TimeSeries<ScalarType>> m_results; ///< Interpolated simulation results.
     std::vector<std::string> m_moment_names; ///< Moment names as they are saved in m_moments.
     double m_dt; ///< Interpolation time step.
+    std::vector<double> m_sim_time; ///< Simulation time per run.
+    double m_advance_time; ///< Time the advance function took in total.
     MomentArray<static_cast<size_t>(Status::Count), regions, MaxMomentOrder>
         m_mom_array{}; // Moment array used to calculate moments and their names.
 };
