@@ -24,6 +24,7 @@
 #include "memilio/timer/basic_timer.h"
 #include "ode_sir/infection_state.h"
 #include "smm/simulation.h"
+#include "smm/simulation_set.h"
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -69,7 +70,7 @@ mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Co
 
 int main()
 {
-    const size_t num_runs    = 1000;
+    const size_t num_runs    = 10000;
     const size_t max_order   = 3;
     const auto config        = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions = 1;
@@ -86,51 +87,50 @@ int main()
     }
     save_file += "/";
 
-    // Result structure has to match the one for ensemble percentile function
-    std::vector<std::vector<mio::TimeSeries<double>>> sim_results(
-        num_runs, std::vector<mio::TimeSeries<double>>(
-                      1, mio::TimeSeries<double>(static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions)));
-    std::vector<double> time_sim(num_runs);
-    std::vector<double> time_init(num_runs);
+    // Initialize model
+    auto model = smm_helper::initialize_model<num_regions>(config);
+    // Create simulation set
+    auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(num_runs, model,
+                                                                                              config.t0, config.dt);
+    // Advance simulation set
+    sim_set.advance(config.tmax);
 
-// Run multiple simulations
-#pragma omp parallel for
-    for (size_t run = 0; run < num_runs; ++run) {
-        mio::timing::BasicTimer timer_init;
-        mio::timing::BasicTimer timer_sim;
-        sim_results[run][0] = run_smm_sim<num_regions>(run, save_file, config, timer_init, timer_sim);
-        time_init[run]      = timer_init.get_elapsed_time();
-        time_sim[run]       = timer_sim.get_elapsed_time();
+    // Convert result so they fit structure for ensemble_percentile fct
+    std::vector<std::vector<mio::TimeSeries<double>>> sim_results;
+    auto& all_results = sim_set.get_result();
+    //size_t run        = 0;
+    for (auto& res : all_results) {
+        //(void)res.export_csv(save_file + std::to_string(run) + "_comps.csv");
+        sim_results.push_back({res});
+        //run += 1;
     }
-#pragma omp single
-    {
-        // Convert time to timeseries to make exporting to csv easier
-        mio::TimeSeries<double> time_ts(2);
-        for (size_t i = 0; i < num_runs; i++) {
-            Eigen::VectorXd time = Eigen::VectorXd::Zero(2);
-            time[0]              = time_init[i];
-            time[1]              = time_sim[i];
-            time_ts.add_time_point(i, time);
-        }
-        auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"init,sim"});
-    }
-    // Calculate moments and expected values from the simulation results
-    auto means       = smm_helper::calculate_means_from_sim<num_regions>(sim_results);
-    auto mean_string = means.second;
-    auto moments     = smm_helper::calculate_moments_from_sim<max_order, num_regions>(sim_results);
-    auto p05         = mio::ensemble_percentile(sim_results, 0.05);
-    auto p25         = mio::ensemble_percentile(sim_results, 0.25);
-    auto p50         = mio::ensemble_percentile(sim_results, 0.5);
-    auto p75         = mio::ensemble_percentile(sim_results, 0.75);
-    auto p95         = mio::ensemble_percentile(sim_results, 0.95);
-    // Save means, moments and percentiles
-    auto finished = means.first.export_csv(save_file + "means.csv", means.second);
-    finished      = moments.first.export_csv(save_file + "moments.csv", moments.second);
-    finished      = p05[0].export_csv(save_file + "p05.csv");
+    // Save percentiles
+    auto p05      = mio::ensemble_percentile(sim_results, 0.05);
+    auto p25      = mio::ensemble_percentile(sim_results, 0.25);
+    auto p50      = mio::ensemble_percentile(sim_results, 0.5);
+    auto p75      = mio::ensemble_percentile(sim_results, 0.75);
+    auto p95      = mio::ensemble_percentile(sim_results, 0.95);
+    auto finished = p05[0].export_csv(save_file + "p05.csv");
     finished      = p25[0].export_csv(save_file + "p25.csv");
     finished      = p50[0].export_csv(save_file + "p50.csv");
     finished      = p75[0].export_csv(save_file + "p75.csv");
     finished      = p95[0].export_csv(save_file + "p95.csv");
+    // Save means and moments
+    finished = sim_set.get_mean().export_csv(save_file + "means.csv");
+    finished = sim_set.get_moments().export_csv(save_file + "moments.csv", sim_set.get_moment_names());
+    // Save times
+    mio::TimeSeries<double> time_ts(1);
+    auto& all_times = sim_set.get_sim_times();
+    for (size_t i = 0; i < all_times.size(); i++) {
+        Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
+        time[0]              = all_times[i];
+        time_ts.add_time_point(i, time);
+    }
+    auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
+    mio::TimeSeries<double> total_time(1);
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, sim_set.get_advance_time());
+    total_time.add_time_point(0., time);
+    finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
     return 0;
 }

@@ -57,15 +57,19 @@ public:
      */
     SimulationSet(size_t num_runs, const Model& model, ScalarType t0, ScalarType dt)
         : m_models(num_runs, model)
+        , m_means(static_cast<size_t>(Status::Count) * regions)
+        , m_moments(1)
         , m_results(num_runs, TimeSeries<ScalarType>(static_cast<size_t>(Status::Count) * regions))
-        , m_moment_names(m_mom_array.names_up_to_order(MaxMomentOrder))
         , m_dt(dt)
         , m_sim_time(num_runs, 0.)
         , m_advance_time(0.)
     {
         for (auto& m : m_models) {
+            m.get_rng().seed(m.get_rng().generate_seeds());
             m_sims.push_back(Simulation(m, t0, dt));
         }
+        m_moments      = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
+        m_moment_names = m_mom_array.names_up_to_order(MaxMomentOrder);
     }
 
     /**
@@ -129,6 +133,74 @@ public:
         m_advance_time += total_timer.get_elapsed_time();
     }
 
+    /**
+     * @brief Get time series of all runs.
+     */
+    std::vector<TimeSeries<double>>& get_result()
+    {
+        return m_results;
+    }
+    const std::vector<TimeSeries<double>>& get_result() const
+    {
+        return m_results;
+    }
+
+    /**
+     * @brief Get mean time series.
+     */
+    TimeSeries<double>& get_mean()
+    {
+        return m_means;
+    }
+    const TimeSeries<double>& get_mean() const
+    {
+        return m_means;
+    }
+
+    /**
+     * @brief Get moment time series.
+     */
+    TimeSeries<double>& get_moments()
+    {
+        return m_moments;
+    }
+    const TimeSeries<double>& get_moments() const
+    {
+        return m_moments;
+    }
+
+    /**
+     * @brief Get moment names.
+     */
+    std::vector<std::string> get_moment_names()
+    {
+        return m_moment_names;
+    }
+    const std::vector<std::string> get_moment_names() const
+    {
+        return m_moment_names;
+    }
+
+    /**
+     * @brief Get run times of all runs.
+     */
+    std::vector<double>& get_sim_times()
+    {
+        return m_sim_time;
+    }
+    const std::vector<double>& get_sim_times() const
+    {
+        return m_sim_time;
+    }
+
+    /**
+     * @brief Get total advance time.
+     */
+    double get_advance_time() const
+    {
+        return m_advance_time;
+    }
+
 private:
     /**
      * @brief Calculate mean time series from simulation results.
@@ -139,7 +211,7 @@ private:
         for (auto t = 0; t < m_results[0].get_num_time_points(); ++t) {
             Eigen::Matrix<ScalarType, num_elements, 1> means;
             means.setZero();
-            if (m_means.get_time(t) == m_results[0].get_time(t)) {
+            if (m_means.get_num_time_points() >= t + 1 && m_means.get_time(t) == m_results[0].get_time(t)) {
                 log_warning("Mean time series already has time point t={}.", m_means.get_time(t));
                 continue;
             }
@@ -186,7 +258,7 @@ private:
     {
         const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
         for (int t = 0; t < m_results[0].get_num_time_points(); ++t) {
-            if (m_moments.get_time(t) == m_results[0].get_time(t)) {
+            if (m_moments.get_num_time_points() >= t + 1 && m_moments.get_time(t) == m_results[0].get_time(t)) {
                 log_warning("Moment time series already has time point t={}.", m_moments.get_time(t));
                 continue;
             }
@@ -207,7 +279,7 @@ private:
                 [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
                     if (pos == int(indices.size()) &&
                         std::accumulate(indices.begin(), indices.end(), 0) <=
-                            MaxMomentOrder) { // Position is at last index i.e. all indiced for the moment are filled
+                            int(MaxMomentOrder)) { // Position is at last index i.e. all indiced for the moment are filled
                         m_mom_array[indices] = calculate_moment(result, indices);
                         return;
                     }
@@ -233,8 +305,8 @@ private:
 
     std::vector<Model> m_models; ///< Models used for simulation.
     std::vector<Simulation> m_sims; ///< SMM simulations.
-    TimeSeries<double> m_moments; ///< Time series of all moments up to MaxMomentOrder.
     TimeSeries<double> m_means; ///< Time series of means.
+    TimeSeries<double> m_moments; ///< Time series of all moments up to MaxMomentOrder.
     std::vector<TimeSeries<ScalarType>> m_results; ///< Interpolated simulation results.
     std::vector<std::string> m_moment_names; ///< Moment names as they are saved in m_moments.
     double m_dt; ///< Interpolation time step.
