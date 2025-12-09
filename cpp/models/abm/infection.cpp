@@ -30,11 +30,9 @@ namespace abm
 {
 
 Infection::Infection(PersonalRandomNumberGenerator& rng, VirusVariant virus, AgeGroup age, const Parameters& params,
-                     TimePoint start_date, InfectivityFunctionType infectivity_fct, InfectionState start_state,
-                     ProtectionEvent latest_protection, bool detected)
+                     TimePoint start_date, InfectionState start_state, ProtectionEvent latest_protection, bool detected)
     : m_virus_variant(virus)
     , m_detected(detected)
-    , m_infectivity_fct(infectivity_fct)
 {
     assert(age.get() < params.get_num_groups());
     m_viral_load.start_date = draw_infection_course(rng, age, params, start_date, start_state, latest_protection);

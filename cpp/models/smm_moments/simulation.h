@@ -56,7 +56,7 @@ public:
      * @param[in] dt Initial step size of integration
      */
     Simulation(Model<NumRegions, ClosureOrder> const& model, ScalarType t0 = 0., ScalarType dt = 0.1)
-        : Base(model, std::make_shared<DefaultIntegratorCore<ScalarType>>(), t0, dt)
+        : Base(model, std::make_unique<DefaultIntegratorCore<ScalarType>>(), t0, dt)
     {
     }
 

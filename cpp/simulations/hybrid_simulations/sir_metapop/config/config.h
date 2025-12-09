@@ -20,6 +20,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "memilio/config.h"
 #include "ode_sir/infection_state.h"
 #include "smm/parameters.h"
 #include <cstddef>
@@ -45,7 +46,7 @@ struct Config {
     // Total population for every region
     std::vector<double> total_populations;
     // Transition rates
-    std::vector<mio::smm::TransitionRate<mio::osir::InfectionState>> transition_rates;
+    std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
 };
 
 enum class ConfigType

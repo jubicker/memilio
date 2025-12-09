@@ -47,7 +47,7 @@ template <size_t regions, class Status, size_t MaxMomentOrder>
 class SimulationSet
 {
 public:
-    using Simulation = smm::Simulation<regions, Status>;
+    using Simulation = smm::Simulation<ScalarType, regions, Status>;
     using Model      = Simulation::Model;
 
     /**
@@ -138,7 +138,7 @@ public:
 #pragma omp parallel for
             for (size_t run = 0; run < m_sims.size(); ++run) {
                 auto& sim_ts         = m_sims[run].get_result();
-                auto interpolated_ts = interpolate_simulation_result(sim_ts, interpolation_tps);
+                auto interpolated_ts = interpolate_smm_simulation_result(sim_ts, interpolation_tps);
                 sim_ts               = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
                 while (interpolated_ts.get_num_time_points() > 1) {
                     if (m_results[run].get_num_time_points() == 0 ||

@@ -79,8 +79,7 @@ public:
      * @param[in] detected [Default: false] If the Infection is detected.     
      */
     Infection(PersonalRandomNumberGenerator& rng, VirusVariant virus, AgeGroup age, const Parameters& params,
-              TimePoint start_date, InfectivityFunctionType infectivity_fct,
-              InfectionState start_state        = InfectionState::Exposed,
+              TimePoint start_date, InfectionState start_state = InfectionState::Exposed,
               ProtectionEvent latest_protection = {ProtectionType::NoProtection, TimePoint(0)}, bool detected = false);
 
     /**

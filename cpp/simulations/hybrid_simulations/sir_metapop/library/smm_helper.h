@@ -20,6 +20,7 @@
 #ifndef SMM_HELPER_H
 #define SMM_HELPER_H
 
+#include "memilio/config.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "memilio/utils/time_series.h"
 #include "ode_sir/infection_state.h"
@@ -37,10 +38,10 @@ namespace smm_helper
 * @param[in] config The configuration containing the model parameters (adoption and transition rates), initial populations and initially infected per region.
 */
 template <size_t NumRegions>
-mio::smm::Model<NumRegions, mio::osir::InfectionState> initialize_model(const Config::Config& config)
+mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_model(const Config::Config& config)
 {
     assert(config.num_regions == NumRegions);
-    mio::smm::Model<NumRegions, mio::osir::InfectionState> model;
+    mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> model;
 
     // Initialize populations
     for (size_t r = 0; r < config.num_regions; ++r) {
@@ -60,7 +61,7 @@ mio::smm::Model<NumRegions, mio::osir::InfectionState> initialize_model(const Co
             model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}];
     }
 
-    std::vector<mio::AdoptionRate<mio::osir::InfectionState>> adoption_rates;
+    std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;
     for (size_t r = 0; r < config.num_regions; ++r) {
         // Second-order adoption rate lambda is region dependent
         adoption_rates.push_back({mio::osir::InfectionState::Susceptible,
@@ -75,8 +76,9 @@ mio::smm::Model<NumRegions, mio::osir::InfectionState> initialize_model(const Co
                                   config.gamma,
                                   {}});
     }
-    model.parameters.template get<mio::smm::AdoptionRates<mio::osir::InfectionState>>()   = adoption_rates;
-    model.parameters.template get<mio::smm::TransitionRates<mio::osir::InfectionState>>() = config.transition_rates;
+    model.parameters.template get<mio::smm::AdoptionRates<ScalarType, mio::osir::InfectionState>>() = adoption_rates;
+    model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
+        config.transition_rates;
 
     return model;
 }

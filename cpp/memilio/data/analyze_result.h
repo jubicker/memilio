@@ -56,6 +56,11 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
 
                                              const std::vector<FP>& interpolation_times);
 
+template <typename FP>
+TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulation_result,
+
+                                                 const std::vector<FP>& interpolation_times);
+
 /**
  * helper template, type returned by overload interpolate_simulation_result(T t)
  */
@@ -240,6 +245,63 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
                 linear_interpolation<FP>(interpolation_times[interp_idx], simulation_result.get_time(sim_idx),
                                          simulation_result.get_time(sim_idx + 1), simulation_result[sim_idx],
                                          simulation_result[sim_idx + 1]));
+            ++interp_idx;
+        }
+        else {
+            ++sim_idx;
+        }
+    }
+
+    // add last time point of interpolation times in case it is larger than the last time point of simulation_result
+    // this is used for the case that it equals the last time point of simulation up to tolerance
+    if (interp_idx < interpolation_times.size() &&
+        simulation_result.get_last_time() < interpolation_times[interp_idx]) {
+        interpolated.add_time_point(interpolation_times[interp_idx], simulation_result.get_last_value());
+    }
+
+    return interpolated;
+}
+
+template <typename FP>
+TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulation_result,
+                                                 const std::vector<FP>& interpolation_times)
+{
+    assert(simulation_result.get_num_time_points() > 0 && "TimeSeries must not be empty.");
+
+    assert(std::is_sorted(interpolation_times.begin(), interpolation_times.end()) &&
+           "Time points for interpolation have to be sorted in non-descending order.");
+
+    if (interpolation_times.size() >= 2) {
+        assert((interpolation_times[1] > simulation_result.get_time(0) &&
+                interpolation_times.rbegin()[1] <= simulation_result.get_last_time()) &&
+               "All but the first and the last time point of interpolation have lie between simulation times (strictly "
+               "for lower boundary).");
+    }
+
+    TimeSeries<FP> interpolated(simulation_result.get_num_elements());
+
+    if (interpolation_times.size() == 0) {
+        return interpolated;
+    }
+
+    size_t interp_idx = 0;
+    // add first time point of interpolation times in case it is smaller than the first time point of simulation_result
+    // this is used for the case that it equals the first time point of simulation up to tolerance
+    // this is necessary even if the tolerance is 0 due to the way the comparison in the loop is implemented (< and >=)
+    if (simulation_result.get_time(0) >= interpolation_times[0]) {
+        interpolated.add_time_point(interpolation_times[0], simulation_result[0]);
+        ++interp_idx;
+    }
+
+    //interpolate between pair of time points that lie on either side of each interpolation point
+    for (Eigen::Index sim_idx = 0;
+         sim_idx < simulation_result.get_num_time_points() - 1 && interp_idx < interpolation_times.size();) {
+        //only go to next pair of time points if no time point is added.
+        //otherwise check the same time points again
+        //in case there is more than one interpolation point between the two time points
+        if (simulation_result.get_time(sim_idx) < interpolation_times[interp_idx] &&
+            simulation_result.get_time(sim_idx + 1) >= interpolation_times[interp_idx]) {
+            interpolated.add_time_point(interpolation_times[interp_idx], simulation_result.get_value(sim_idx));
             ++interp_idx;
         }
         else {

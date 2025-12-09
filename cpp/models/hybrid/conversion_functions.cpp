@@ -36,7 +36,7 @@ namespace mio
 namespace hybrid
 {
 template <>
-void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
                    smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -59,7 +59,7 @@ void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState
 }
 
 template <>
-void convert_model(const smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& current_model,
+void convert_model(smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -75,8 +75,8 @@ void convert_model(const smm::Simulation<ScalarType, 1, mio::osecir::InfectionSt
     target_result.get_last_value() = current_result.get_last_value();
 
     // Update agents' infection state and sample agents position
-    auto current_pop     = current_result.get_last_value().eval();
-    ScalarType total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
+    auto current_pop = current_result.get_last_value().eval();
+    double total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
     SWPositionSampler pos_rng{{-1, -1}, {1, 1}, 0.1};
     auto& state_rng = DiscreteDistribution<size_t>::get_instance();
     auto& abm_pop   = target_model.get_model().populations;
@@ -104,8 +104,8 @@ void convert_model(const smm::Simulation<ScalarType, 1, mio::osecir::InfectionSt
 }
 
 template <>
-void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
-                   mio::Simulation<ScalarType, mio::osecir::Model<double>>& target_model)
+void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+                   mio::Simulation<ScalarType, mio::osecir::Model<ScalarType>>& target_model)
 {
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
@@ -120,8 +120,7 @@ void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState
     size_t num_age_groups = target_result.get_last_value().size() / (int)mio::osecir::InfectionState::Count;
     for (int i = 0; i < (int)mio::osecir::InfectionState::Count; ++i) {
         for (size_t age_group = 0; age_group < num_age_groups; ++age_group) {
-            ScalarType pop_value =
-                current_result.get_last_value()[(int)mio::osecir::InfectionState(i)] / num_age_groups;
+            double pop_value = current_result.get_last_value()[(int)mio::osecir::InfectionState(i)] / num_age_groups;
             // Update result timeseries
             target_result.get_last_value()[target_model.get_model().populations.get_flat_index(
                 {mio::AgeGroup(age_group), mio::osecir::InfectionState(i)})] = pop_value;
@@ -133,7 +132,7 @@ void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState
 }
 
 template <>
-void convert_model(const mio::Simulation<ScalarType, mio::osecir::Model<double>>& current_model,
+void convert_model(mio::Simulation<ScalarType, mio::osecir::Model<ScalarType>>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -159,8 +158,8 @@ void convert_model(const mio::Simulation<ScalarType, mio::osecir::Model<double>>
     }
 
     // Update agents' infection state and sample agents position
-    auto current_pop     = target_result.get_last_value().eval();
-    ScalarType total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
+    auto current_pop = target_result.get_last_value().eval();
+    double total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
     SWPositionSampler pos_rng{{-1, -1}, {1, 1}, 0.1};
     auto& state_rng = DiscreteDistribution<size_t>::get_instance();
     auto& abm_pop   = target_model.get_model().populations;
@@ -188,7 +187,7 @@ void convert_model(const mio::Simulation<ScalarType, mio::osecir::Model<double>>
 }
 
 template <>
-void convert_model(smm::Simulation<1, mio::osir::InfectionState>& current_model,
+void convert_model(smm::Simulation<double, 1, mio::osir::InfectionState>& current_model,
                    smm_moments::Simulation<1, 2>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -219,7 +218,7 @@ void convert_model(smm::Simulation<1, mio::osir::InfectionState>& current_model,
 
 template <>
 void convert_model(smm_moments::Simulation<1, 2>& current_model,
-                   smm::Simulation<1, mio::osir::InfectionState>& target_model)
+                   smm::Simulation<double, 1, mio::osir::InfectionState>& target_model)
 {
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
@@ -248,7 +247,7 @@ void convert_model(smm_moments::Simulation<1, 2>& current_model,
 }
 
 template <>
-void convert_model(smm::Simulation<2, mio::osir::InfectionState>& current_model,
+void convert_model(smm::Simulation<double, 2, mio::osir::InfectionState>& current_model,
                    smm_moments::Simulation<2, 2>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -283,7 +282,7 @@ void convert_model(smm::Simulation<2, mio::osir::InfectionState>& current_model,
 
 template <>
 void convert_model(smm_moments::Simulation<2, 2>& current_model,
-                   smm::Simulation<2, mio::osir::InfectionState>& target_model)
+                   smm::Simulation<double, 2, mio::osir::InfectionState>& target_model)
 {
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
@@ -355,6 +354,93 @@ void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 3>& current_
 template <>
 void convert_model(smm_moments::Simulation<1, 3>& current_model,
                    smm::SimulationSet<1, mio::osir::InfectionState, 3>& target_model)
+{
+    auto mean_ts   = current_model.get_expected_values_time_series();
+    auto means     = mean_ts.get_last_value();
+    auto moment_ts = current_model.get_moment_time_series(target_model.get_order()).first;
+    // Set mean and moments
+    if (mean_ts.get_last_time() < target_model.get_mean().get_last_time()) {
+        mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
+                       "time point is bigger than last moment time point.");
+    }
+
+    if (target_model.get_mean().get_last_time() < mean_ts.get_last_time()) {
+        target_model.get_mean().add_time_point(mean_ts.get_last_time());
+        target_model.get_moments().add_time_point(moment_ts.get_last_time());
+    }
+
+    target_model.get_mean().get_last_value()    = means;
+    target_model.get_moments().get_last_value() = moment_ts.get_last_value();
+
+    // Set current state of all simulations of target model to mean
+    auto& target_simulations = target_model.get_simulations();
+    auto& target_results     = target_model.get_result();
+    for (size_t sim = 0; sim < target_simulations.size(); ++sim) {
+        if (mean_ts.get_last_time() < target_simulations[sim].get_result().get_last_time()) {
+            mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
+                           "time point is bigger than last moment time point.");
+        }
+
+        if (target_simulations[sim].get_result().get_last_time() < mean_ts.get_last_time()) {
+            target_simulations[sim].get_result().add_time_point(mean_ts.get_last_time());
+            target_results[sim].add_time_point(mean_ts.get_last_time());
+        }
+        auto smm_values = target_simulations[sim].get_result().get_last_value();
+        // Set expected values
+        smm_values                           = means;
+        target_results[sim].get_last_value() = means;
+
+        // Update smm populations
+        for (int i = 0; i < (int)mio::osir::InfectionState::Count; ++i) {
+            target_simulations[sim].get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] =
+                means[target_simulations[sim].get_model().populations.get_flat_index(
+                    {regions::Region(0), mio::osir::InfectionState(i)})];
+        }
+    }
+    target_model.advance_t(mean_ts.get_last_time());
+    target_model.advance_t_index();
+}
+
+template <>
+void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 5>& current_model,
+                   smm_moments::Simulation<1, 5>& target_model)
+{
+    // Calculate smm statistics
+    auto& smm_means     = current_model.get_mean();
+    auto& smm_moments   = current_model.get_moments();
+    auto moment_names   = current_model.get_moment_names();
+    auto& target_result = target_model.get_result();
+
+    if (smm_means.get_last_time() < target_result.get_last_time()) {
+        mio::log_error("Conversion from smm simulation set to moments not possible because last moment time point is "
+                       "bigger than last smm sim set time point.");
+    }
+
+    if (target_result.get_last_time() < smm_means.get_last_time()) {
+        target_result.add_time_point(smm_means.get_last_time());
+    }
+
+    auto last_moment_values = target_result.get_last_value();
+
+    // Copy means to moment model
+    auto last_smm_mean_values = smm_means.get_last_value();
+    for (auto i = 0; i < last_smm_mean_values.size(); ++i) {
+        last_moment_values[i] = last_smm_mean_values[i];
+    }
+    // Copy moments to moments model
+    auto last_smm_moment_values = smm_moments.get_last_value();
+    for (size_t i = 0; i < moment_names.size(); ++i) {
+        const auto moment_index =
+            moment_helper::moment_to_indices<static_cast<size_t>(mio::osir::InfectionState::Count), 1>(moment_names[i]);
+        size_t flat_index = target_model.get_model().moments.flatten_index(moment_index) +
+                            target_model.get_model().populations.get_num_compartments();
+        last_moment_values[flat_index] = last_smm_moment_values[i];
+    }
+}
+
+template <>
+void convert_model(smm_moments::Simulation<1, 5>& current_model,
+                   smm::SimulationSet<1, mio::osir::InfectionState, 5>& target_model)
 {
     auto mean_ts   = current_model.get_expected_values_time_series();
     auto means     = mean_ts.get_last_value();

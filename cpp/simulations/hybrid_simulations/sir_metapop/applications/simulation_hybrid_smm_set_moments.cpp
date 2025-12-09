@@ -31,10 +31,10 @@ int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
     const size_t num_runs         = 10000;
-    const size_t max_order        = 3;
+    const size_t max_order        = 5;
     const auto config             = Config::get_config(Config::ConfigType::Config2);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 0.001;
+    const double rel_switch_value = 1.0;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -81,7 +81,7 @@ int main()
     // Initialize moment simulation
     auto sim_moments = mio::smm_moments::Simulation<num_regions, max_order>(moment_model, config.t0, config.dt);
     // Set maximum dt of integrator to interpolation time points
-    sim_moments.get_integrator().get_dt_max() = config.dt;
+    sim_moments.get_integrator_core().get_dt_max() = config.dt;
 
     // Define result functions
     const auto result_fct_smm = [](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>& sim,
@@ -94,7 +94,7 @@ int main()
 
     // Define switching conditions - Model switches when total number of infected is bigger that given percentage of the total population
     const auto condition = [rel_switch_value, &config](mio::TimeSeries<double>& result_smm,
-                                                       mio::TimeSeries<double>& result_ode, bool smm_used) {
+                                                       mio::TimeSeries<double>& /*result_ode*/, bool smm_used) {
         double total_population = 0;
         for (size_t r = 0; r < num_regions; ++r) {
             total_population += config.total_populations[r];
@@ -110,25 +110,25 @@ int main()
                 return true;
             }
         }
-        else {
-            auto& last_value      = result_ode.get_last_value().eval();
-            double total_infected = 0;
-            for (size_t r = 0; r < num_regions; ++r) {
-                total_infected +=
-                    last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
-            }
-            if ((total_infected <= rel_switch_value * total_population) && (total_infected >= 1)) {
-                return true;
-            }
-        }
+        // else {
+        //     auto& last_value      = result_ode.get_last_value().eval();
+        //     double total_infected = 0;
+        //     for (size_t r = 0; r < num_regions; ++r) {
+        //         total_infected +=
+        //             last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
+        //     }
+        //     if ((total_infected <= rel_switch_value * total_population) && (total_infected >= 1)) {
+        //         return true;
+        //     }
+        // }
         return false;
     };
 
-    double dt_switch = 0.5;
+    double hybrid_check_dt = 0.5;
     mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), mio::TimeSeries<double>,
                                           mio::TimeSeries<double>>
         hybrid_sim(std::move(sim_set), std::move(sim_moments), result_fct_smm, result_fct_moments, true, config.t0,
-                   dt_switch);
+                   hybrid_check_dt);
 
     mio::timing::BasicTimer timer;
     timer.start();

@@ -79,10 +79,9 @@ TEST_F(TestInfection, init)
         .WillOnce(testing::Return(1.0)) // TimeInfectedSymptomsToRecovered
         .WillRepeatedly(testing::Return(1.0));
 
-    auto infection =
-        mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params, mio::abm::TimePoint(0),
-                            &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Exposed,
-                            {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
+    auto infection = mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params,
+                                         mio::abm::TimePoint(0), mio::abm::InfectionState::Exposed,
+                                         {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
 
     // Test virus variant and detection status
     EXPECT_EQ(infection.get_virus_variant(), mio::abm::VirusVariant::Wildtype);
@@ -104,7 +103,7 @@ TEST_F(TestInfection, init)
         mio::TimeSeriesFunctor<ScalarType>{mio::TimeSeriesFunctorType::LinearInterpolation, {{0, 0.91}, {30, 0.81}}};
     auto infection_w_previous_exp =
         mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_test, params, mio::abm::TimePoint(0),
-                            &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::InfectedSymptoms,
+                            mio::abm::InfectionState::InfectedSymptoms,
                             {mio::abm::ProtectionType::GenericVaccine, mio::abm::TimePoint(0)}, true);
     // Test infection state transition
     EXPECT_EQ(
@@ -129,7 +128,7 @@ TEST_F(TestInfection, getInfectionState)
 
     // Initialize infection in Exposed state
     auto infection = mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params, t,
-                                         &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Exposed,
+                                         mio::abm::InfectionState::Exposed,
                                          {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
 
     // Test infection state at different time points
@@ -163,21 +162,21 @@ TEST_F(TestInfection, drawInfectionCourseForward)
             0.55)); // is necessary for infection 1 to recover, infection 2 to die and infection 3 to turn severe
 
     auto infection1 = mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params, t,
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::InfectedCritical,
+                                          mio::abm::InfectionState::InfectedCritical,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
     // Test state transitions from Critical to Recovered
     EXPECT_EQ(infection1.get_infection_state(t), mio::abm::InfectionState::InfectedCritical);
     EXPECT_EQ(infection1.get_infection_state(t + mio::abm::days(1)), mio::abm::InfectionState::Recovered);
 
     auto infection2 = mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params, t,
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::InfectedSevere,
+                                          mio::abm::InfectionState::InfectedSevere,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
     EXPECT_EQ(infection2.get_infection_state(t), mio::abm::InfectionState::InfectedSevere);
     EXPECT_EQ(infection2.get_infection_state(t + mio::abm::days(1)), mio::abm::InfectionState::Dead);
 
     params.get<mio::abm::SeverePerInfectedSymptoms>()[{mio::abm::VirusVariant::Wildtype, age_group_15_to_34}] = 0.6;
     auto infection3 = mio::abm::Infection(prng, mio::abm::VirusVariant::Wildtype, age_group_15_to_34, params, t,
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::InfectedSymptoms,
+                                          mio::abm::InfectionState::InfectedSymptoms,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, true);
     EXPECT_EQ(infection3.get_infection_state(t), mio::abm::InfectionState::InfectedSymptoms);
     EXPECT_EQ(infection3.get_infection_state(t + mio::abm::days(1)), mio::abm::InfectionState::InfectedSevere);
@@ -237,16 +236,16 @@ TEST_F(TestInfection, drawInfectionCourseBackward)
         .WillRepeatedly(testing::Return(1.0));
 
     auto infection1 = mio::abm::Infection(prng, virus_variant_test, age_group_test, params, mio::abm::TimePoint(t + dt),
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Recovered,
+                                          mio::abm::InfectionState::Recovered,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, false);
     auto infection2 = mio::abm::Infection(prng, virus_variant_test, age_group_test, params, mio::abm::TimePoint(t + dt),
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Recovered,
+                                          mio::abm::InfectionState::Recovered,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, false);
     auto infection3 = mio::abm::Infection(prng, virus_variant_test, age_group_test, params, mio::abm::TimePoint(t + dt),
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Recovered,
+                                          mio::abm::InfectionState::Recovered,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, false);
     auto infection4 = mio::abm::Infection(prng, virus_variant_test, age_group_test, params, mio::abm::TimePoint(t + dt),
-                                          &mio::abm::sigmoidal_infectivity, mio::abm::InfectionState::Recovered,
+                                          mio::abm::InfectionState::Recovered,
                                           {mio::abm::ProtectionType::NoProtection, mio::abm::TimePoint(0)}, false);
 
     // Validate infection state progression backward.

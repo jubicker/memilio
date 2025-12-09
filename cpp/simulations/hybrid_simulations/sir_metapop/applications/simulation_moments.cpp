@@ -51,7 +51,7 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
     auto sim = mio::smm_moments::Simulation<NumRegions, ClosureOrder>(model, config.t0, config.dt);
     timer_init.stop();
     if (min_step_size > 0) {
-        sim.get_integrator().get_dt_min() = min_step_size;
+        sim.get_integrator_core().get_dt_min() = min_step_size;
     }
     timer_sim.start();
     // Advance simulation until tmax

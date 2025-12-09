@@ -24,6 +24,7 @@
 #include "hybrid/temporal_hybrid_model.h"
 #include "d_abm/simulation.h"
 #include "d_abm/single_well.h"
+#include "memilio/config.h"
 #include "smm/simulation.h"
 #include "memilio/compartments/simulation.h"
 #include "ode_secir/model.h"
@@ -38,36 +39,36 @@ namespace hybrid
 // This header contains template specilizations for the convert_model function, see mio::hybrid::TemporalHybridSimulation. This function is needed to convert one model to another when the switching condition in the temporal-hybrid model is fulfilled. The TemporalHybridSimulation can be used with any combination of two models, but the template specilizations of the convert_model function have to be provided here.
 
 template <>
-void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
                    smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& target_model);
 
 template <>
-void convert_model(const smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& current_model,
+void convert_model(smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model);
 
 template <>
-void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
-                   mio::Simulation<ScalarType, mio::osecir::Model<double>>& target_model);
+void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+                   mio::Simulation<ScalarType, mio::osecir::Model<ScalarType>>& target_model);
 
 template <>
-void convert_model(const mio::Simulation<ScalarType, mio::osecir::Model<double>>& current_model,
+void convert_model(mio::Simulation<ScalarType, mio::osecir::Model<ScalarType>>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model);
 
 template <>
-void convert_model(smm::Simulation<1, mio::osir::InfectionState>& current_model,
+void convert_model(smm::Simulation<double, 1, mio::osir::InfectionState>& current_model,
                    smm_moments::Simulation<1, 2>& target_model);
 
 template <>
 void convert_model(smm_moments::Simulation<1, 2>& current_model,
-                   smm::Simulation<1, mio::osir::InfectionState>& target_model);
+                   smm::Simulation<double, 1, mio::osir::InfectionState>& target_model);
 
 template <>
-void convert_model(smm::Simulation<2, mio::osir::InfectionState>& current_model,
+void convert_model(smm::Simulation<double, 2, mio::osir::InfectionState>& current_model,
                    smm_moments::Simulation<2, 2>& target_model);
 
 template <>
 void convert_model(smm_moments::Simulation<2, 2>& current_model,
-                   smm::Simulation<2, mio::osir::InfectionState>& target_model);
+                   smm::Simulation<double, 2, mio::osir::InfectionState>& target_model);
 
 template <>
 void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 3>& current_model,
@@ -76,6 +77,14 @@ void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 3>& current_
 template <>
 void convert_model(smm_moments::Simulation<1, 3>& current_model,
                    smm::SimulationSet<1, mio::osir::InfectionState, 3>& target_model);
+
+template <>
+void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 5>& current_model,
+                   smm_moments::Simulation<1, 5>& target_model);
+
+template <>
+void convert_model(smm_moments::Simulation<1, 5>& current_model,
+                   smm::SimulationSet<1, mio::osir::InfectionState, 5>& target_model);
 
 } //namespace hybrid
 

@@ -23,7 +23,6 @@
 #include "d_abm/single_well.h"
 #include "memilio/epidemiology/age_group.h"
 #include "memilio/geography/regions.h"
-#include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/random_number_generator.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include "models/hybrid/temporal_hybrid_model.h"
@@ -127,6 +126,7 @@ TEST(TestTemporalHybrid, test_advance)
         }
         return false;
     };
+
     hybrid_sim.advance(0.5, condition);
 
     EXPECT_EQ(hybrid_sim.using_model1(), true);

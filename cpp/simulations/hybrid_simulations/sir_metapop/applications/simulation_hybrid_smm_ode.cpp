@@ -19,6 +19,7 @@
 */
 
 #include "hybrid/temporal_hybrid_model.h"
+#include "memilio/config.h"
 #include "ode_sir/infection_state.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
@@ -77,11 +78,12 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
         moment_helper::initialize_model<NumRegions, 2>(expected_values_init, moments_array.moments(), config);
 
     // Create simulations
-    auto sim_smm     = mio::smm::Simulation<NumRegions, mio::osir::InfectionState>(smm_model, config.t0, config.dt);
+    auto sim_smm =
+        mio::smm::Simulation<ScalarType, NumRegions, mio::osir::InfectionState>(smm_model, config.t0, config.dt);
     auto sim_moments = mio::smm_moments::Simulation<NumRegions, 2>(moment_model, config.t0, config.dt);
 
     // Define result functions
-    const auto result_fct_smm = [](const mio::smm::Simulation<NumRegions, mio::osir::InfectionState>& sim,
+    const auto result_fct_smm = [](const mio::smm::Simulation<ScalarType, NumRegions, mio::osir::InfectionState>& sim,
                                    double /*t*/) {
         return sim.get_result();
     };
