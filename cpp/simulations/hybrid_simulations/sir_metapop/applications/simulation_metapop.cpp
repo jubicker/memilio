@@ -94,7 +94,6 @@ int main()
                                                                                               config.t0, config.dt);
     // Advance simulation set
     sim_set.advance(config.tmax);
-    sim_set.calculate_outputs();
 
     // Convert result so they fit structure for ensemble_percentile fct
     std::vector<std::vector<mio::TimeSeries<double>>> sim_results;

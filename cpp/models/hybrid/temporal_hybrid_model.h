@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include <iostream>
 namespace mio
 {
 namespace hybrid
@@ -54,12 +55,12 @@ class TemporalHybridSimulation
 
 public:
     //Functions returning the result/current state of both models
-    using result1_function = std::function<ResultType1(const Model1&, double t)>;
-    using result2_function = std::function<ResultType2(const Model2&, double t)>;
+    using result1_function = std::function<ResultType1(Model1&, double t)>;
+    using result2_function = std::function<ResultType2(Model2&, double t)>;
 
     //Should return true when the simulation should be continued with the model that is not used currently i.e. a switch needs to be applied
     using switching_condition =
-        std::function<bool(const ResultType1& state_model1, const ResultType2& state_model2, bool model1_used)>;
+        std::function<bool(ResultType1& state_model1, ResultType2& state_model2, bool model1_used)>;
 
     /**
      * @brief Create a temporal-hybrid simulation
@@ -90,10 +91,14 @@ public:
      */
     void advance(double tmax, const switching_condition& switch_model)
     {
+        auto result_model1 = get_result_model1();
+        auto result_model2 = get_result_model2();
         // Check in the beginning which model to use
-        bool condition = switch_model(get_result_model1(), get_result_model2(), m_using_model1);
+        bool condition = switch_model(result_model1, result_model2, m_using_model1);
         while (m_t < tmax) {
-            condition = switch_model(get_result_model1(), get_result_model2(), m_using_model1);
+            result_model1 = get_result_model1();
+            result_model2 = get_result_model2();
+            condition     = switch_model(result_model1, result_model2, m_using_model1);
             if (m_using_model1 &&
                 condition) { //currently model1 is used, but the condition to switch to model2 is fulfilled
                 convert_model(m_model1, m_model2);
@@ -121,7 +126,7 @@ public:
      * @brief Get the result of model 1.
      * @return Result of model 1 using the function m_result1.
      */
-    ResultType1 get_result_model1() const
+    ResultType1 get_result_model1()
     {
         return m_result1(m_model1, m_t);
     }
@@ -130,7 +135,7 @@ public:
      * @brief Get the result of model 2.
      * @return Result of model 2 using the function m_result1.
      */
-    ResultType2 get_result_model2() const
+    ResultType2 get_result_model2()
     {
         return m_result2(m_model2, m_t);
     }

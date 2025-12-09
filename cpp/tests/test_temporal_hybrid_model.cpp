@@ -23,6 +23,7 @@
 #include "d_abm/single_well.h"
 #include "memilio/epidemiology/age_group.h"
 #include "memilio/geography/regions.h"
+#include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/random_number_generator.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include "models/hybrid/temporal_hybrid_model.h"
@@ -87,12 +88,12 @@ void mio::hybrid::convert_model(MockModel2& model2, MockModel1& model1)
     model1.update_result();
 }
 
-std::vector<double> result_fct_m1(const MockModel1& model1, double /*t*/)
+std::vector<double> result_fct_m1(MockModel1& model1, double /*t*/)
 {
     return model1.result;
 }
 
-double result_fct_m2(const MockModel2& model2, double /*t*/)
+double result_fct_m2(MockModel2& model2, double /*t*/)
 {
     return model2.result;
 }
@@ -113,7 +114,7 @@ TEST(TestTemporalHybrid, test_advance)
         std::move(m1), std::move(m2), &result_fct_m1, &result_fct_m2, true, 0., 0.5);
 
     //If the total population is bigger than 1, model2 should be used and otherwise model1 should be used
-    const auto condition = [](const std::vector<double>& result_m1, const double result_m2, bool model1_used) {
+    const auto condition = [](std::vector<double>& result_m1, double result_m2, bool model1_used) {
         if (model1_used) {
             if (std::accumulate(result_m1.begin(), result_m1.end(), 0.0) > 1) {
                 return true;
@@ -126,7 +127,6 @@ TEST(TestTemporalHybrid, test_advance)
         }
         return false;
     };
-
     hybrid_sim.advance(0.5, condition);
 
     EXPECT_EQ(hybrid_sim.using_model1(), true);

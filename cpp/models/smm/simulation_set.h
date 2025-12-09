@@ -29,6 +29,7 @@
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "memilio/data/analyze_result.h"
 #include <cstddef>
+#include <sys/types.h>
 #include <vector>
 
 namespace mio
@@ -67,12 +68,25 @@ public:
         , m_sim_time(num_runs, 0.)
         , m_total_time(0.)
     {
+        u_int32_t seed = 0;
         for (auto& m : m_models) {
-            m.get_rng().seed(m.get_rng().generate_seeds());
+            m.get_rng().seed({seed});
             m_sims.push_back(Simulation(m, t0, dt));
+            seed++;
         }
         m_moments      = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
         m_moment_names = m_mom_array.names_up_to_order(MaxMomentOrder);
+
+        // Add initial values to results
+        auto& sim_ts = m_sims[0].get_result();
+#pragma omp parallel for
+        for (size_t run = 0; run < m_sims.size(); ++run) {
+            if (m_results[run].get_num_time_points() == 0) {
+                m_results[run].add_time_point(sim_ts.get_time(0), sim_ts.get_value(0));
+            }
+        }
+        update_means();
+        update_moments();
     }
 
     /**
@@ -97,6 +111,8 @@ public:
         m_t = tmax;
         total_timer.stop();
         m_total_time += total_timer.get_elapsed_time();
+
+        calculate_outputs();
     }
 
     /**
@@ -104,43 +120,41 @@ public:
      */
     void calculate_outputs()
     {
-        timing::BasicTimer total_timer;
-        total_timer.start();
         double t = 0;
         if (m_means.get_num_time_points() > 0) {
             t = m_means.get_last_time();
         }
         // Time steps for interpolation
-        int num_steps = static_cast<int>((m_t - t) / m_dt) + 1;
-        std::vector<double> interpolation_tps(num_steps);
-        for (int i = 0; i < num_steps; ++i) {
-            interpolation_tps[i] = t + i * m_dt;
-        }
+        int num_steps = static_cast<int>((m_t - t) / m_dt);
+        if (num_steps > 0) {
+            num_steps += 1;
+
+            std::vector<double> interpolation_tps(num_steps);
+            for (int i = 0; i < num_steps; ++i) {
+                interpolation_tps[i] = t + i * m_dt;
+            }
 
 // Interpolate results
 #pragma omp parallel for
-        for (size_t run = 0; run < m_sims.size(); ++run) {
-            auto& sim_ts         = m_sims[run].get_result();
-            auto interpolated_ts = interpolate_simulation_result(sim_ts, interpolation_tps);
-            sim_ts               = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
-            while (interpolated_ts.get_num_time_points() > 1) {
-                if (m_results[run].get_num_time_points() == 0 ||
-                    m_results[run].get_last_time() < interpolated_ts.get_time(0)) {
-                    m_results[run].add_time_point(interpolated_ts.get_time(0), interpolated_ts.get_value(0));
+            for (size_t run = 0; run < m_sims.size(); ++run) {
+                auto& sim_ts         = m_sims[run].get_result();
+                auto interpolated_ts = interpolate_simulation_result(sim_ts, interpolation_tps);
+                sim_ts               = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
+                while (interpolated_ts.get_num_time_points() > 1) {
+                    if (m_results[run].get_num_time_points() == 0 ||
+                        m_results[run].get_last_time() < interpolated_ts.get_time(0)) {
+                        m_results[run].add_time_point(interpolated_ts.get_time(0), interpolated_ts.get_value(0));
+                    }
+                    interpolated_ts.remove_time_point(0);
                 }
-                interpolated_ts.remove_time_point(0);
+                m_results[run].add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
+                sim_ts.add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
             }
-            m_results[run].add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
-            sim_ts.add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
+
+            // Fill moment and means time series
+            update_means();
+            update_moments();
         }
-
-        // Fill moment and means time series
-        update_means();
-        update_moments();
-
-        // Stop total timer and return elapsed time
-        total_timer.stop();
-        m_total_time += total_timer.get_elapsed_time();
     }
 
     /**
@@ -221,6 +235,24 @@ public:
     double get_total_time() const
     {
         return m_total_time;
+    }
+
+    size_t get_order() const
+    {
+        return MaxMomentOrder;
+    }
+
+    void advance_t(double t)
+    {
+        if (t < m_t) {
+            log_error("Current t of simulation set is set back. m_t is {} and is set to {}", m_t, t);
+        }
+        m_t = t;
+    }
+
+    void advance_t_index()
+    {
+        m_t_index += 1;
     }
 
 private:
