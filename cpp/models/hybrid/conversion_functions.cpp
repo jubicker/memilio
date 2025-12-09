@@ -36,8 +36,8 @@ namespace mio
 namespace hybrid
 {
 template <>
-void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
-                   smm::Simulation<1, mio::osecir::InfectionState>& target_model)
+void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+                   smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& target_model)
 {
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
@@ -59,7 +59,7 @@ void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& cu
 }
 
 template <>
-void convert_model(smm::Simulation<1, mio::osecir::InfectionState>& current_model,
+void convert_model(const smm::Simulation<ScalarType, 1, mio::osecir::InfectionState>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -75,8 +75,8 @@ void convert_model(smm::Simulation<1, mio::osecir::InfectionState>& current_mode
     target_result.get_last_value() = current_result.get_last_value();
 
     // Update agents' infection state and sample agents position
-    auto current_pop = current_result.get_last_value().eval();
-    double total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
+    auto current_pop     = current_result.get_last_value().eval();
+    ScalarType total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
     SWPositionSampler pos_rng{{-1, -1}, {1, 1}, 0.1};
     auto& state_rng = DiscreteDistribution<size_t>::get_instance();
     auto& abm_pop   = target_model.get_model().populations;
@@ -104,8 +104,8 @@ void convert_model(smm::Simulation<1, mio::osecir::InfectionState>& current_mode
 }
 
 template <>
-void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
-                   mio::Simulation<double, mio::osecir::Model<double>>& target_model)
+void convert_model(const dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& current_model,
+                   mio::Simulation<ScalarType, mio::osecir::Model<double>>& target_model)
 {
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
@@ -120,7 +120,8 @@ void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& cu
     size_t num_age_groups = target_result.get_last_value().size() / (int)mio::osecir::InfectionState::Count;
     for (int i = 0; i < (int)mio::osecir::InfectionState::Count; ++i) {
         for (size_t age_group = 0; age_group < num_age_groups; ++age_group) {
-            double pop_value = current_result.get_last_value()[(int)mio::osecir::InfectionState(i)] / num_age_groups;
+            ScalarType pop_value =
+                current_result.get_last_value()[(int)mio::osecir::InfectionState(i)] / num_age_groups;
             // Update result timeseries
             target_result.get_last_value()[target_model.get_model().populations.get_flat_index(
                 {mio::AgeGroup(age_group), mio::osecir::InfectionState(i)})] = pop_value;
@@ -132,7 +133,7 @@ void convert_model(dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& cu
 }
 
 template <>
-void convert_model(mio::Simulation<double, mio::osecir::Model<double>>& current_model,
+void convert_model(const mio::Simulation<ScalarType, mio::osecir::Model<double>>& current_model,
                    dabm::Simulation<SingleWell<mio::osecir::InfectionState>>& target_model)
 {
     auto& current_result = current_model.get_result();
@@ -158,8 +159,8 @@ void convert_model(mio::Simulation<double, mio::osecir::Model<double>>& current_
     }
 
     // Update agents' infection state and sample agents position
-    auto current_pop = target_result.get_last_value().eval();
-    double total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
+    auto current_pop     = target_result.get_last_value().eval();
+    ScalarType total_pop = std::accumulate(current_pop.begin(), current_pop.end(), 0.0);
     SWPositionSampler pos_rng{{-1, -1}, {1, 1}, 0.1};
     auto& state_rng = DiscreteDistribution<size_t>::get_instance();
     auto& abm_pop   = target_model.get_model().populations;

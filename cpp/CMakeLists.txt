@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED "20")
 option(MEMILIO_BUILD_TESTS "Build memilio unit tests." ON)
 option(MEMILIO_BUILD_EXAMPLES "Build memilio examples." ON)
 option(MEMILIO_BUILD_MODELS "Build memilio models." ON)
-option(MEMILIO_BUILD_SIMULATIONS "Build memilio simulations that were used for scientific articles." ON)
 option(MEMILIO_BUILD_HYBRID "Build simualtions for hybrid model." ON)
 option(MEMILIO_BUILD_BENCHMARKS "Build memilio benchmarks with google benchmark." OFF)
 option(MEMILIO_BUILD_SBML_MODELS "Build the SBML importer and imported models." ON)
@@ -76,7 +75,8 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_INSTALL_RPATH "${CMAKE_BINARY_DIR}/lib" "${CMAKE_BINARY_DIR}/bin")
 
-file(TO_CMAKE_PATH "${PROJECT_SOURCE_DIR}/.." MEMILIO_BASE_DIR)
+# sets MEMILIO_BASE_DIR to the directory containing cpp (i.e., the root of the git repo)
+cmake_path(CONVERT "${PROJECT_SOURCE_DIR}/.." TO_CMAKE_PATH_LIST MEMILIO_BASE_DIR NORMALIZE)
 
 # code coverage analysis
 # Note: this only works under linux and with make
@@ -98,7 +98,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
             NAME coverage
             EXECUTABLE memilio-test
             LCOV_ARGS --ignore-errors gcov,mismatch
-            EXCLUDE "${CMAKE_SOURCE_DIR}/tests*" "${CMAKE_SOURCE_DIR}/simulations*" "${CMAKE_SOURCE_DIR}/examples*"
+            EXCLUDE "${CMAKE_SOURCE_DIR}/tests*" "${CMAKE_SOURCE_DIR}/examples*"
             "${CMAKE_SOURCE_DIR}/memilio/ad*" "${CMAKE_BINARY_DIR}/*" "/usr*" "${CMAKE_SOURCE_DIR}/*.F"
         )
     endif()
@@ -185,6 +185,8 @@ if(MEMILIO_BUILD_MODELS)
     add_subdirectory(models/ide_secir)
     add_subdirectory(models/ide_seir)
     add_subdirectory(models/ode_seir)
+    add_subdirectory(models/ode_seirv)
+    add_subdirectory(models/ode_seirdb)
     add_subdirectory(models/ode_seair)
     add_subdirectory(models/ode_sir)
     add_subdirectory(models/sde_sir)
@@ -194,6 +196,7 @@ if(MEMILIO_BUILD_MODELS)
     add_subdirectory(models/smm)
     add_subdirectory(models/smm_moments)
     add_subdirectory(models/hybrid)
+    add_subdirectory(models/ode_mseirs4)
 endif()
 
 if(MEMILIO_BUILD_EXAMPLES)
@@ -202,14 +205,6 @@ endif()
 
 if(MEMILIO_BUILD_TESTS)
     add_subdirectory(tests)
-endif()
-
-if(MEMILIO_BUILD_SIMULATIONS)
-    add_subdirectory(simulations)
-endif()
-
-if(MEMILIO_BUILD_HYBRID)
-    add_subdirectory(simulations/hybrid_simulations)
 endif()
 
 if(MEMILIO_BUILD_BENCHMARKS)
