@@ -34,7 +34,7 @@ int main()
     const size_t max_order        = 5;
     const auto config             = Config::get_config(Config::ConfigType::Config2);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 1.0;
+    const double rel_switch_value = 0.0;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -110,7 +110,7 @@ int main()
                 return true;
             }
         }
-        // else {
+        // else { //Switch back
         //     auto& last_value      = result_ode.get_last_value().eval();
         //     double total_infected = 0;
         //     for (size_t r = 0; r < num_regions; ++r) {
@@ -135,7 +135,6 @@ int main()
     hybrid_sim.advance(config.tmax, condition);
     timer.stop();
     std::cout << "Time: " << timer.get_elapsed_time() << std::endl;
-    ;
 
     // Calculate moments and expected values of sim set
     auto means_smm   = hybrid_sim.get_model1().get_mean();

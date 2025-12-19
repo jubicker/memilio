@@ -92,8 +92,11 @@ int main()
     // Create simulation set
     auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(num_runs, model,
                                                                                               config.t0, config.dt);
+    mio::timing::BasicTimer timer;
+    timer.start();
     // Advance simulation set
     sim_set.advance(config.tmax);
+    timer.stop();
 
     // Convert result so they fit structure for ensemble_percentile fct
     std::vector<std::vector<mio::TimeSeries<double>>> sim_results;
@@ -128,7 +131,7 @@ int main()
     }
     auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
     mio::TimeSeries<double> total_time(1);
-    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, sim_set.get_total_time());
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, timer.get_elapsed_time());
     total_time.add_time_point(0., time);
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 

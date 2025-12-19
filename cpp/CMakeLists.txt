@@ -203,6 +203,10 @@ if(MEMILIO_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+if(MEMILIO_BUILD_HYBRID)
+    add_subdirectory(simulations/hybrid_simulations)
+endif()
+
 if(MEMILIO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
