@@ -286,8 +286,8 @@ private:
         const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
-        double moment                                                                   = 0.0;
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
+        double moment                                                                    = 0.0;
         for (int i = 0; i < values.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {

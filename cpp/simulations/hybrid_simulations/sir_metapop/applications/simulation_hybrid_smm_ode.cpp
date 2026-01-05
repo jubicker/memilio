@@ -157,11 +157,12 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
-    const size_t num_runs         = 3;
+    const size_t num_runs         = 4;
+    double dt_switch              = 1.;
     const size_t max_order        = 3;
     const auto config             = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 0.5;
+    const double rel_switch_value = 1.0000;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -196,7 +197,7 @@ int main()
         }
     }
     // Moment are all zero
-    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 1> moments_array;
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 2> moments_array;
     moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
     //Initialize moment model
     auto moment_model =
@@ -244,7 +245,7 @@ int main()
     };
 
     auto sim_set = mio::hybrid::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(
-        num_runs, smm_model, moment_model, result_fct_smm, result_fct_moments, config.t0, config.dt);
+        num_runs, smm_model, moment_model, result_fct_smm, result_fct_moments, config.t0, config.dt, dt_switch);
 
     mio::timing::BasicTimer timer;
     timer.start();

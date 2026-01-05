@@ -25,6 +25,7 @@
 #include "memilio/math/interpolation.h"
 #include "memilio/io/io.h"
 
+#include <cstddef>
 #include <functional>
 #include <vector>
 
@@ -211,8 +212,7 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
            "Time points for interpolation have to be sorted in non-descending order.");
 
     if (interpolation_times.size() >= 2) {
-        assert((interpolation_times[1] > simulation_result.get_time(0) &&
-                interpolation_times.rbegin()[1] <= simulation_result.get_last_time()) &&
+        assert((interpolation_times[1] >= simulation_result.get_time(0)) &&
                "All but the first and the last time point of interpolation have lie between simulation times (strictly "
                "for lower boundary).");
     }
@@ -223,17 +223,19 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
         return interpolated;
     }
 
-    size_t interp_idx = 0;
+    size_t interp_idx   = 0;
+    size_t help_sim_idx = 0;
     // add first time point of interpolation times in case it is smaller than the first time point of simulation_result
     // this is used for the case that it equals the first time point of simulation up to tolerance
     // this is necessary even if the tolerance is 0 due to the way the comparison in the loop is implemented (< and >=)
-    if (simulation_result.get_time(0) >= interpolation_times[0]) {
+    if (std::abs(simulation_result.get_time(0) - interpolation_times[0]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[0], simulation_result[0]);
         ++interp_idx;
+        ++help_sim_idx;
     }
 
     //interpolate between pair of time points that lie on either side of each interpolation point
-    for (Eigen::Index sim_idx = 0;
+    for (Eigen::Index sim_idx = Eigen::Index(help_sim_idx);
          sim_idx < simulation_result.get_num_time_points() - 1 && interp_idx < interpolation_times.size();) {
         //only go to next pair of time points if no time point is added.
         //otherwise check the same time points again
@@ -255,7 +257,7 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
     // add last time point of interpolation times in case it is larger than the last time point of simulation_result
     // this is used for the case that it equals the last time point of simulation up to tolerance
     if (interp_idx < interpolation_times.size() &&
-        simulation_result.get_last_time() < interpolation_times[interp_idx]) {
+        std::abs(simulation_result.get_last_time() - interpolation_times[interp_idx]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[interp_idx], simulation_result.get_last_value());
     }
 
@@ -272,8 +274,7 @@ TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulatio
            "Time points for interpolation have to be sorted in non-descending order.");
 
     if (interpolation_times.size() >= 2) {
-        assert((interpolation_times[1] > simulation_result.get_time(0) &&
-                interpolation_times.rbegin()[1] <= simulation_result.get_last_time()) &&
+        assert((interpolation_times[1] >= simulation_result.get_time(0)) &&
                "All but the first and the last time point of interpolation have lie between simulation times (strictly "
                "for lower boundary).");
     }
@@ -284,17 +285,19 @@ TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulatio
         return interpolated;
     }
 
-    size_t interp_idx = 0;
+    size_t interp_idx   = 0;
+    size_t help_sim_idx = 0;
     // add first time point of interpolation times in case it is smaller than the first time point of simulation_result
     // this is used for the case that it equals the first time point of simulation up to tolerance
     // this is necessary even if the tolerance is 0 due to the way the comparison in the loop is implemented (< and >=)
-    if (simulation_result.get_time(0) >= interpolation_times[0]) {
+    if (std::abs(simulation_result.get_time(0) - interpolation_times[0]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[0], simulation_result[0]);
         ++interp_idx;
+        ++help_sim_idx;
     }
 
     //interpolate between pair of time points that lie on either side of each interpolation point
-    for (Eigen::Index sim_idx = 0;
+    for (Eigen::Index sim_idx = Eigen::Index(help_sim_idx);
          sim_idx < simulation_result.get_num_time_points() - 1 && interp_idx < interpolation_times.size();) {
         //only go to next pair of time points if no time point is added.
         //otherwise check the same time points again
@@ -312,7 +315,7 @@ TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulatio
     // add last time point of interpolation times in case it is larger than the last time point of simulation_result
     // this is used for the case that it equals the last time point of simulation up to tolerance
     if (interp_idx < interpolation_times.size() &&
-        simulation_result.get_last_time() < interpolation_times[interp_idx]) {
+        std::abs(simulation_result.get_last_time() - interpolation_times[interp_idx]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[interp_idx], simulation_result.get_last_value());
     }
 

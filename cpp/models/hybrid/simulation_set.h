@@ -62,7 +62,7 @@ public:
      * @param dt The time step for interpolation.
      */
     SimulationSet(size_t num_runs, const Model1& model1, const Model2& model2, const result1_function& result1,
-                  const result2_function& result2, ScalarType t0, ScalarType dt)
+                  const result2_function& result2, ScalarType t0, ScalarType dt, ScalarType dt_switch)
         : m_model1s(num_runs, model1)
         , m_model2s(num_runs, model2)
         , m_results(num_runs, TimeSeries<ScalarType>(static_cast<size_t>(Status::Count) * regions))
@@ -77,10 +77,12 @@ public:
 
         u_int32_t seed = 0;
         for (size_t run = 0; run < num_runs; ++run) {
-            m_model1s[run].get_rng().seed({seed++});
+            m_model1s[run].get_rng().seed({seed});
             auto sim1 = smm::Simulation<ScalarType, regions, Status>(m_model1s[run], t0, dt);
             auto sim2 = smm_moments::Simulation<regions, 2>(m_model2s[run], t0, dt);
-            m_simulations.push_back(Simulation(std::move(sim1), std::move(sim2), result1, result2, true, t0, dt));
+            m_simulations.push_back(
+                Simulation(std::move(sim1), std::move(sim2), result1, result2, true, t0, dt_switch));
+            seed++;
         }
     }
 
@@ -130,6 +132,15 @@ public:
                     interpolate_smm_simulation_result(m_simulations[run].get_result_model1(), interpolation_tps);
                 auto interpolated_ode_result =
                     interpolate_simulation_result(m_simulations[run].get_result_model2(), interpolation_tps);
+                auto sim_ts     = m_simulations[run].get_result_model2();
+                auto num_points = static_cast<size_t>(sim_ts.get_num_time_points());
+                for (size_t i = 0; i < num_points; i++) {
+                    printf("\n%.14f ", sim_ts.get_time(i));
+                    Eigen::VectorX<ScalarType> res_j = sim_ts.get_value(i);
+                    for (size_t j = 0; j < (size_t)res_j.size(); j++) {
+                        printf(" %.14f", res_j[j]);
+                    }
+                }
                 auto merged_ts = merge_time_series(interpolated_smm_result, interpolated_ode_result).value();
                 while (merged_ts.get_num_time_points() > 1) {
                     if (m_results[run].get_num_time_points() == 0 ||
@@ -138,6 +149,7 @@ public:
                     }
                     merged_ts.remove_time_point(0);
                 }
+                m_results[run].add_time_point(merged_ts.get_last_time(), merged_ts.get_last_value());
             }
 
             //Update means and moments
@@ -251,8 +263,8 @@ private:
         const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
-        double moment                                                                   = 0.0;
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
+        double moment                                                                    = 0.0;
         for (int i = 0; i < values.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {
