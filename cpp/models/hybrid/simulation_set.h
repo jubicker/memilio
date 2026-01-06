@@ -128,19 +128,10 @@ public:
 
             for (size_t run = 0; run < m_simulations.size(); ++run) {
                 // Interpolate SMM and ODE results separately
-                auto interpolated_smm_result =
-                    interpolate_smm_simulation_result(m_simulations[run].get_result_model1(), interpolation_tps);
+                auto interpolated_smm_result = m_simulations[run].get_result_model1();
+                //interpolate_smm_simulation_result(m_simulations[run].get_result_model1(), interpolation_tps);
                 auto interpolated_ode_result =
                     interpolate_simulation_result(m_simulations[run].get_result_model2(), interpolation_tps);
-                auto sim_ts     = m_simulations[run].get_result_model2();
-                auto num_points = static_cast<size_t>(sim_ts.get_num_time_points());
-                for (size_t i = 0; i < num_points; i++) {
-                    printf("\n%.14f ", sim_ts.get_time(i));
-                    Eigen::VectorX<ScalarType> res_j = sim_ts.get_value(i);
-                    for (size_t j = 0; j < (size_t)res_j.size(); j++) {
-                        printf(" %.14f", res_j[j]);
-                    }
-                }
                 auto merged_ts = merge_time_series(interpolated_smm_result, interpolated_ode_result).value();
                 while (merged_ts.get_num_time_points() > 1) {
                     if (m_results[run].get_num_time_points() == 0 ||

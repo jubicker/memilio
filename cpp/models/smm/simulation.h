@@ -22,6 +22,7 @@
 #define MIO_SMM_SIMULATION_H
 
 #include "memilio/config.h"
+#include "memilio/utils/time_series.h"
 #include "smm/model.h"
 #include "smm/parameters.h"
 #include "memilio/compartments/simulation.h"
@@ -54,6 +55,7 @@ public:
         : m_dt(dt)
         , m_model(std::make_unique<Model>(model))
         , m_result(t0, m_model->get_initial_values())
+        , m_result_interpolated(t0, m_model->get_initial_values())
         , m_internal_time(adoption_rates().size() + transition_rates().size(), t0)
         , m_tp_next_event(adoption_rates().size() + transition_rates().size(), t0)
         , m_waiting_times(adoption_rates().size() + transition_rates().size(), 0)
@@ -84,15 +86,20 @@ public:
         size_t next_event = determine_next_event(); // index of the next event
         FP current_time   = m_result.get_last_time();
         // set in the past to add a new time point immediately
-        FP last_result_time = current_time - m_dt;
+        FP next_result_time = m_result_interpolated.get_last_time() + m_dt;
         // iterate over time
         while (current_time + m_waiting_times[next_event] < tmax) {
             // update time
             current_time += m_waiting_times[next_event];
-            // Save current result
-            m_result.add_time_point(current_time);
-            // copy from the previous last value
-            m_result.get_last_value() = m_result[m_result.get_num_time_points() - 2];
+            // Regularly save current state
+            if (current_time > next_result_time) {
+                while (current_time > next_result_time) {
+                    m_result_interpolated.add_time_point(next_result_time);
+                    // copy from the previous last value
+                    m_result_interpolated.get_last_value() = m_result.get_last_value();
+                    next_result_time += m_dt;
+                }
+            }
             // decide event type by index and perform it
             if (next_event < adoption_rates().size()) {
                 // perform adoption event
@@ -121,7 +128,9 @@ public:
             next_event = determine_next_event();
         }
         // copy last result, if no event occurs between last_result_time and tmax
-        if (last_result_time < tmax) {
+        if (m_result_interpolated.get_last_time() < tmax) {
+            m_result_interpolated.add_time_point(tmax);
+            m_result_interpolated.get_last_value() = m_result.get_last_value();
             m_result.add_time_point(tmax);
             m_result.get_last_value() = m_result[m_result.get_num_time_points() - 2];
             // update internal times
@@ -138,11 +147,11 @@ public:
      */
     TimeSeries<FP>& get_result()
     {
-        return m_result;
+        return m_result_interpolated;
     }
     const TimeSeries<FP>& get_result() const
     {
-        return m_result;
+        return m_result_interpolated;
     }
 
     /**
@@ -207,6 +216,7 @@ private:
     FP m_dt; ///< Initial step size
     std::unique_ptr<Model> m_model; ///< Pointer to the model used in the simulation.
     mio::TimeSeries<FP> m_result; ///< Result time series.
+    mio::TimeSeries<FP> m_result_interpolated; ///< Interpolated result time.
 
     std::vector<FP> m_internal_time; ///< Internal times of all poisson processes (aka T_k).
     std::vector<FP> m_tp_next_event; ///< Internal time points of next event i after m_internal[i] (aka P_k).

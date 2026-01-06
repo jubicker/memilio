@@ -231,7 +231,6 @@ TimeSeries<FP> interpolate_simulation_result(const TimeSeries<FP>& simulation_re
     if (std::abs(simulation_result.get_time(0) - interpolation_times[0]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[0], simulation_result[0]);
         ++interp_idx;
-        ++help_sim_idx;
     }
 
     //interpolate between pair of time points that lie on either side of each interpolation point
@@ -293,7 +292,6 @@ TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulatio
     if (std::abs(simulation_result.get_time(0) - interpolation_times[0]) < 1e-14) {
         interpolated.add_time_point(interpolation_times[0], simulation_result[0]);
         ++interp_idx;
-        ++help_sim_idx;
     }
 
     //interpolate between pair of time points that lie on either side of each interpolation point
@@ -302,8 +300,8 @@ TimeSeries<FP> interpolate_smm_simulation_result(const TimeSeries<FP>& simulatio
         //only go to next pair of time points if no time point is added.
         //otherwise check the same time points again
         //in case there is more than one interpolation point between the two time points
-        if (simulation_result.get_time(sim_idx) < interpolation_times[interp_idx] &&
-            simulation_result.get_time(sim_idx + 1) >= interpolation_times[interp_idx]) {
+        if (simulation_result.get_time(sim_idx) <= interpolation_times[interp_idx] &&
+            simulation_result.get_time(sim_idx + 1) > interpolation_times[interp_idx]) {
             interpolated.add_time_point(interpolation_times[interp_idx], simulation_result.get_value(sim_idx));
             ++interp_idx;
         }
