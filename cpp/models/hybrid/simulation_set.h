@@ -90,8 +90,8 @@ public:
     {
         timing::BasicTimer total_timer;
         total_timer.start();
-// Run simulations
-#pragma omp parallel for
+        // Run simulations
+        //#pragma omp parallel for
         for (size_t run = 0; run < m_simulations.size(); ++run) {
             timing::BasicTimer timer;
             timer.start();
@@ -125,17 +125,33 @@ public:
             for (int i = 0; i < num_steps; ++i) {
                 interpolation_tps[i] = t + i * m_dt;
             }
-
+#pragma omp parallel for
             for (size_t run = 0; run < m_simulations.size(); ++run) {
                 // Interpolate SMM and ODE results separately
                 auto interpolated_smm_result = m_simulations[run].get_result_model1();
-                //interpolate_smm_simulation_result(m_simulations[run].get_result_model1(), interpolation_tps);
-                auto interpolated_ode_result =
-                    interpolate_simulation_result(m_simulations[run].get_result_model2(), interpolation_tps);
-                auto merged_ts = merge_time_series(interpolated_smm_result, interpolated_ode_result).value();
+                auto ode_res                 = m_simulations[run].get_result_model2();
+                if (std::abs(interpolated_smm_result.get_time(0) - ode_res.get_time(0)) < 1e-14) {
+                    ode_res.remove_time_point(0);
+                }
+                auto merged_ts = interpolated_smm_result;
+                if (ode_res.get_num_time_points() > 0) {
+                    //Remove all values from interpolation tps that are smaller than the first time point of the ode result
+                    double limit               = ode_res.get_time(0);
+                    auto interpolated_runs_tps = interpolation_tps;
+                    interpolated_runs_tps.erase(std::remove_if(interpolated_runs_tps.begin(),
+                                                               interpolated_runs_tps.end(),
+                                                               [limit](double x) {
+                                                                   return x < limit;
+                                                               }),
+                                                interpolated_runs_tps.end());
+                    auto interpolated_ode_result = interpolate_simulation_result(ode_res, interpolated_runs_tps);
+                    merged_ts = merge_time_series(interpolated_smm_result, interpolated_ode_result).value();
+                }
+
                 while (merged_ts.get_num_time_points() > 1) {
                     if (m_results[run].get_num_time_points() == 0 ||
-                        m_results[run].get_last_time() < merged_ts.get_time(0)) {
+                        (m_results[run].get_last_time() < merged_ts.get_time(0) &&
+                         std::abs(m_results[run].get_last_time() - merged_ts.get_time(0)) > 1e-14)) {
                         m_results[run].add_time_point(merged_ts.get_time(0), merged_ts.get_value(0));
                     }
                     merged_ts.remove_time_point(0);

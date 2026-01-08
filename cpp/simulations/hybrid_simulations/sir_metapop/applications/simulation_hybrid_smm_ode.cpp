@@ -157,12 +157,12 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
 int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
-    const size_t num_runs         = 4;
+    const size_t num_runs         = 1;
     double dt_switch              = 1.;
     const size_t max_order        = 3;
     const auto config             = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 1.0000;
+    const double rel_switch_value = 1.0;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -256,8 +256,11 @@ int main()
     // Convert result so they fit structure for ensemble_percentile fct
     std::vector<std::vector<mio::TimeSeries<double>>> sim_results;
     auto& all_results = sim_set.get_result();
+    //size_t run        = 0;
     for (auto& res : all_results) {
+        //(void)res.export_csv(save_file + std::to_string(run) + "_comps.csv");
         sim_results.push_back({res});
+        //run += 1;
     }
     // Save percentiles
     auto p05      = mio::ensemble_percentile(sim_results, 0.05);

@@ -129,8 +129,11 @@ public:
         }
         // copy last result, if no event occurs between last_result_time and tmax
         if (m_result_interpolated.get_last_time() < tmax) {
-            m_result_interpolated.add_time_point(tmax);
-            m_result_interpolated.get_last_value() = m_result.get_last_value();
+            while (tmax > next_result_time) {
+                m_result_interpolated.add_time_point(next_result_time);
+                m_result_interpolated.get_last_value() = m_result.get_last_value();
+                next_result_time += m_dt;
+            }
             m_result.add_time_point(tmax);
             m_result.get_last_value() = m_result[m_result.get_num_time_points() - 2];
             // update internal times
