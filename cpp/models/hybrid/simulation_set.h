@@ -91,7 +91,7 @@ public:
         timing::BasicTimer total_timer;
         total_timer.start();
         // Run simulations
-        //#pragma omp parallel for
+#pragma omp parallel for
         for (size_t run = 0; run < m_simulations.size(); ++run) {
             timing::BasicTimer timer;
             timer.start();
