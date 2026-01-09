@@ -31,10 +31,12 @@ int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
     const size_t num_runs         = 10000;
+    double dt_switch              = 1.;
     const size_t max_order        = 5;
-    const auto config             = Config::get_config(Config::ConfigType::Config2);
+    const auto config             = Config::get_config(Config::ConfigType::Config4);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 0.0;
+    const double rel_switch_value = 1.0;
+    double min_step_size          = 0.00001;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -80,8 +82,11 @@ int main()
 
     // Initialize moment simulation
     auto sim_moments = mio::smm_moments::Simulation<num_regions, max_order>(moment_model, config.t0, config.dt);
-    // Set maximum dt of integrator to interpolation time points
-    sim_moments.get_integrator_core().get_dt_max() = config.dt;
+    // // Set maximum dt of integrator to interpolation time points
+    // sim_moments.get_integrator_core().get_dt_max() = config.dt;
+    if (min_step_size > 0) {
+        sim_moments.get_integrator_core().get_dt_min() = min_step_size;
+    }
 
     // Define result functions
     const auto result_fct_smm = [](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>& sim,
@@ -124,17 +129,15 @@ int main()
         return false;
     };
 
-    double hybrid_check_dt = 0.5;
     mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), mio::TimeSeries<double>,
                                           mio::TimeSeries<double>>
         hybrid_sim(std::move(sim_set), std::move(sim_moments), result_fct_smm, result_fct_moments, true, config.t0,
-                   hybrid_check_dt);
+                   dt_switch);
 
     mio::timing::BasicTimer timer;
     timer.start();
     hybrid_sim.advance(config.tmax, condition);
     timer.stop();
-    std::cout << "Time: " << timer.get_elapsed_time() << std::endl;
 
     // Calculate moments and expected values of sim set
     auto means_smm   = hybrid_sim.get_model1().get_mean();
@@ -146,6 +149,28 @@ int main()
     done                 = expected_values.export_csv(save_file + "expected_values_moments.csv");
     done                 = moments_moments.first.export_csv(save_file + "moments_moments.csv", moments_moments.second);
 
+    // Get percentiles of smm simulation set
+    std::vector<std::vector<mio::TimeSeries<double>>> sim_results;
+    auto& all_results = hybrid_sim.get_model1().get_result();
+    //size_t run        = 0;
+    for (auto& res : all_results) {
+        //(void)res.export_csv(save_file + std::to_string(run) + "_comps.csv");
+        sim_results.push_back({res});
+        //run += 1;
+    }
+    // Save percentiles
+    auto p05      = mio::ensemble_percentile(sim_results, 0.05);
+    auto p25      = mio::ensemble_percentile(sim_results, 0.25);
+    auto p50      = mio::ensemble_percentile(sim_results, 0.5);
+    auto p75      = mio::ensemble_percentile(sim_results, 0.75);
+    auto p95      = mio::ensemble_percentile(sim_results, 0.95);
+    auto finished = p05[0].export_csv(save_file + "smm_p05.csv");
+    finished      = p25[0].export_csv(save_file + "smm_p25.csv");
+    finished      = p50[0].export_csv(save_file + "smm_p50.csv");
+    finished      = p75[0].export_csv(save_file + "smm_p75.csv");
+    finished      = p95[0].export_csv(save_file + "smm_p95.csv");
+
+    // Save merged time series
     auto hybrid_result_means   = mio::merge_time_series(means_smm, expected_values).value();
     auto hybrid_result_moments = mio::merge_time_series(moments_smm, moments_moments.first).value();
 
@@ -157,8 +182,22 @@ int main()
     }
     hybrid_result_means   = mio::interpolate_simulation_result(hybrid_result_means, interpolation_tps);
     hybrid_result_moments = mio::interpolate_simulation_result(hybrid_result_moments, interpolation_tps);
-    done = hybrid_result_means.export_csv(save_file + "merged_expected_values.csv", {"muS_r0", "muI_r0", "muR_r0"});
-    done = hybrid_result_moments.export_csv(save_file + "merged_moments.csv", moments_moments.second);
+    done                  = hybrid_result_means.export_csv(save_file + "means.csv");
+    done                  = hybrid_result_moments.export_csv(save_file + "moments.csv", moments_moments.second);
+
+    // Save times
+    mio::TimeSeries<double> time_ts(1);
+    auto& all_times = hybrid_sim.get_model1().get_sim_times();
+    for (size_t i = 0; i < all_times.size(); i++) {
+        Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
+        time[0]              = all_times[i];
+        time_ts.add_time_point(i, time);
+    }
+    auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
+    mio::TimeSeries<double> total_time(1);
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, timer.get_elapsed_time());
+    total_time.add_time_point(0., time);
+    finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
     return 0;
 }
