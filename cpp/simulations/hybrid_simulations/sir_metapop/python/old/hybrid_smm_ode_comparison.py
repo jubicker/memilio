@@ -14,9 +14,9 @@ def plot_means(result_dir, save_dir, switching_values, num_regions, my_colors):
         time = means["Time"]
         label = f"{float(sv) * 100:.4f}"
         for r in range(num_regions):            
-            ax_S.plot(time, means[f'muS_r{r}'], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
-            ax_I.plot(time, means[f'muI_r{r}'], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
-            ax_R.plot(time, means[f'muR_r{r}'], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
+            ax_S.plot(time, means.iloc[:, 1 + r * 3 +0], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
+            ax_I.plot(time, means.iloc[:, 1 + r * 3 +1], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
+            ax_R.plot(time, means.iloc[:, 1 + r * 3 +2], label = str(label) + f"%, Region {r:.0f}", color = my_colors[c])
             c += 1
         
     ax_S.set_xlabel("Time [days]")
@@ -195,33 +195,33 @@ def plot_err_mean(result_dir, save_dir, switching_values, my_colors):
         time = df["Time"]
         true = list(true_df.values())[0]
         label = f"{float(sv) * 100:.4f}%"
-        error_S = (df['muS_r0'] - true['muS_r0']).abs()
-        error_I = (df['muI_r0'] - true['muI_r0']).abs()
-        error_R = (df['muR_r0'] - true['muR_r0']).abs()
+        error_S = (df['C1'] - true['C1']).abs()#/true['muS_r0']
+        error_I = (df['C2'] - true['C2']).abs()#/true['muI_r0']
+        error_R = (df['C3'] - true['C3']).abs()#/true['muR_r0']
         ax_S.plot(time, np.log(error_S), label = label, color=my_colors[counter], linewidth=0.5)
         ax_I.plot(time, np.log(error_I), label = label, color=my_colors[counter], linewidth=0.5)
         ax_R.plot(time, np.log(error_R), label = label, color=my_colors[counter], linewidth=0.5)
-        sum_err_S[sv] = error_S.sum()
-        sum_err_I[sv] = error_I.sum()
-        sum_err_R[sv] = error_R.sum()
+        sum_err_S[sv] = error_S.sum()#/len(time)
+        sum_err_I[sv] = error_I.sum()#/len(time)
+        sum_err_R[sv] = error_R.sum()#/len(time)
         counter += 1
         xlabels.append(label)
         
         # Calculate total error
         MAEs[sv] = {
-            'S': (df['muS_r0'] - true['muS_r0']).abs().mean(),
-            'I': (df['muI_r0'] - true['muI_r0']).abs().mean(),
-            'R': (df['muR_r0'] - true['muR_r0']).abs().mean()
+            'S': (df['C1'] - true['C1']).abs().mean(),
+            'I': (df['C2'] - true['C2']).abs().mean(),
+            'R': (df['C3'] - true['C3']).abs().mean()
         }
         RMSEs[sv] = {
-            'S': np.sqrt(((df['muS_r0'] - true['muS_r0'])**2).mean()),
-            'I': np.sqrt(((df['muI_r0'] - true['muI_r0'])**2).mean()),
-            'R': np.sqrt(((df['muR_r0'] - true['muR_r0'])**2).mean())
+            'S': np.sqrt(((df['C1'] - true['C1'])**2).mean()),
+            'I': np.sqrt(((df['C2'] - true['C2'])**2).mean()),
+            'R': np.sqrt(((df['C3'] - true['C3'])**2).mean())
         }
         MAPEs[sv] = {
-            'S': ( (df['muS_r0'] - true['muS_r0']).abs() / true['muS_r0'].replace(0, np.nan) ).mean(),
-            'I': ( (df['muI_r0'] - true['muI_r0']).abs() / true['muI_r0'].replace(0, np.nan) ).mean(),
-            'R': ( (df['muR_r0'] - true['muR_r0']).abs() / true['muR_r0'].replace(0, np.nan) ).mean()
+            'S': ( (df['C1'] - true['C1']).abs() / true['C1'].replace(0, np.nan) ).mean(),
+            'I': ( (df['C2'] - true['C2']).abs() / true['C2'].replace(0, np.nan) ).mean(),
+            'R': ( (df['C3'] - true['C3']).abs() / true['C3'].replace(0, np.nan) ).mean()
         }
         
     ax_S.set_xlabel("Time [days]")
@@ -251,19 +251,19 @@ def plot_err_mean(result_dir, save_dir, switching_values, my_colors):
     fig_leg = plt.figure(figsize=figsize)                   
     fig_leg.legend(handles, labels, loc='center', ncol=2)      
     fig_leg.tight_layout()
-    fig_leg.savefig(save_dir + "legend_S.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_S_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
 
     handles, labels = ax_I.get_legend_handles_labels()
     fig_leg = plt.figure(figsize=figsize)
     fig_leg.legend(handles, labels, loc='center', ncol=2)
-    fig_leg.savefig(save_dir + "legend_I.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_I_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
 
     handles, labels = ax_R.get_legend_handles_labels()
     fig_leg = plt.figure(figsize=figsize)
     fig_leg.legend(handles, labels, loc='center', ncol=2)
-    fig_leg.savefig(save_dir + "legend_R.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_R_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
     
     labels = list(MAEs.keys())
@@ -449,19 +449,19 @@ def plot_err_var(result_dir, save_dir, switching_values, my_colors):
     fig_leg = plt.figure(figsize=figsize)                   
     fig_leg.legend(handles, labels, loc='center', ncol=2)      
     fig_leg.tight_layout()
-    fig_leg.savefig(save_dir + "legend_S.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_S_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
 
     handles, labels = ax_I.get_legend_handles_labels()
     fig_leg = plt.figure(figsize=figsize)
     fig_leg.legend(handles, labels, loc='center', ncol=2)
-    fig_leg.savefig(save_dir + "legend_I.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_I_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
 
     handles, labels = ax_R.get_legend_handles_labels()
     fig_leg = plt.figure(figsize=figsize)
     fig_leg.legend(handles, labels, loc='center', ncol=2)
-    fig_leg.savefig(save_dir + "legend_R.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_dir + "legend_R_err.png", dpi=dpi, bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
     
     labels = list(MAEs.keys())
@@ -500,67 +500,6 @@ def plot_err_var(result_dir, save_dir, switching_values, my_colors):
     fig.tight_layout()
     fig.savefig(save_dir + "Sum_Err_VarR.png", dpi=dpi)
     plt.close()
-    
-    # Grouped bar plot with total MAE, RMSE and MAPE
-    labels = list(MAEs.keys())
-    x = range(len(labels))
-    
-    fig_bar_S, ax_bar_S = plt.subplots(figsize=(6, 4))
-    ax_bar_S_MAPE = ax_bar_S.twinx()
-    vals_mae_S = [MAEs[k]['S'] for k in labels]
-    vals_rmse_S = [RMSEs[k]['S'] for k in labels]
-    h_mae_S = ax_bar_S.bar([i - 0.2 for i in x], vals_mae_S, width=0.2, label='MAE', color = colors['dark blue'])
-    h_rmse_S = ax_bar_S.bar([i + 0.2 for i in x], vals_rmse_S, width=0.2, label='RMSE', color = colors['dark green'])
-    h_mape_S = ax_bar_S_MAPE.bar(x, [MAPEs[k]['S'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
-    ax_bar_S.set_xticks(x)
-    ax_bar_S.set_xticklabels(labels)
-    ax_bar_S.set_yscale('log')
-    ax_bar_S_MAPE.set_yscale('log')
-    ax_bar_S_MAPE.set_ylabel("MAPE")
-    ax_bar_S.set_ylabel("MAE / RMSE")
-    # combined legend
-    fig_bar_S.legend([h_mae_S[0], h_rmse_S[0], h_mape_S[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
-    fig_bar_S.tight_layout()
-    fig_bar_S.savefig(save_dir + "Err_VarS.png", dpi=dpi)
-    plt.close(fig_bar_S)
-    
-    fig_bar_I, ax_bar_I = plt.subplots(figsize=(6, 4))
-    ax_bar_I_MAPE = ax_bar_I.twinx()
-    vals_mae_I = [MAEs[k]['I'] for k in labels]
-    vals_rmse_I = [RMSEs[k]['I'] for k in labels]
-    h_mae_I = ax_bar_I.bar([i - 0.2 for i in x], vals_mae_I, width=0.2, label='MAE', color = colors['dark blue'])
-    h_rmse_I = ax_bar_I.bar([i + 0.2 for i in x], vals_rmse_I, width=0.2, label='RMSE', color = colors['dark green'])
-    h_mape_I = ax_bar_I_MAPE.bar(x, [MAPEs[k]['I'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
-    ax_bar_I.set_xticks(x)
-    ax_bar_I.set_xticklabels(labels)
-    ax_bar_I.set_yscale('log')
-    ax_bar_I_MAPE.set_yscale('log')
-    ax_bar_I_MAPE.set_ylabel("MAPE")
-    ax_bar_I.set_ylabel("MAE / RMSE")
-    # combined legend
-    fig_bar_I.legend([h_mae_I[0], h_rmse_I[0], h_mape_I[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
-    fig_bar_I.tight_layout()
-    fig_bar_I.savefig(save_dir + "Err_VarI.png", dpi=dpi)
-    plt.close(fig_bar_I)
-    
-    fig_bar_R, ax_bar_R = plt.subplots(figsize=(6, 4))
-    ax_bar_R_MAPE = ax_bar_R.twinx()
-    vals_mae_R = [MAEs[k]['R'] for k in labels]
-    vals_rmse_R = [RMSEs[k]['R'] for k in labels]
-    h_mae_R = ax_bar_R.bar([i - 0.2 for i in x], vals_mae_R, width=0.2, label='MAE', color = colors['dark blue'])
-    h_rmse_R = ax_bar_R.bar([i + 0.2 for i in x], vals_rmse_R, width=0.2, label='RMSE', color = colors['dark green'])
-    h_mape_R = ax_bar_R_MAPE.bar(x, [MAPEs[k]['R'] for k in labels], width=0.2, label='MAPE', color = colors['brown'])
-    ax_bar_R.set_xticks(x)
-    ax_bar_R.set_xticklabels(labels)
-    ax_bar_R.set_yscale('log')
-    ax_bar_R_MAPE.set_yscale('log')
-    ax_bar_R_MAPE.set_ylabel("MAPE")
-    ax_bar_R.set_ylabel("MAE / RMSE")
-    # combined legend
-    fig_bar_R.legend([h_mae_R[0], h_rmse_R[0], h_mape_R[0]], ['MAE','RMSE','MAPE'], bbox_to_anchor = (0.8, 0.9))
-    fig_bar_R.tight_layout()
-    fig_bar_R.savefig(save_dir + "Err_VarR.png", dpi=dpi)
-    plt.close(fig_bar_R)
     
 def plot_runtimes(result_dir, save_dir, switching_values):
     figsize = (4,2.5)
@@ -1000,19 +939,22 @@ def plot_err_variance_two_regions(result_dir, save_dir, switching_values, num_re
     fig_bar_R.tight_layout()
     fig_bar_R.savefig(save_dir + "Sum_rel_Err_VarR.png", dpi=dpi)
 
-config = "config_2r1"         
-result_dir = "V:/bick_ju/TemporalHybrid/Hybrid1/" + config + "/"
-switching_values = ["0.000000", "0.001000" ,"0.010000", "0.100000", "1.000000"]
-save_dir = "H:/Documents/TemporalHybridModel/Hybrid1/" + config + "/"
+config = "config1_1r_I0_1"   
+model = "Hybrid1"      
+result_dir = "V:/bick_ju/TemporalHybrid/" + model + "/" + config + "/"
+switching_values = ["0.000000", "0.000100", "0.001000", "0.010000", "0.100000", "1.000000"]
+save_dir = "H:/Documents/TemporalHybridModel/" + model + "/" + config + "/"
 os.makedirs(save_dir, exist_ok=True)
+num_regions = 1
+used_colors = [colors['dark blue'], colors['purple'], colors['middle blue'], colors['rose'], colors['light blue'], colors['red'], colors['light teal'], colors['brown'], colors['dark green'], colors['middle green']]
 
-plot_means(result_dir, save_dir, switching_values, 2, [colors['dark blue'], colors['purple'], colors['middle blue'], colors['rose'], colors['light blue'], colors['red'], colors['light teal'], colors['brown'], colors['dark green'], colors['middle green']])
-plot_variances(result_dir, save_dir, switching_values, 2, [colors['dark blue'], colors['purple'], colors['middle blue'], colors['rose'], colors['light blue'], colors['red'], colors['light teal'], colors['brown'], colors['dark green'], colors['middle green']])
+plot_means(result_dir, save_dir, switching_values, num_regions, used_colors)
+plot_variances(result_dir, save_dir, switching_values, num_regions, used_colors)
 
-# plot_covariances(result_dir, save_dir, switching_values)
-# plot_err_mean(result_dir, save_dir, switching_values, list(colors.values()))
-# plot_err_var(result_dir, save_dir, switching_values, list(colors.values()))
-# plot_runtimes(result_dir, save_dir, switching_values)
+#plot_covariances(result_dir, save_dir, switching_values)
+plot_err_mean(result_dir, save_dir, switching_values, list(colors.values()))
+plot_err_var(result_dir, save_dir, switching_values, list(colors.values()))
+#plot_runtimes(result_dir, save_dir, switching_values)
 
-plot_err_mean_two_regions(result_dir, save_dir, switching_values, 2, [colors['dark blue'], colors['purple'], colors['middle blue'], colors['rose'], colors['light blue'], colors['red'], colors['light teal'], colors['brown'], colors['dark green'], colors['middle green']])
-plot_err_variance_two_regions(result_dir, save_dir, switching_values, 2, [colors['dark blue'], colors['purple'], colors['middle blue'], colors['rose'], colors['light blue'], colors['red'], colors['light teal'], colors['brown'], colors['dark green'], colors['middle green']])
+# plot_err_mean_two_regions(result_dir, save_dir, switching_values, num_regions, used_colors)
+# plot_err_variance_two_regions(result_dir, save_dir, switching_values, num_regions, used_colors)

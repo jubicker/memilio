@@ -53,6 +53,7 @@ def plot_percentiles(result_dir, save_dir, percentiles, ode_dir = "", region = 0
 
     # Read mean
     mean_df = pd.read_csv(os.path.join(result_dir, f"means.csv"))
+    time = mean_df.Time
     mean_S = mean_df.iloc[:, region * 3 + 1].values
     mean_I = mean_df.iloc[:, region * 3 + 2].values
     mean_R = mean_df.iloc[:, region * 3 + 3].values
@@ -329,18 +330,20 @@ def plot_third_order_moments(result_dir, save_dir):
     fig.savefig(save_dir + "all_third_order_moments.png", dpi=dpi)
     plt.close(fig)
 
-dir = "V:/bick_ju/TemporalHybrid/Hybrid1/"
-config = ["config_2r1"]#["config1_1r_I0_1", "config1_1r_I0_2", "config1_1r_I0_10", "config1_1r_I0_100"]#
+model = "SMM"
+dir = "V:/bick_ju/TemporalHybrid/" + model + "/"
+config = ["config1_1r_I0_1"]#["config1_1r_I0_1", "config1_1r_I0_2", "config1_1r_I0_10", "config1_1r_I0_100"]#
 labels = ["I0=1", "I0=2", "I0=10", "I0=100"]
-switch_value = "switch_value_1.000000"
+switch_value = ""#"switch_value_1.000000"
 num_runs = 10000
+percentiles = ["p05", "p50", "p95"]
 
 result_dir = []
 for c in config:
     result_dir.append(dir + c + "/" + switch_value + "/")
-save_dir = "H:/Documents/TemporalHybridModel/Hybrid1/" + config[0] + "/" + switch_value + "/"
+save_dir = "H:/Documents/TemporalHybridModel/" + model + "/" + config[0] + "/" + switch_value + "/"
 #save_dir = "H:/Documents/TemporalHybridModel/Hybrid1/"
-ode_dir = dir + config[0] + "/switch_value_0.000000/"
+ode_dir = ""#dir + config[0] + "/switch_value_0.000000/"
 os.makedirs(save_dir, exist_ok=True)
 
 # plot_all_runs(num_runs, result_dir, save_dir)
@@ -350,7 +353,7 @@ os.makedirs(save_dir, exist_ok=True)
 # plot_covariances(result_dir, save_dir)
 # plot_third_order_moments(result_dir, save_dir)
 
-plot_percentiles(result_dir[0], save_dir, ["p05", "p95"], ode_dir, 0)
-plot_percentiles(result_dir[0], save_dir, ["p05", "p95"], ode_dir, 1)
+plot_percentiles(result_dir[0], save_dir, percentiles, ode_dir, 0)
+#plot_percentiles(result_dir[0], save_dir, ["p05", "p95"], ode_dir, 1)
 
 # count_extinctions(num_runs, result_dir[2])
