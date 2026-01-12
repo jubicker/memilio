@@ -23,6 +23,7 @@
 #include "smm_moments/model.h"
 #include "smm_moments/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
+#include "memilio/data/analyze_result.h"
 #include <cstddef>
 #include <string>
 
@@ -76,8 +77,8 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::Config7);
-    const size_t closure_order = 11;
+    auto config                = Config::get_config(Config::ConfigType::Config2);
+    const size_t closure_order = 2;
     const size_t num_regions   = 1;
     double min_step_size       = 0.00001;
     double init_time           = 0.0;
@@ -105,22 +106,57 @@ int main()
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
+    save_file += "/";
 
     // Start at init time
     config.t0 += init_time;
 
-    std::string init_dir = Config::SAVE_DIR + "Hybrid1/" + config.name + "/switch_value_1.000000/";
+    std::string init_dir = Config::SAVE_DIR + "SMM/" + config.name + "/";
 
     std::string file_expected_values = init_dir + "means.csv";
     std::string file_moment_values   = init_dir + "moments.csv";
 
     // Read init expected values and moments
-    auto ecpected_values = moment_helper::read_expected_values(file_expected_values, init_time);
-    auto moments         = moment_helper::read_moments<num_regions, closure_order>(file_moment_values, init_time);
+    auto expected_values_init = moment_helper::read_expected_values(file_expected_values, init_time);
+    auto moments_init         = moment_helper::read_moments<num_regions, closure_order>(file_moment_values, init_time);
 
-    mio::timing::BasicTimer timer_init;
-    mio::timing::BasicTimer timer_sim;
-    run_moments_sim<num_regions, closure_order>(save_file, config, ecpected_values, moments, min_step_size, timer_init,
-                                                timer_sim);
+    // Initialize model
+    auto model =
+        moment_helper::initialize_model<num_regions, closure_order>(expected_values_init, moments_init, config);
+    // Create simulation
+    auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, config.t0, config.dt);
+
+    sim.get_integrator_core().get_dt_max() = config.dt;
+    if (min_step_size > 0) {
+        sim.get_integrator_core().get_dt_min() = min_step_size;
+    }
+
+    mio::timing::BasicTimer timer;
+    timer.start();
+    // Advance simulation
+    sim.advance(config.tmax);
+    timer.stop();
+
+    //Save expected values time series
+    auto means   = sim.get_expected_values_time_series();
+    auto moments = sim.get_moment_time_series(closure_order);
+
+    int num_steps = static_cast<int>(config.tmax / config.dt) + 1;
+    std::vector<double> interpolation_tps(num_steps);
+    for (int i = 0; i < num_steps; ++i) {
+        interpolation_tps[i] = i * config.dt;
+    }
+    means     = mio::interpolate_simulation_result(means, interpolation_tps);
+    auto done = means.export_csv(save_file + "means.csv");
+    // Save moment time series
+    auto moment_ts = mio::interpolate_simulation_result(moments.first, interpolation_tps);
+    done           = moment_ts.export_csv(save_file + "moments.csv", moments.second);
+
+    // Save total time
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, timer.get_elapsed_time());
+    mio::TimeSeries<double> total_time(1);
+    total_time.add_time_point(0., time);
+    auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+
     return 0;
 }

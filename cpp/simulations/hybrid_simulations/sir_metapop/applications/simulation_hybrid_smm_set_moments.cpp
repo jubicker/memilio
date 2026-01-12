@@ -32,8 +32,8 @@ int main()
     mio::set_log_level(mio::LogLevel::warn);
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
-    const size_t max_order        = 5;
-    const auto config             = Config::get_config(Config::ConfigType::Config4);
+    const size_t max_order        = 3;
+    const auto config             = Config::get_config(Config::ConfigType::Config3);
     const size_t num_regions      = 1;
     const double rel_switch_value = 1.0;
     double min_step_size          = 0.00001;
@@ -82,8 +82,8 @@ int main()
 
     // Initialize moment simulation
     auto sim_moments = mio::smm_moments::Simulation<num_regions, max_order>(moment_model, config.t0, config.dt);
-    // // Set maximum dt of integrator to interpolation time points
-    // sim_moments.get_integrator_core().get_dt_max() = config.dt;
+    // Set maximum dt of integrator to interpolation time points
+    sim_moments.get_integrator_core().get_dt_max() = config.dt;
     if (min_step_size > 0) {
         sim_moments.get_integrator_core().get_dt_min() = min_step_size;
     }

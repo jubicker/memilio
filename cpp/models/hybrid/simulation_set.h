@@ -80,6 +80,8 @@ public:
             m_model1s[run].get_rng().seed({seed});
             auto sim1 = smm::Simulation<ScalarType, regions, Status>(m_model1s[run], t0, dt);
             auto sim2 = smm_moments::Simulation<regions, 2>(m_model2s[run], t0, dt);
+            // Set maximum dt of integrator to interpolation time points
+            sim2.get_integrator_core().get_dt_max() = dt;
             m_simulations.push_back(
                 Simulation(std::move(sim1), std::move(sim2), result1, result2, true, t0, dt_switch));
             seed++;
