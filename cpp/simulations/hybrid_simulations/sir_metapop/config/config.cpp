@@ -78,61 +78,13 @@ Config get_config(ConfigType type)
         config.total_populations = {10000000};
         return config;
         break;
-    case ConfigType::Config5:
-        config.name              = "config2_1r_I0_1";
-        config.num_regions       = 1;
-        config.t0                = 0;
-        config.tmax              = 90;
-        config.dt                = 0.01;
-        config.lambdas           = {0.00000014};
-        config.gamma             = 1. / 7.;
-        config.I0s               = {{0, 1}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {10000000};
-        return config;
-        break;
-    case ConfigType::Config6:
-        config.name              = "config2_1r_I0_2";
-        config.num_regions       = 1;
-        config.t0                = 0;
-        config.tmax              = 90;
-        config.dt                = 0.01;
-        config.lambdas           = {0.00000014};
-        config.gamma             = 1. / 7.;
-        config.I0s               = {{0, 2}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {10000000};
-        return config;
-        break;
-    case ConfigType::Config7:
-        config.name              = "config2_1r_I0_10";
-        config.num_regions       = 1;
-        config.t0                = 0;
-        config.tmax              = 90;
-        config.dt                = 0.01;
-        config.lambdas           = {0.00000014};
-        config.gamma             = 1. / 7.;
-        config.I0s               = {{0, 10}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {10000000};
-        return config;
-        break;
-    case ConfigType::Config8:
-        config.name              = "config2_1r_I0_100";
-        config.num_regions       = 1;
-        config.t0                = 0;
-        config.tmax              = 90;
-        config.dt                = 0.01;
-        config.lambdas           = {0.00000014};
-        config.gamma             = 1. / 7.;
-        config.I0s               = {{0, 100}}; // Tuple of (region_id, initial infected)
-        config.total_populations = {10000000};
-        return config;
-        break;
-    case ConfigType::Config2r1:
+    case ConfigType::Config3r1:
         config.name                  = "config_2r1";
         config.num_regions           = 2;
         config.t0                    = 0;
         config.tmax                  = 90;
-        config.dt                    = 0.01;
-        config.lambdas               = {0.0000002, 0.0000002};
+        config.dt                    = 0.1;
+        config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
         config.I0s                   = {{0, 10}, {1, 0}};
         config.total_populations     = {5000000, 5000000};
@@ -152,13 +104,13 @@ Config get_config(ConfigType type)
                                            mio::regions::Region(0), infected_commuting_reduc_fac * transition_rate});
         return config;
         break;
-    case ConfigType::Config2r2:
+    case ConfigType::Config3r2:
         config.name                  = "config_2r2";
         config.num_regions           = 2;
         config.t0                    = 0;
         config.tmax                  = 90;
-        config.dt                    = 0.01;
-        config.lambdas               = {0.0000002, 0.0000002};
+        config.dt                    = 0.1;
+        config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
         config.I0s                   = {{0, 10}, {1, 0}};
         config.total_populations     = {5000000, 5000000};
@@ -178,13 +130,13 @@ Config get_config(ConfigType type)
                                            mio::regions::Region(0), infected_commuting_reduc_fac * transition_rate});
         return config;
         break;
-    case ConfigType::Config2r3:
+    case ConfigType::Config3r3:
         config.name                  = "config_2r3";
         config.num_regions           = 2;
         config.t0                    = 0;
         config.tmax                  = 90;
-        config.dt                    = 0.01;
-        config.lambdas               = {0.0000002, 0.0000002};
+        config.dt                    = 0.1;
+        config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
         config.I0s                   = {{0, 10}, {1, 0}};
         config.total_populations     = {5000000, 5000000};

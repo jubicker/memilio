@@ -55,13 +55,9 @@ enum class ConfigType
     Config2,
     Config3,
     Config4,
-    Config5,
-    Config6,
-    Config7,
-    Config8,
-    Config2r1,
-    Config2r2,
-    Config2r3
+    Config3r1,
+    Config3r2,
+    Config3r3
 };
 
 Config get_config(ConfigType type);
