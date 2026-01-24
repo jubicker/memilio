@@ -82,7 +82,7 @@ Config get_config(ConfigType type)
         config.name                  = "config_2r1";
         config.num_regions           = 2;
         config.t0                    = 0;
-        config.tmax                  = 90;
+        config.tmax                  = 300;
         config.dt                    = 0.1;
         config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
@@ -108,7 +108,7 @@ Config get_config(ConfigType type)
         config.name                  = "config_2r2";
         config.num_regions           = 2;
         config.t0                    = 0;
-        config.tmax                  = 90;
+        config.tmax                  = 300;
         config.dt                    = 0.1;
         config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
@@ -134,7 +134,7 @@ Config get_config(ConfigType type)
         config.name                  = "config_2r3";
         config.num_regions           = 2;
         config.t0                    = 0;
-        config.tmax                  = 90;
+        config.tmax                  = 300;
         config.dt                    = 0.1;
         config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
