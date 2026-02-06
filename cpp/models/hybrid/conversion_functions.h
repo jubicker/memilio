@@ -70,6 +70,7 @@ template <>
 void convert_model(smm_moments::Simulation<2, 2>& current_model,
                    smm::Simulation<double, 2, mio::osir::InfectionState>& target_model);
 
+// One region, closure order 3
 template <>
 void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 3>& current_model,
                    smm_moments::Simulation<1, 3>& target_model);
@@ -78,6 +79,16 @@ template <>
 void convert_model(smm_moments::Simulation<1, 3>& current_model,
                    smm::SimulationSet<1, mio::osir::InfectionState, 3>& target_model);
 
+// Two regions, closure order 3
+template <>
+void convert_model(smm::SimulationSet<2, mio::osir::InfectionState, 3>& current_model,
+                   smm_moments::Simulation<2, 3>& target_model);
+
+template <>
+void convert_model(smm_moments::Simulation<2, 3>& current_model,
+                   smm::SimulationSet<2, mio::osir::InfectionState, 3>& target_model);
+
+// One region, closure order 5
 template <>
 void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 5>& current_model,
                    smm_moments::Simulation<1, 5>& target_model);
