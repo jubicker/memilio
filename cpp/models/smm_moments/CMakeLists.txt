@@ -4,6 +4,8 @@ add_library(moments
     parameters.h
     simulation.h
     simulation.cpp
+    closure_functions.h
+    closure_functions.cpp
 )
 target_link_libraries(moments PUBLIC memilio)
 target_include_directories(moments PUBLIC

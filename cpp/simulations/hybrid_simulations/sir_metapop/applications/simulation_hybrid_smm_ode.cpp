@@ -32,6 +32,7 @@
 #include "memilio/utils/time_series.h"
 #include "smm/simulation.h"
 #include "smm_moments/simulation.h"
+#include "smm_moments/closure_functions.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include <cstddef>
 #include <cstdint>
@@ -286,7 +287,7 @@ int main()
     }
     auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
     mio::TimeSeries<double> total_time(1);
-    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, timer.get_elapsed_time());
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     total_time.add_time_point(0., time);
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 

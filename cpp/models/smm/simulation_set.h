@@ -25,6 +25,7 @@
 #include "memilio/timer/basic_timer.h"
 #include "memilio/utils/logging.h"
 #include "memilio/utils/time_series.h"
+#include "memilio/utils/mioomp.h"
 #include "smm/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "memilio/data/analyze_result.h"
@@ -103,7 +104,7 @@ public:
             timer.start();
             m_sims[run].advance(tmax);
             timer.stop();
-            m_sim_time[run] += timer.get_elapsed_time();
+            m_sim_time[run] += mio::timing::time_in_seconds(timer.get_elapsed_time());
         }
 
         m_t = tmax;
@@ -287,8 +288,8 @@ private:
         const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
-        double moment                                                                    = 0.0;
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
+        double moment                                                                   = 0.0;
         for (int i = 0; i < values.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {

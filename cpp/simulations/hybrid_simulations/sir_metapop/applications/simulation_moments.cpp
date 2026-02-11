@@ -24,6 +24,7 @@
 #include "smm_moments/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
 #include "memilio/data/analyze_result.h"
+#include "smm_moments/closure_functions.h"
 #include <cstddef>
 #include <string>
 
@@ -69,8 +70,8 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
     // Save time
     mio::TimeSeries<double> time_ts(2);
     Eigen::VectorXd time = Eigen::VectorXd::Zero(2);
-    time[0]              = timer_init.get_elapsed_time();
-    time[1]              = timer_sim.get_elapsed_time();
+    time[0]              = mio::timing::time_in_seconds(timer_init.get_elapsed_time());
+    time[1]              = mio::timing::time_in_seconds(timer_sim.get_elapsed_time());
     time_ts.add_time_point(0., time);
     auto finished_time = time_ts.export_csv(save_dir + "runtimes.csv", {"init,sim"});
 }
@@ -153,7 +154,7 @@ int main()
     done           = moment_ts.export_csv(save_file + "moments.csv", moments.second);
 
     // Save total time
-    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, timer.get_elapsed_time());
+    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     mio::TimeSeries<double> total_time(1);
     total_time.add_time_point(0., time);
     auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});

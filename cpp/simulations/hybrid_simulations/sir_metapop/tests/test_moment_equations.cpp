@@ -1,6 +1,7 @@
 #include "smm_moments/simulation.h"
 #include "smm_moments/model.h"
 #include "smm_moments/parameters.h"
+#include "smm_moments/closure_functions.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "ode_sir/infection_state.h"
 #include <cstddef>
@@ -175,7 +176,7 @@ void test_one_region()
 {
     std::cerr << "Running test one region..." << std::endl;
     // Initialize model and set parameters
-    mio::smm_moments::Model<1, 4> model;
+    mio::smm_moments::Model<1, 4> model(&mio::smm_moments::truncation_closure<1>);
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] =
         params::total_pop1 - params::I1;
     model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]            = params::I1;

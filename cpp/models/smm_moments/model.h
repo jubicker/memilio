@@ -26,6 +26,7 @@
 #include "memilio/utils/compiler_diagnostics.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "smm_moments/parameters.h"
+#include "smm_moments/closure_functions.h"
 #include <boost/math/special_functions/math_fwd.hpp>
 #include <cstddef>
 
@@ -49,9 +50,15 @@ class Model
 public:
     using Region         = mio::regions::Region;
     using InfectionState = mio::osir::InfectionState;
-    Model()
+
+    using ClosureFunctionType = ScalarType (*)(
+        size_t closure_order, std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
+        Eigen::Ref<const Eigen::VectorX<ScalarType>> y);
+
+    Model(ClosureFunctionType closure_func = &truncation_closure<NumRegions>)
         : parameters(NumRegions)
         , populations({static_cast<Region>(NumRegions), InfectionState::Count}, 0.0)
+        , m_closure_function(closure_func)
     {
     }
 
@@ -148,7 +155,7 @@ public:
                                     double M_h_S_l_h_I_l = int(ClosureOrder) > current_order
                                                                ? y[moments.flatten_index(h_S_l_h_I_l_index) +
                                                                    populations.get_num_compartments()]
-                                                               : 0;
+                                                               : m_closure_function(ClosureOrder, h_S_l_h_I_l_index, y);
                                     if (current_order == 0) {
                                         M_h_S_l_h_I_l = 1.;
                                     }
@@ -176,7 +183,7 @@ public:
                                     double M_h_I_l_h_R_l = int(ClosureOrder) > current_order
                                                                ? y[moments.flatten_index(h_I_l_h_R_l_index) +
                                                                    populations.get_num_compartments()]
-                                                               : 0;
+                                                               : m_closure_function(ClosureOrder, h_I_l_h_R_l_index, y);
                                     if (current_order == 0) {
                                         M_h_I_l_h_R_l = 1.;
                                     }
@@ -210,10 +217,11 @@ public:
                                                           static_cast<size_t>(InfectionState::Susceptible)] = h_S_k;
                                         int current_order =
                                             std::accumulate(h_S_l_h_S_k_index.begin(), h_S_l_h_S_k_index.end(), 0);
-                                        double M_h_S_l_h_S_k = int(ClosureOrder) > current_order
-                                                                   ? y[moments.flatten_index(h_S_l_h_S_k_index) +
-                                                                       populations.get_num_compartments()]
-                                                                   : 0;
+                                        double M_h_S_l_h_S_k =
+                                            int(ClosureOrder) > current_order
+                                                ? y[moments.flatten_index(h_S_l_h_S_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_S_l_h_S_k_index, y);
                                         if (current_order == 0) {
                                             M_h_S_l_h_S_k = 1.;
                                         }
@@ -244,10 +252,11 @@ public:
                                                           static_cast<size_t>(InfectionState::Infected)] = h_I_k;
                                         int current_order =
                                             std::accumulate(h_I_l_h_I_k_index.begin(), h_I_l_h_I_k_index.end(), 0);
-                                        double M_h_I_l_h_I_k = int(ClosureOrder) > current_order
-                                                                   ? y[moments.flatten_index(h_I_l_h_I_k_index) +
-                                                                       populations.get_num_compartments()]
-                                                                   : 0;
+                                        double M_h_I_l_h_I_k =
+                                            int(ClosureOrder) > current_order
+                                                ? y[moments.flatten_index(h_I_l_h_I_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_I_l_h_I_k_index, y);
                                         if (current_order == 0) {
                                             M_h_I_l_h_I_k = 1.;
                                         }
@@ -278,10 +287,11 @@ public:
                                                           static_cast<size_t>(InfectionState::Recovered)] = h_R_k;
                                         int current_order =
                                             std::accumulate(h_R_l_h_R_k_index.begin(), h_R_l_h_R_k_index.end(), 0);
-                                        double M_h_R_l_h_R_k = int(ClosureOrder) > current_order
-                                                                   ? y[moments.flatten_index(h_R_l_h_R_k_index) +
-                                                                       populations.get_num_compartments()]
-                                                                   : 0;
+                                        double M_h_R_l_h_R_k =
+                                            int(ClosureOrder) > current_order
+                                                ? y[moments.flatten_index(h_R_l_h_R_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_R_l_h_R_k_index, y);
                                         if (current_order == 0) {
                                             M_h_R_l_h_R_k = 1.;
                                         }
@@ -313,10 +323,11 @@ public:
                                                          static_cast<size_t>(InfectionState::Infected)]    = h_I_l;
                                     int current_order1 =
                                         std::accumulate(h_S_l_p1_h_I_l_index.begin(), h_S_l_p1_h_I_l_index.end(), 0);
-                                    double M_h_S_l_p1_h_I_l = int(ClosureOrder) > current_order1
-                                                                  ? y[moments.flatten_index(h_S_l_p1_h_I_l_index) +
-                                                                      populations.get_num_compartments()]
-                                                                  : 0;
+                                    double M_h_S_l_p1_h_I_l =
+                                        int(ClosureOrder) > current_order1
+                                            ? y[moments.flatten_index(h_S_l_p1_h_I_l_index) +
+                                                populations.get_num_compartments()]
+                                            : m_closure_function(ClosureOrder, h_S_l_p1_h_I_l_index, y);
                                     if (current_order1 == 0) {
                                         M_h_S_l_p1_h_I_l = 1.;
                                     }
@@ -328,10 +339,11 @@ public:
                                                          static_cast<size_t>(InfectionState::Infected)]    = h_I_l + 1;
                                     int current_order2 =
                                         std::accumulate(h_S_l_h_I_l_p1_index.begin(), h_S_l_h_I_l_p1_index.end(), 0);
-                                    double M_h_S_l_h_I_l_p1 = int(ClosureOrder) > current_order2
-                                                                  ? y[moments.flatten_index(h_S_l_h_I_l_p1_index) +
-                                                                      populations.get_num_compartments()]
-                                                                  : 0;
+                                    double M_h_S_l_h_I_l_p1 =
+                                        int(ClosureOrder) > current_order2
+                                            ? y[moments.flatten_index(h_S_l_h_I_l_p1_index) +
+                                                populations.get_num_compartments()]
+                                            : m_closure_function(ClosureOrder, h_S_l_h_I_l_p1_index, y);
                                     if (current_order2 == 0) {
                                         M_h_S_l_h_I_l_p1 = 1.;
                                     }
@@ -357,10 +369,11 @@ public:
                                                          static_cast<size_t>(InfectionState::Recovered)] = h_R_l;
                                     int current_order =
                                         std::accumulate(h_I_l_p1_h_R_l_index.begin(), h_I_l_p1_h_R_l_index.end(), 0);
-                                    double M_h_I_l_p1_h_R_l = int(ClosureOrder) > current_order
-                                                                  ? y[moments.flatten_index(h_I_l_p1_h_R_l_index) +
-                                                                      populations.get_num_compartments()]
-                                                                  : 0;
+                                    double M_h_I_l_p1_h_R_l =
+                                        int(ClosureOrder) > current_order
+                                            ? y[moments.flatten_index(h_I_l_p1_h_R_l_index) +
+                                                populations.get_num_compartments()]
+                                            : m_closure_function(ClosureOrder, h_I_l_p1_h_R_l_index, y);
                                     if (current_order == 0) {
                                         M_h_I_l_p1_h_R_l = 1.;
                                     }
@@ -390,12 +403,13 @@ public:
                                             h_S_l + 1;
                                         h_S_l_p1_h_S_k_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Susceptible)] = h_S_k;
-                                        int current_order1      = std::accumulate(h_S_l_p1_h_S_k_index.begin(),
-                                                                                  h_S_l_p1_h_S_k_index.end(), 0);
-                                        double M_h_S_l_p1_h_S_k = int(ClosureOrder) > current_order1
-                                                                      ? y[moments.flatten_index(h_S_l_p1_h_S_k_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order1 = std::accumulate(h_S_l_p1_h_S_k_index.begin(),
+                                                                             h_S_l_p1_h_S_k_index.end(), 0);
+                                        double M_h_S_l_p1_h_S_k =
+                                            int(ClosureOrder) > current_order1
+                                                ? y[moments.flatten_index(h_S_l_p1_h_S_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_S_l_p1_h_S_k_index, y);
                                         if (current_order1 == 0) {
                                             M_h_S_l_p1_h_S_k = 1.;
                                         }
@@ -406,12 +420,13 @@ public:
                                         h_S_l_h_S_k_p1_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Susceptible)] =
                                             h_S_k + 1;
-                                        int current_order2      = std::accumulate(h_S_l_h_S_k_p1_index.begin(),
-                                                                                  h_S_l_h_S_k_p1_index.end(), 0);
-                                        double M_h_S_l_h_S_k_p1 = int(ClosureOrder) > current_order2
-                                                                      ? y[moments.flatten_index(h_S_l_h_S_k_p1_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order2 = std::accumulate(h_S_l_h_S_k_p1_index.begin(),
+                                                                             h_S_l_h_S_k_p1_index.end(), 0);
+                                        double M_h_S_l_h_S_k_p1 =
+                                            int(ClosureOrder) > current_order2
+                                                ? y[moments.flatten_index(h_S_l_h_S_k_p1_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_S_l_h_S_k_p1_index, y);
                                         if (current_order2 == 0) {
                                             M_h_S_l_h_S_k_p1 = 1.;
                                         }
@@ -440,12 +455,13 @@ public:
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_l + 1;
                                         h_I_l_p1_h_I_k_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_k;
-                                        int current_order1      = std::accumulate(h_I_l_p1_h_I_k_index.begin(),
-                                                                                  h_I_l_p1_h_I_k_index.end(), 0);
-                                        double M_h_I_l_p1_h_I_k = int(ClosureOrder) > current_order1
-                                                                      ? y[moments.flatten_index(h_I_l_p1_h_I_k_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order1 = std::accumulate(h_I_l_p1_h_I_k_index.begin(),
+                                                                             h_I_l_p1_h_I_k_index.end(), 0);
+                                        double M_h_I_l_p1_h_I_k =
+                                            int(ClosureOrder) > current_order1
+                                                ? y[moments.flatten_index(h_I_l_p1_h_I_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_I_l_p1_h_I_k_index, y);
                                         if (current_order1 == 0) {
                                             M_h_I_l_p1_h_I_k = 1.;
                                         }
@@ -455,12 +471,13 @@ public:
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_l;
                                         h_I_l_h_I_k_p1_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_k + 1;
-                                        int current_order2      = std::accumulate(h_I_l_h_I_k_p1_index.begin(),
-                                                                                  h_I_l_h_I_k_p1_index.end(), 0);
-                                        double M_h_I_l_h_I_k_p1 = int(ClosureOrder) > current_order2
-                                                                      ? y[moments.flatten_index(h_I_l_h_I_k_p1_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order2 = std::accumulate(h_I_l_h_I_k_p1_index.begin(),
+                                                                             h_I_l_h_I_k_p1_index.end(), 0);
+                                        double M_h_I_l_h_I_k_p1 =
+                                            int(ClosureOrder) > current_order2
+                                                ? y[moments.flatten_index(h_I_l_h_I_k_p1_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_I_l_h_I_k_p1_index, y);
                                         if (current_order2 == 0) {
                                             M_h_I_l_h_I_k_p1 = 1.;
                                         }
@@ -489,12 +506,13 @@ public:
                                             h_R_l + 1;
                                         h_R_l_p1_h_R_k_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Recovered)] = h_R_k;
-                                        int current_order1      = std::accumulate(h_R_l_p1_h_R_k_index.begin(),
-                                                                                  h_R_l_p1_h_R_k_index.end(), 0);
-                                        double M_h_R_l_p1_h_R_k = int(ClosureOrder) > current_order1
-                                                                      ? y[moments.flatten_index(h_R_l_p1_h_R_k_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order1 = std::accumulate(h_R_l_p1_h_R_k_index.begin(),
+                                                                             h_R_l_p1_h_R_k_index.end(), 0);
+                                        double M_h_R_l_p1_h_R_k =
+                                            int(ClosureOrder) > current_order1
+                                                ? y[moments.flatten_index(h_R_l_p1_h_R_k_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_R_l_p1_h_R_k_index, y);
                                         if (current_order1 == 0) {
                                             M_h_R_l_p1_h_R_k = 1.;
                                         }
@@ -505,12 +523,13 @@ public:
                                         h_R_l_h_R_k_p1_index[k * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Recovered)] =
                                             h_R_k + 1;
-                                        int current_order2      = std::accumulate(h_R_l_h_R_k_p1_index.begin(),
-                                                                                  h_R_l_h_R_k_p1_index.end(), 0);
-                                        double M_h_R_l_h_R_k_p1 = int(ClosureOrder) > current_order2
-                                                                      ? y[moments.flatten_index(h_R_l_h_R_k_p1_index) +
-                                                                          populations.get_num_compartments()]
-                                                                      : 0;
+                                        int current_order2 = std::accumulate(h_R_l_h_R_k_p1_index.begin(),
+                                                                             h_R_l_h_R_k_p1_index.end(), 0);
+                                        double M_h_R_l_h_R_k_p1 =
+                                            int(ClosureOrder) > current_order2
+                                                ? y[moments.flatten_index(h_R_l_h_R_k_p1_index) +
+                                                    populations.get_num_compartments()]
+                                                : m_closure_function(ClosureOrder, h_R_l_h_R_k_p1_index, y);
                                         if (current_order2 == 0) {
                                             M_h_R_l_h_R_k_p1 = 1.;
                                         }
@@ -546,7 +565,7 @@ public:
                                         int(ClosureOrder) > current_order
                                             ? y[moments.flatten_index(h_S_l_p1_h_I_l_p1_index) +
                                                 populations.get_num_compartments()]
-                                            : 0;
+                                            : m_closure_function(ClosureOrder, h_S_l_p1_h_I_l_p1_index, y);
                                     if (current_order == 0) {
                                         M_h_S_l_p1_h_I_l_p1 = 1.;
                                     }
@@ -569,7 +588,7 @@ public:
                                 M_i_S_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_S_l_m1_index) + populations.get_num_compartments()]
-                                        : 0;
+                                        : m_closure_function(ClosureOrder, i_S_l_m1_index, y);
                                 if (current_order == 0) {
                                     M_i_S_l_m1 = 1.;
                                 }
@@ -586,7 +605,7 @@ public:
                                 M_i_I_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_I_l_m1_index) + populations.get_num_compartments()]
-                                        : 0;
+                                        : m_closure_function(ClosureOrder, i_I_l_m1_index, y);
                                 if (current_order == 0) {
                                     M_i_I_l_m1 = 1.;
                                 }
@@ -603,7 +622,7 @@ public:
                                 M_i_R_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_R_l_m1_index) + populations.get_num_compartments()]
-                                        : 0;
+                                        : m_closure_function(ClosureOrder, i_R_l_m1_index, y);
                                 if (current_order == 0) {
                                     M_i_R_l_m1 = 1.;
                                 }
@@ -669,6 +688,9 @@ public:
     MomentArray<static_cast<size_t>(InfectionState::Count), NumRegions, ClosureOrder>
         moments{}; ///< Array with initial moment values
     mio::Populations<ScalarType, Region, InfectionState> populations; ///< Array with initial values for expected values
+
+private:
+    ClosureFunctionType m_closure_function; ///< Moment closure approximation function
 };
 
 } // namespace smm_moments
