@@ -30,5 +30,20 @@ namespace mio
 namespace smm_moments
 {
 
+ScalarType get_log_mu(ScalarType var, ScalarType mean)
+{
+    return std::log(mean * mean / std::sqrt(var + mean * mean));
+}
+
+ScalarType get_log_sigma(ScalarType var, ScalarType mean)
+{
+    return std::sqrt(std::log(var / (mean * mean) + 1));
+}
+
+ScalarType get_log_cov(ScalarType cov, ScalarType mean1, ScalarType mean2)
+{
+    return std::log(1 + cov / (mean1 * mean2));
+}
+
 } // namespace smm_moments
 } // namespace mio

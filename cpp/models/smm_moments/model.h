@@ -52,10 +52,11 @@ public:
     using InfectionState = mio::osir::InfectionState;
 
     using ClosureFunctionType = ScalarType (*)(
-        size_t closure_order, std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
-        Eigen::Ref<const Eigen::VectorX<ScalarType>> y);
+        std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
+        Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+        const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments);
 
-    Model(ClosureFunctionType closure_func = &truncation_closure<NumRegions>)
+    Model(ClosureFunctionType closure_func = &truncation_closure<NumRegions, ClosureOrder>)
         : parameters(NumRegions)
         , populations({static_cast<Region>(NumRegions), InfectionState::Count}, 0.0)
         , m_closure_function(closure_func)
@@ -155,7 +156,7 @@ public:
                                     double M_h_S_l_h_I_l = int(ClosureOrder) > current_order
                                                                ? y[moments.flatten_index(h_S_l_h_I_l_index) +
                                                                    populations.get_num_compartments()]
-                                                               : m_closure_function(ClosureOrder, h_S_l_h_I_l_index, y);
+                                                               : m_closure_function(h_S_l_h_I_l_index, y, moments);
                                     if (current_order == 0) {
                                         M_h_S_l_h_I_l = 1.;
                                     }
@@ -183,7 +184,7 @@ public:
                                     double M_h_I_l_h_R_l = int(ClosureOrder) > current_order
                                                                ? y[moments.flatten_index(h_I_l_h_R_l_index) +
                                                                    populations.get_num_compartments()]
-                                                               : m_closure_function(ClosureOrder, h_I_l_h_R_l_index, y);
+                                                               : m_closure_function(h_I_l_h_R_l_index, y, moments);
                                     if (current_order == 0) {
                                         M_h_I_l_h_R_l = 1.;
                                     }
@@ -221,7 +222,7 @@ public:
                                             int(ClosureOrder) > current_order
                                                 ? y[moments.flatten_index(h_S_l_h_S_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_S_l_h_S_k_index, y);
+                                                : m_closure_function(h_S_l_h_S_k_index, y, moments);
                                         if (current_order == 0) {
                                             M_h_S_l_h_S_k = 1.;
                                         }
@@ -256,7 +257,7 @@ public:
                                             int(ClosureOrder) > current_order
                                                 ? y[moments.flatten_index(h_I_l_h_I_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_I_l_h_I_k_index, y);
+                                                : m_closure_function(h_I_l_h_I_k_index, y, moments);
                                         if (current_order == 0) {
                                             M_h_I_l_h_I_k = 1.;
                                         }
@@ -291,7 +292,7 @@ public:
                                             int(ClosureOrder) > current_order
                                                 ? y[moments.flatten_index(h_R_l_h_R_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_R_l_h_R_k_index, y);
+                                                : m_closure_function(h_R_l_h_R_k_index, y, moments);
                                         if (current_order == 0) {
                                             M_h_R_l_h_R_k = 1.;
                                         }
@@ -327,7 +328,7 @@ public:
                                         int(ClosureOrder) > current_order1
                                             ? y[moments.flatten_index(h_S_l_p1_h_I_l_index) +
                                                 populations.get_num_compartments()]
-                                            : m_closure_function(ClosureOrder, h_S_l_p1_h_I_l_index, y);
+                                            : m_closure_function(h_S_l_p1_h_I_l_index, y, moments);
                                     if (current_order1 == 0) {
                                         M_h_S_l_p1_h_I_l = 1.;
                                     }
@@ -343,7 +344,7 @@ public:
                                         int(ClosureOrder) > current_order2
                                             ? y[moments.flatten_index(h_S_l_h_I_l_p1_index) +
                                                 populations.get_num_compartments()]
-                                            : m_closure_function(ClosureOrder, h_S_l_h_I_l_p1_index, y);
+                                            : m_closure_function(h_S_l_h_I_l_p1_index, y, moments);
                                     if (current_order2 == 0) {
                                         M_h_S_l_h_I_l_p1 = 1.;
                                     }
@@ -373,7 +374,7 @@ public:
                                         int(ClosureOrder) > current_order
                                             ? y[moments.flatten_index(h_I_l_p1_h_R_l_index) +
                                                 populations.get_num_compartments()]
-                                            : m_closure_function(ClosureOrder, h_I_l_p1_h_R_l_index, y);
+                                            : m_closure_function(h_I_l_p1_h_R_l_index, y, moments);
                                     if (current_order == 0) {
                                         M_h_I_l_p1_h_R_l = 1.;
                                     }
@@ -409,7 +410,7 @@ public:
                                             int(ClosureOrder) > current_order1
                                                 ? y[moments.flatten_index(h_S_l_p1_h_S_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_S_l_p1_h_S_k_index, y);
+                                                : m_closure_function(h_S_l_p1_h_S_k_index, y, moments);
                                         if (current_order1 == 0) {
                                             M_h_S_l_p1_h_S_k = 1.;
                                         }
@@ -426,7 +427,7 @@ public:
                                             int(ClosureOrder) > current_order2
                                                 ? y[moments.flatten_index(h_S_l_h_S_k_p1_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_S_l_h_S_k_p1_index, y);
+                                                : m_closure_function(h_S_l_h_S_k_p1_index, y, moments);
                                         if (current_order2 == 0) {
                                             M_h_S_l_h_S_k_p1 = 1.;
                                         }
@@ -461,7 +462,7 @@ public:
                                             int(ClosureOrder) > current_order1
                                                 ? y[moments.flatten_index(h_I_l_p1_h_I_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_I_l_p1_h_I_k_index, y);
+                                                : m_closure_function(h_I_l_p1_h_I_k_index, y, moments);
                                         if (current_order1 == 0) {
                                             M_h_I_l_p1_h_I_k = 1.;
                                         }
@@ -477,7 +478,7 @@ public:
                                             int(ClosureOrder) > current_order2
                                                 ? y[moments.flatten_index(h_I_l_h_I_k_p1_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_I_l_h_I_k_p1_index, y);
+                                                : m_closure_function(h_I_l_h_I_k_p1_index, y, moments);
                                         if (current_order2 == 0) {
                                             M_h_I_l_h_I_k_p1 = 1.;
                                         }
@@ -512,7 +513,7 @@ public:
                                             int(ClosureOrder) > current_order1
                                                 ? y[moments.flatten_index(h_R_l_p1_h_R_k_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_R_l_p1_h_R_k_index, y);
+                                                : m_closure_function(h_R_l_p1_h_R_k_index, y, moments);
                                         if (current_order1 == 0) {
                                             M_h_R_l_p1_h_R_k = 1.;
                                         }
@@ -529,7 +530,7 @@ public:
                                             int(ClosureOrder) > current_order2
                                                 ? y[moments.flatten_index(h_R_l_h_R_k_p1_index) +
                                                     populations.get_num_compartments()]
-                                                : m_closure_function(ClosureOrder, h_R_l_h_R_k_p1_index, y);
+                                                : m_closure_function(h_R_l_h_R_k_p1_index, y, moments);
                                         if (current_order2 == 0) {
                                             M_h_R_l_h_R_k_p1 = 1.;
                                         }
@@ -565,7 +566,7 @@ public:
                                         int(ClosureOrder) > current_order
                                             ? y[moments.flatten_index(h_S_l_p1_h_I_l_p1_index) +
                                                 populations.get_num_compartments()]
-                                            : m_closure_function(ClosureOrder, h_S_l_p1_h_I_l_p1_index, y);
+                                            : m_closure_function(h_S_l_p1_h_I_l_p1_index, y, moments);
                                     if (current_order == 0) {
                                         M_h_S_l_p1_h_I_l_p1 = 1.;
                                     }
@@ -588,7 +589,7 @@ public:
                                 M_i_S_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_S_l_m1_index) + populations.get_num_compartments()]
-                                        : m_closure_function(ClosureOrder, i_S_l_m1_index, y);
+                                        : m_closure_function(i_S_l_m1_index, y, moments);
                                 if (current_order == 0) {
                                     M_i_S_l_m1 = 1.;
                                 }
@@ -605,7 +606,7 @@ public:
                                 M_i_I_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_I_l_m1_index) + populations.get_num_compartments()]
-                                        : m_closure_function(ClosureOrder, i_I_l_m1_index, y);
+                                        : m_closure_function(i_I_l_m1_index, y, moments);
                                 if (current_order == 0) {
                                     M_i_I_l_m1 = 1.;
                                 }
@@ -622,7 +623,7 @@ public:
                                 M_i_R_l_m1 =
                                     int(ClosureOrder) > current_order
                                         ? y[moments.flatten_index(i_R_l_m1_index) + populations.get_num_compartments()]
-                                        : m_closure_function(ClosureOrder, i_R_l_m1_index, y);
+                                        : m_closure_function(i_R_l_m1_index, y, moments);
                                 if (current_order == 0) {
                                     M_i_R_l_m1 = 1.;
                                 }
