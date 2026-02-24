@@ -46,7 +46,7 @@ namespace smm_moments
  * @brief Implements a truncation closure i.e. the given moment is set to zero.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order to be closed.
- * @param[in] index Index of the moment that should be approximated.
+ * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Not used.
  * @param[in] moments Not used.
  */
@@ -165,7 +165,7 @@ ScalarType get_central_mom_by_raw(
  * @brief Implements a closure for a given moment assuming that the underlying random variables are lognormally distributed. Closure only works for one region.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order to be closed.
- * @param[in] index Index of the moment that should be approximated.
+ * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Current value of expected value and all moments.
  * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
  */
@@ -199,12 +199,17 @@ ScalarType lognormal_closure(
     ScalarType cov_IR = y[moments.flatten_index({0, 1, 1}) + static_cast<size_t>(osir::InfectionState::Count)];
     // Raw moment (r_S, r_I, r_R) which is approximated: E[X_S^r_S * X_I^r_I * X_R^r_R]
     ScalarType E_XS_rS_XI_rI_XR_rR =
-        std::exp(rS * get_log_mu(var_S, mean_S) + rI * get_log_mu(var_I, mean_I) + rR * get_log_mu(var_R, mean_R) +
-                 0.5 * (rS * rS * std::pow(get_log_sigma(var_S, mean_S), 2.0) +
-                        rI * rI * std::pow(get_log_sigma(var_I, mean_I), 2.0) +
-                        rR * rR * std::pow(get_log_sigma(var_R, mean_R), 2.0)) +
-                 rS * rI * get_log_cov(cov_SI, mean_S, mean_I) + rS * rR * get_log_cov(cov_SR, mean_S, mean_R) +
-                 rI * rR * get_log_cov(cov_IR, mean_I, mean_R));
+        std::pow(mean_S, 2 * rS - rS * rS) * std::pow(std::sqrt(var_S + mean_S * mean_S), rS * rS - rS) *
+        std::pow(mean_I, 2 * rI - rI * rI) * std::pow(std::sqrt(var_I + mean_I * mean_I), rI * rI - rI) *
+        std::pow(mean_R, 2 * rR - rR * rR) * std::pow(std::sqrt(var_R + mean_R * mean_R), rR * rR - rR) *
+        std::pow(1 + cov_SI / (mean_S * mean_I), rS * rI) * std::pow(1 + cov_SR / (mean_S * mean_R), rS * rR) *
+        std::pow(1 + cov_IR / (mean_I * mean_R), rI * rR);
+    // std::exp(rS * get_log_mu(var_S, mean_S) + rI * get_log_mu(var_I, mean_I) + rR * get_log_mu(var_R, mean_R) +
+    //          0.5 * (rS * rS * std::pow(get_log_sigma(var_S, mean_S), 2.0) +
+    //                 rI * rI * std::pow(get_log_sigma(var_I, mean_I), 2.0) +
+    //                 rR * rR * std::pow(get_log_sigma(var_R, mean_R), 2.0)) +
+    //          rS * rI * get_log_cov(cov_SI, mean_S, mean_I) + rS * rR * get_log_cov(cov_SR, mean_S, mean_R) +
+    //          rI * rR * get_log_cov(cov_IR, mean_I, mean_R));
 
     return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
 }
@@ -213,7 +218,7 @@ ScalarType lognormal_closure(
  * @brief Implements a closure for a given moment assuming independence of the underlying random variables. Closure only works for one region.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order to be closed.
- * @param[in] index Index of the moment that should be approximated.
+ * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Current value of expected value and all moments.
  * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
  */

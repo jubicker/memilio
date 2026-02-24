@@ -1,0 +1,271 @@
+#include "memilio/utils/logging.h"
+#include "smm_moments/closure_functions.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
+#include "ode_sir/infection_state.h"
+#include "smm_moments/model.h"
+#include <cmath>
+#include <cstddef>
+#include <numeric>
+#include <ostream>
+
+double get_E_XS_XI_XR(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                      mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_110 = y[model.moments.flatten_index({1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_101 = y[model.moments.flatten_index({1, 0, 1}) + model.populations.get_num_compartments()];
+    double M_011 = y[model.moments.flatten_index({0, 1, 1}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_S * mu_I * mu_R + mu_R * M_110 + mu_I * M_101 + mu_R * M_011;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_S * mu_I * mu_R;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        0.5 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)) +
+                        0.5 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)) +
+                        0.5 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)) + std::log(1 + M_110 / (mu_S * mu_I)) +
+                        std::log(1 + M_101 / (mu_S * mu_R)) + std::log(1 + M_011 / (mu_I * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XS3(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    // 2nd order
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return std::pow(mu_S, 3.0) + 3 * mu_S * M_200;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return std::pow(mu_S, 3.0);
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(3 * std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        4.5 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XI3(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    // 2nd order
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return std::pow(mu_I, 3.0) + 3 * mu_I * M_020;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return std::pow(mu_I, 3.0);
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(3 * std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        4.5 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XR3(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return std::pow(mu_R, 3.0) + 3 * mu_R * M_002;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return std::pow(mu_R, 3.0);
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(3 * std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        4.5 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XS2_XI(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    // 2nd order
+    double M_110 = y[model.moments.flatten_index({1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_S * mu_S * mu_I + 2 * mu_S * M_110 + mu_I * M_200;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_S * mu_S * mu_I;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        2 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)) +
+                        0.5 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)) +
+                        2 * std::log(1 + M_110 / (mu_S * mu_I)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XS2_XR(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_101 = y[model.moments.flatten_index({1, 0, 1}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_S * mu_S * mu_R + 2 * mu_S * M_101 + mu_R * M_200;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_S * mu_S * mu_R;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        2 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)) +
+                        0.5 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)) +
+                        2 * std::log(1 + M_101 / (mu_S * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XI2_XR(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_011 = y[model.moments.flatten_index({0, 1, 1}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_I * mu_I * mu_R + 2 * mu_I * M_011 + mu_R * M_020;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_I * mu_I * mu_R;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        2 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)) +
+                        0.5 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)) +
+                        2 * std::log(1 + M_011 / (mu_I * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+using ClosureFunctionType =
+    ScalarType (*)(std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * 1> index,
+                   Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                   const MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), 1, 3>& moments);
+
+void test_closure(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_moments::Model<1, 3>& model,
+                  ClosureFunctionType closure_func, int closure_type)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_110 = y[model.moments.flatten_index({1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_101 = y[model.moments.flatten_index({1, 0, 1}) + model.populations.get_num_compartments()];
+    double M_011 = y[model.moments.flatten_index({0, 1, 1}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+
+    Eigen::VectorX<ScalarType> dydt1 = Eigen::VectorX<ScalarType>::Zero(y.size());
+    Eigen::VectorX<ScalarType> dydt2 = Eigen::VectorX<ScalarType>::Zero(y.size());
+
+    //M111
+    size_t index = model.moments.flatten_index({1, 1, 1}) + model.populations.get_num_compartments();
+    dydt1[index] =
+        get_E_XS_XI_XR(closure_type, y, model) - mu_S * M_011 - mu_I * M_101 - mu_R * M_110 - mu_S * mu_I * mu_R;
+    dydt2[index] = closure_func({1, 1, 1}, y, model.moments);
+    //M300
+    index        = model.moments.flatten_index({3, 0, 0}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XS3(closure_type, y, model) - std::pow(mu_S, 3.0) - 3 * mu_S * M_200;
+    dydt2[index] = closure_func({3, 0, 0}, y, model.moments);
+    //M030
+    index        = model.moments.flatten_index({0, 3, 0}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XI3(closure_type, y, model) - std::pow(mu_I, 3.0) - 3 * mu_I * M_020;
+    dydt2[index] = closure_func({0, 3, 0}, y, model.moments);
+    //M003
+    index        = model.moments.flatten_index({0, 0, 3}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XR3(closure_type, y, model) - std::pow(mu_R, 3.0) - 3 * mu_R * M_002;
+    dydt2[index] = closure_func({0, 0, 3}, y, model.moments);
+    //M210
+    index        = model.moments.flatten_index({2, 1, 0}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XS2_XI(closure_type, y, model) - 2 * mu_S * M_110 - mu_I * mu_S * mu_S - mu_I * M_200;
+    dydt2[index] = closure_func({2, 1, 0}, y, model.moments);
+    //M201
+    index        = model.moments.flatten_index({2, 0, 1}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XS2_XR(closure_type, y, model) - 2 * mu_S * M_101 - mu_R * mu_S * mu_S - mu_R * M_200;
+    dydt2[index] = closure_func({2, 0, 1}, y, model.moments);
+    //M021
+    index        = model.moments.flatten_index({0, 2, 1}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XI2_XR(closure_type, y, model) - 2 * mu_I * M_011 - mu_R * mu_I * mu_I - mu_R * M_020;
+    dydt2[index] = closure_func({0, 2, 1}, y, model.moments);
+
+    double tol = 1e-10;
+    for (size_t i = 0; i < static_cast<size_t>(dydt1.size()); ++i) {
+        if (std::abs(dydt1[i] - dydt2[i]) > tol) {
+            std::cerr << "Discrepancy found at index " << i << ": " << dydt1[i] << " vs " << dydt2[i] << std::endl;
+            if (i >= 3) {
+                auto multi_idx = model.moments.unflatten_index(i - model.populations.get_num_compartments());
+                std::cerr << "  corresponding to moment M_";
+                for (auto&& idx : multi_idx) {
+                    std::cerr << idx;
+                }
+                std::cerr << std::endl;
+            }
+        }
+    }
+}
+
+int main()
+{
+    return 0;
+}
