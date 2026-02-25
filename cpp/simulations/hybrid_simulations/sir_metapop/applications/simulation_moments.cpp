@@ -20,6 +20,7 @@
 
 #include "memilio/timer/basic_timer.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
+#include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "smm_moments/model.h"
 #include "smm_moments/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
@@ -48,7 +49,8 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 {
     timer_init.start();
     // Initialize model
-    auto model = moment_helper::initialize_model<NumRegions, ClosureOrder>(expected_values_init, moments_init, config);
+    auto model = moment_helper::initialize_model<NumRegions, ClosureOrder>(
+        expected_values_init, moments_init, config, &mio::smm_moments::truncation_closure<NumRegions, ClosureOrder>);
     // Create simulation
     auto sim = mio::smm_moments::Simulation<NumRegions, ClosureOrder>(model, config.t0, config.dt);
     timer_init.stop();
@@ -78,11 +80,25 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::Config2);
-    const size_t closure_order = 2;
+    auto config                = Config::get_config(Config::ConfigType::Config4);
+    const size_t closure_order = 3;
     const size_t num_regions   = 1;
-    double min_step_size       = 0.00001;
+    double min_step_size       = 0.0001;
     double init_time           = 0.0;
+    size_t closure             = 2;
+    auto closure_func          = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
+    if (closure == 0) {
+        closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
+    }
+    else if (closure == 1) {
+        closure_func = &mio::smm_moments::pairapprox_closure<num_regions, closure_order>;
+    }
+    else if (closure == 2) {
+        closure_func = &mio::smm_moments::lognormal_closure<num_regions, closure_order>;
+    }
+    else {
+        mio::log_error("Unkown closure type: ", closure);
+    }
 
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
@@ -91,6 +107,12 @@ int main()
     std::string save_file = Config::SAVE_DIR + "Moments/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
+    if (!created_directory) {
+        printf("%s\n", created_directory.error().formatted_message().c_str());
+        return -1;
+    }
+    save_file += "/" + Config::closure_string[closure];
+    created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
@@ -122,8 +144,8 @@ int main()
     auto moments_init         = moment_helper::read_moments<num_regions, closure_order>(file_moment_values, init_time);
 
     // Initialize model
-    auto model =
-        moment_helper::initialize_model<num_regions, closure_order>(expected_values_init, moments_init, config);
+    auto model = moment_helper::initialize_model<num_regions, closure_order>(expected_values_init, moments_init, config,
+                                                                             closure_func);
     // Create simulation
     auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, config.t0, config.dt);
 

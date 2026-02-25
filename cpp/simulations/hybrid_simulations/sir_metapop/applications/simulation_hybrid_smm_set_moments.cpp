@@ -78,8 +78,9 @@ int main()
     // Initial moments are all zero
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, max_order> moments_array;
     moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
-    auto moment_model =
-        moment_helper::initialize_model<num_regions, max_order>(expected_values_init, moments_array.moments(), config);
+    auto moment_model = moment_helper::initialize_model<num_regions, max_order>(
+        expected_values_init, moments_array.moments(), config,
+        &mio::smm_moments::truncation_closure<num_regions, max_order>);
 
     // Initialize moment simulation
     auto sim_moments = mio::smm_moments::Simulation<num_regions, max_order>(moment_model, config.t0, config.dt);

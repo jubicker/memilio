@@ -44,10 +44,10 @@ namespace moment_helper
 template <size_t NumRegions, size_t ClosureOrder>
 mio::smm_moments::Model<NumRegions, ClosureOrder>
 initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config)
+                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config,
+                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
 {
-    mio::smm_moments::Model<NumRegions, ClosureOrder> model(
-        &mio::smm_moments::truncation_closure<NumRegions, ClosureOrder>);
+    mio::smm_moments::Model<NumRegions, ClosureOrder> model(closure_func);
     // Check whether initial expected values and moments have the correct size
     assert(expected_values_init.rows() == NumRegions * static_cast<size_t>(mio::osir::InfectionState::Count) &&
            "Initial expected values do not have correct size");

@@ -201,8 +201,8 @@ int main()
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 2> moments_array;
     moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
     //Initialize moment model
-    auto moment_model =
-        moment_helper::initialize_model<num_regions, 2>(expected_values_init, moments_array.moments(), config);
+    auto moment_model = moment_helper::initialize_model<num_regions, 2>(
+        expected_values_init, moments_array.moments(), config, &mio::smm_moments::truncation_closure<num_regions, 2>);
 
     // Define result functions
     const auto result_fct_smm = [](const mio::smm::Simulation<ScalarType, num_regions, mio::osir::InfectionState>& sim,

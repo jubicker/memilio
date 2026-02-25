@@ -32,6 +32,8 @@ namespace Config
 {
 const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
 
+const std::vector<std::string> closure_string = {"truncation", "pair_approx", "lognorm"};
+
 struct Config {
     // Config name
     std::string name;
