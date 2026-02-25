@@ -23,7 +23,7 @@ double get_E_XS_XI_XR(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarTy
     double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
     double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
     if (closure_type == 0) { // truncation
-        return mu_S * mu_I * mu_R + mu_R * M_110 + mu_I * M_101 + mu_R * M_011;
+        return mu_S * mu_I * mu_R + mu_R * M_110 + mu_I * M_101 + mu_S * M_011;
     }
     else if (closure_type == 1) { // uncorrelation
         return mu_S * mu_I * mu_R;
@@ -196,6 +196,92 @@ double get_E_XI2_XR(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType
     return -1;
 }
 
+double get_E_XS_XI2(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    // 2nd order
+    double M_110 = y[model.moments.flatten_index({1, 1, 0}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_S * mu_I * mu_I + 2 * mu_I * M_110 + mu_S * M_020;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_S * mu_I * mu_I;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        2 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)) +
+                        0.5 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)) +
+                        2 * std::log(1 + M_110 / (mu_S * mu_I)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XS_XR2(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_S = y[static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_101 = y[model.moments.flatten_index({1, 0, 1}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    double M_200 = y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_S * mu_R * mu_R + 2 * mu_R * M_101 + mu_S * M_002;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_S * mu_R * mu_R;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        std::log((mu_S * mu_S) / (std::sqrt(M_200 + mu_S * mu_S))) +
+                        2 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)) +
+                        0.5 * std::log((M_200 + mu_S * mu_S) / (mu_S * mu_S)) +
+                        2 * std::log(1 + M_101 / (mu_S * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
+
+double get_E_XI_XR2(int closure_type, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+                    mio::smm_moments::Model<1, 3>& model)
+{
+    // current moment and expected values
+    double mu_I = y[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+    double mu_R = y[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+    // 2nd order
+    double M_011 = y[model.moments.flatten_index({0, 1, 1}) + model.populations.get_num_compartments()];
+    double M_002 = y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()];
+    double M_020 = y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()];
+    if (closure_type == 0) { // truncation
+        return mu_I * mu_R * mu_R + 2 * mu_R * M_011 + mu_I * M_002;
+    }
+    else if (closure_type == 1) { // uncorrelation
+        return mu_I * mu_R * mu_R;
+    }
+    else if (closure_type == 2) { // lognormal
+        return std::exp(2 * std::log((mu_R * mu_R) / (std::sqrt(M_002 + mu_R * mu_R))) +
+                        std::log((mu_I * mu_I) / (std::sqrt(M_020 + mu_I * mu_I))) +
+                        2 * std::log((M_002 + mu_R * mu_R) / (mu_R * mu_R)) +
+                        0.5 * std::log((M_020 + mu_I * mu_I) / (mu_I * mu_I)) +
+                        2 * std::log(1 + M_011 / (mu_I * mu_R)));
+    }
+    else {
+        mio::log_error("Unknown closure type {}.", closure_type);
+    }
+    return -1;
+}
 using ClosureFunctionType =
     ScalarType (*)(std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * 1> index,
                    Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
@@ -248,11 +334,25 @@ void test_closure(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_momen
     index        = model.moments.flatten_index({0, 2, 1}) + model.populations.get_num_compartments();
     dydt1[index] = get_E_XI2_XR(closure_type, y, model) - 2 * mu_I * M_011 - mu_R * mu_I * mu_I - mu_R * M_020;
     dydt2[index] = closure_func({0, 2, 1}, y, model.moments);
+    //M120
+    index        = model.moments.flatten_index({1, 2, 0}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XS_XI2(closure_type, y, model) - 2 * mu_I * M_110 - mu_S * mu_I * mu_I - mu_S * M_020;
+    dydt2[index] = closure_func({1, 2, 0}, y, model.moments);
+    //M102
+    index        = model.moments.flatten_index({1, 0, 2}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XS_XR2(closure_type, y, model) - 2 * mu_R * M_101 - mu_S * mu_R * mu_R - mu_S * M_002;
+    dydt2[index] = closure_func({1, 0, 2}, y, model.moments);
+    //M012
+    index        = model.moments.flatten_index({0, 1, 2}) + model.populations.get_num_compartments();
+    dydt1[index] = get_E_XI_XR2(closure_type, y, model) - 2 * mu_R * M_011 - mu_I * mu_R * mu_R - mu_I * M_002;
+    dydt2[index] = closure_func({0, 1, 2}, y, model.moments);
 
     double tol = 1e-10;
     for (size_t i = 0; i < static_cast<size_t>(dydt1.size()); ++i) {
         if (std::abs(dydt1[i] - dydt2[i]) > tol) {
             std::cerr << "Discrepancy found at index " << i << ": " << dydt1[i] << " vs " << dydt2[i] << std::endl;
+            std::cerr << "Discrepancy is "
+                      << ": " << dydt1[i] - dydt2[i] << std::endl;
             if (i >= 3) {
                 auto multi_idx = model.moments.unflatten_index(i - model.populations.get_num_compartments());
                 std::cerr << "  corresponding to moment M_";
@@ -265,7 +365,54 @@ void test_closure(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, mio::smm_momen
     }
 }
 
+void test_all_closures()
+{
+    // Initialize model and set parameters
+    const size_t closure_order = 3;
+    const size_t num_regions   = 1;
+    mio::smm_moments::Model<num_regions, closure_order> model(
+        &mio::smm_moments::truncation_closure<num_regions, closure_order>);
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] = 10000 - 1;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]    = 1;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]   = 0.0;
+
+    Eigen::VectorX<ScalarType> y =
+        Eigen::VectorX<ScalarType>::Zero(model.moments.moments().size() + model.populations.get_num_compartments());
+    // mu_S, mu_I, mu_R
+    y[0] = model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}];
+    y[1] = model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}];
+    y[2] = model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}];
+    y[model.moments.flatten_index({0, 0, 0}) + model.populations.get_num_compartments()] = 1.0; // M000
+    // second order moments
+    y[model.moments.flatten_index({2, 0, 0}) + model.populations.get_num_compartments()] = 2.0; // M200
+    y[model.moments.flatten_index({0, 2, 0}) + model.populations.get_num_compartments()] = 1.9; // M020
+    y[model.moments.flatten_index({0, 0, 2}) + model.populations.get_num_compartments()] = 1.8; // M002
+    y[model.moments.flatten_index({1, 1, 0}) + model.populations.get_num_compartments()] = 1.7; // M110
+    y[model.moments.flatten_index({1, 0, 1}) + model.populations.get_num_compartments()] = 1.6; // M101
+    y[model.moments.flatten_index({0, 1, 1}) + model.populations.get_num_compartments()] = 1.5; // M011
+    // third order moments
+    y[model.moments.flatten_index({3, 0, 0}) + model.populations.get_num_compartments()] = 1.4; // M300
+    y[model.moments.flatten_index({0, 3, 0}) + model.populations.get_num_compartments()] = 1.3; // M030
+    y[model.moments.flatten_index({0, 0, 3}) + model.populations.get_num_compartments()] = 1.2; // M003
+    y[model.moments.flatten_index({1, 2, 0}) + model.populations.get_num_compartments()] = 1.1; // M120
+    y[model.moments.flatten_index({1, 0, 2}) + model.populations.get_num_compartments()] = 1.0; // M102
+    y[model.moments.flatten_index({0, 1, 2}) + model.populations.get_num_compartments()] = 0.9; // M012
+    y[model.moments.flatten_index({1, 1, 1}) + model.populations.get_num_compartments()] = 0.8; // M111
+    y[model.moments.flatten_index({2, 1, 0}) + model.populations.get_num_compartments()] = 0.7; // M210
+    y[model.moments.flatten_index({2, 0, 1}) + model.populations.get_num_compartments()] = 0.6; // M201
+    y[model.moments.flatten_index({0, 2, 1}) + model.populations.get_num_compartments()] = 0.5; // M021
+
+    std::cout << "Testing truncation closure...\n";
+    test_closure(y, model, &mio::smm_moments::truncation_closure<num_regions, closure_order>, 0);
+    std::cout << "Testing pairwise closure...\n";
+    test_closure(y, model, &mio::smm_moments::pairapprox_closure<num_regions, closure_order>, 1);
+    std::cout << "Testing lognormal closure...\n";
+    test_closure(y, model, &mio::smm_moments::lognormal_closure<num_regions, closure_order>, 2);
+}
+
 int main()
 {
+    test_all_closures();
+
     return 0;
 }

@@ -102,9 +102,9 @@ ScalarType get_E_XS_lS_XI_lI_XR_lR(
     const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
 {
     ScalarType res = 0;
-    for (size_t iS = 0; iS <= lS; ++iS) {
-        for (size_t iI = 0; iI <= lI; ++iI) {
-            for (size_t iR = 0; iR <= lR; ++iR) {
+    for (int iS = 0; iS <= (int)lS; ++iS) {
+        for (int iI = 0; iI <= (int)lI; ++iI) {
+            for (int iR = 0; iR <= (int)lR; ++iR) {
                 res += boost::math::binomial_coefficient<double>(lS, iS) *
                        boost::math::binomial_coefficient<double>(lI, iI) *
                        boost::math::binomial_coefficient<double>(lR, iR) * std::pow(y[0], lS - iS) *
@@ -145,9 +145,9 @@ ScalarType get_central_mom_by_raw(
     ScalarType mean_I = y[1];
     ScalarType mean_R = y[2];
     double M_rS_rI_rR = 0.;
-    for (size_t lS = 0; lS <= rS; ++lS) {
-        for (size_t lI = 0; lI <= rI; ++lI) {
-            for (size_t lR = 0; lR <= rR; ++lR) {
+    for (int lS = 0; lS <= rS; ++lS) {
+        for (int lI = 0; lI <= rI; ++lI) {
+            for (int lR = 0; lR <= rR; ++lR) {
                 double E_XS_lS_XI_lI_XR_lR = int(ClosureOrder) > (lS + lI + lR)
                                                  ? get_E_XS_lS_XI_lI_XR_lR(lS, lI, lR, y, moments)
                                                  : E_XS_rS_XI_rI_XR_rR;
