@@ -20,6 +20,7 @@
 #ifndef MOMENTS_SIMULATION_H
 #define MOMENTS_SIMULATION_H
 
+#include "ode_sir/infection_state.h"
 #include "smm_moments/model.h"
 #include "memilio/compartments/simulation_base.h"
 #include "memilio/config.h"
@@ -146,6 +147,42 @@ public:
             moment_ts.add_time_point(Base::get_result().get_time(t), moment_vec);
         }
         return std::make_pair(moment_ts, moment_names);
+    }
+
+    /**
+     * @brief Extracts the last value of all variances from simulation result.
+     * @return Vector of all variances.
+     */
+    std::vector<ScalarType> get_last_vars()
+    {
+        std::vector<ScalarType> vars(static_cast<size_t>(osir::InfectionState::Count) * NumRegions);
+        // Add last variances
+        auto y = Base::get_result().get_last_value();
+        for (size_t i = 0; i < y.size() - Base::get_model().populations.get_num_compartments(); i++) {
+            auto multi_idx = Base::get_model().moments.unflatten_index(i);
+            bool is_var    = std::count(multi_idx.begin(), multi_idx.end(), 2) == 1 &&
+                          std::count(multi_idx.begin(), multi_idx.end(), 0) == multi_idx.size() - 1;
+            if (!is_var) {
+                continue;
+            }
+            size_t index = std::distance(multi_idx.begin(), std::find(multi_idx.begin(), multi_idx.end(), 2));
+            vars[index]  = y[Base::get_model().populations.get_num_compartments() + i];
+        }
+
+        return vars;
+    }
+
+    /**
+     * @brief Extracts the last value of all means from simulation result.
+     * @return Vector of all means.
+     */
+    std::vector<ScalarType> get_last_means()
+    {
+        auto y    = Base::get_result().get_last_value();
+        auto head = y.head(Base::get_model().populations.get_num_compartments());
+        std::vector<ScalarType> means(head.data(), head.data() + head.size());
+
+        return means;
     }
 };
 

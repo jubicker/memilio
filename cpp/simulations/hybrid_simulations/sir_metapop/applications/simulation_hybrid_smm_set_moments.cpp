@@ -27,17 +27,34 @@
 #include "smm_moments/simulation.h"
 #include "models/hybrid/conversion_functions.cpp"
 #include "smm_moments/closure_functions.h"
+#include <cstddef>
 
 int main()
 {
     mio::set_log_level(mio::LogLevel::warn);
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
-    const size_t max_order        = 3;
+    const size_t closure_order    = 3;
     const auto config             = Config::get_config(Config::ConfigType::Config3);
     const size_t num_regions      = 1;
     const double rel_switch_value = 1.0;
-    double min_step_size          = 0.00001;
+    double min_step_size          = 0.0001;
+    size_t closure                = 1;
+    size_t condition              = 0;
+    auto closure_func             = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
+    if (closure == 0) {
+        closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
+    }
+    else if (closure == 1) {
+        closure_func = &mio::smm_moments::pairapprox_closure<num_regions, closure_order>;
+    }
+    else if (closure == 2) {
+        closure_func = &mio::smm_moments::lognormal_closure<num_regions, closure_order>;
+    }
+    else {
+        mio::log_error("Unkown closure type: ", closure);
+    }
+
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
@@ -51,19 +68,42 @@ int main()
         return -1;
     }
 
-    save_file += "/switch_value_" + std::to_string(rel_switch_value);
+    save_file += "/" + Config::switch_condition_string[closure];
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
+
+    if (condition == 0 || condition == 1) {
+        save_file += "/" + std::to_string(rel_switch_value);
+        created_directory = mio::create_directory(save_file);
+        if (!created_directory) {
+            printf("%s\n", created_directory.error().formatted_message().c_str());
+            return -1;
+        }
+    }
+
+    save_file += "/" + Config::closure_string[closure];
+    created_directory = mio::create_directory(save_file);
+    if (!created_directory) {
+        printf("%s\n", created_directory.error().formatted_message().c_str());
+        return -1;
+    }
+    save_file += "/closure_order_" + std::to_string(closure_order);
+    created_directory = mio::create_directory(save_file);
+    if (!created_directory) {
+        printf("%s\n", created_directory.error().formatted_message().c_str());
+        return -1;
+    }
+
     save_file += "/";
 
     // Initialize smm
     auto smm_model = smm_helper::initialize_model<num_regions>(config);
     // Initialize smm simulation set
-    auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(num_runs, smm_model,
-                                                                                              config.t0, config.dt);
+    auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>(num_runs, smm_model,
+                                                                                                  config.t0, config.dt);
     // Initialize moment model
     // Initial expected values
     Eigen::Array<double, Eigen::Dynamic, 1> expected_values_init(num_regions *
@@ -76,69 +116,83 @@ int main()
         }
     }
     // Initial moments are all zero
-    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, max_order> moments_array;
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, closure_order> moments_array;
     moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
-    auto moment_model = moment_helper::initialize_model<num_regions, max_order>(
-        expected_values_init, moments_array.moments(), config,
-        &mio::smm_moments::truncation_closure<num_regions, max_order>);
+    auto moment_model = moment_helper::initialize_model<num_regions, closure_order>(
+        expected_values_init, moments_array.moments(), config, closure_func);
 
     // Initialize moment simulation
-    auto sim_moments = mio::smm_moments::Simulation<num_regions, max_order>(moment_model, config.t0, config.dt);
+    auto sim_moments = mio::smm_moments::Simulation<num_regions, closure_order>(moment_model, config.t0, config.dt);
     // Set maximum dt of integrator to interpolation time points
     sim_moments.get_integrator_core().get_dt_max() = config.dt;
     if (min_step_size > 0) {
         sim_moments.get_integrator_core().get_dt_min() = min_step_size;
     }
 
-    // Define result functions
-    const auto result_fct_smm = [](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>& sim,
-                                   double /*t*/) {
-        return sim.get_mean();
-    };
-    const auto result_fct_moments = [](mio::smm_moments::Simulation<num_regions, max_order>& sim, double /*t*/) {
-        return sim.get_expected_values_time_series();
-    };
+    // Define result function smm
+    const auto result_fct_smm =
+        [condition](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& sim, double /*t*/) {
+            if (condition == 0) {
+                return sim.get_last_means();
+            }
+            else {
+                return sim.get_last_vars();
+            }
+        };
+
+    const auto result_fct_moments =
+        [condition, closure_order](mio::smm_moments::Simulation<num_regions, closure_order>& sim, double /*t*/) {
+            if (condition == 0) {
+                return sim.get_last_means();
+            }
+            else {
+                return sim.get_last_vars();
+            }
+        };
 
     // Define switching conditions - Model switches when total number of infected is bigger that given percentage of the total population
-    const auto condition = [rel_switch_value, &config](mio::TimeSeries<double>& result_smm,
-                                                       mio::TimeSeries<double>& /*result_ode*/, bool smm_used) {
+    const auto condition_func = [rel_switch_value, &config, condition](std::vector<double>& result_smm,
+                                                                       std::vector<double>& /*result_moments*/,
+                                                                       bool smm_used) {
         double total_population = 0;
         for (size_t r = 0; r < num_regions; ++r) {
             total_population += config.total_populations[r];
         }
+
         if (smm_used) {
-            auto& last_value      = result_smm.get_last_value().eval();
-            double total_infected = 0;
-            for (size_t r = 0; r < num_regions; ++r) {
-                total_infected +=
-                    last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
+            if (condition == 0) {
+                double total_infected = 0;
+                for (size_t r = 0; r < num_regions; ++r) {
+                    total_infected += result_smm[r * (int)mio::osir::InfectionState::Count +
+                                                 (int)mio::osir::InfectionState::Infected];
+                }
+                if ((total_infected > rel_switch_value * total_population) || (total_infected < 1)) {
+                    return true;
+                }
             }
-            if ((total_infected > rel_switch_value * total_population) || (total_infected < 1)) {
-                return true;
+            else if (condition == 1) {
+                double total_var_infected = 0;
+                for (size_t r = 0; r < num_regions; ++r) {
+                    total_var_infected += result_smm[r * (int)mio::osir::InfectionState::Count +
+                                                     (int)mio::osir::InfectionState::Infected];
+                }
+                if ((std::sqrt(total_var_infected) > rel_switch_value * total_population)) {
+                    return true;
+                }
             }
         }
-        // else { //Switch back
-        //     auto& last_value      = result_ode.get_last_value().eval();
-        //     double total_infected = 0;
-        //     for (size_t r = 0; r < num_regions; ++r) {
-        //         total_infected +=
-        //             last_value[r * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected];
-        //     }
-        //     if ((total_infected <= rel_switch_value * total_population) && (total_infected >= 1)) {
-        //         return true;
-        //     }
-        // }
+
         return false;
     };
 
-    mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), mio::TimeSeries<double>,
-                                          mio::TimeSeries<double>>
+    mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), std::vector<double>,
+                                          std::vector<double>>
         hybrid_sim(std::move(sim_set), std::move(sim_moments), result_fct_smm, result_fct_moments, true, config.t0,
                    dt_switch);
 
     mio::timing::BasicTimer timer;
     timer.start();
-    hybrid_sim.advance(config.tmax, condition);
+    hybrid_sim.advance(config.tmax, condition_func);
     timer.stop();
 
     // Calculate moments and expected values of sim set
@@ -147,7 +201,7 @@ int main()
     auto done        = means_smm.export_csv(save_file + "means_smm.csv");
     done = moments_smm.export_csv(save_file + "moments_smm.csv", hybrid_sim.get_model1().get_moment_names());
     auto expected_values = hybrid_sim.get_model2().get_expected_values_time_series();
-    auto moments_moments = hybrid_sim.get_model2().get_moment_time_series(max_order);
+    auto moments_moments = hybrid_sim.get_model2().get_moment_time_series(closure_order);
     done                 = expected_values.export_csv(save_file + "expected_values_moments.csv");
     done                 = moments_moments.first.export_csv(save_file + "moments_moments.csv", moments_moments.second);
 

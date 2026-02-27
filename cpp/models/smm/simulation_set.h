@@ -26,6 +26,7 @@
 #include "memilio/utils/logging.h"
 #include "memilio/utils/time_series.h"
 #include "memilio/utils/mioomp.h"
+#include "ode_sir/infection_state.h"
 #include "smm/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "memilio/data/analyze_result.h"
@@ -192,6 +193,16 @@ public:
     }
 
     /**
+     * @brief Get last mean value.
+     */
+    std::vector<ScalarType> get_last_means()
+    {
+        auto last_value = m_means.get_last_value();
+        std::vector<ScalarType> last_means(last_value.data(), last_value.data() + last_value.size());
+        return last_means;
+    }
+
+    /**
      * @brief Get moment time series.
      */
     TimeSeries<double>& get_moments()
@@ -201,6 +212,27 @@ public:
     const TimeSeries<double>& get_moments() const
     {
         return m_moments;
+    }
+
+    /**
+     * @brief Get last value of all variances.
+     */
+    std::vector<double> get_last_vars()
+    {
+        std::vector<double> vars(static_cast<size_t>(osir::InfectionState::Count) * regions);
+        for (size_t i = 0; i < m_moment_names.size(); ++i) {
+            bool is_var = std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '2') == 1 &&
+                          std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '0') ==
+                              static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
+            if (!is_var) {
+                continue;
+            }
+            size_t index = std::distance(m_moment_names[i].begin(),
+                                         std::find(m_moment_names[i].begin(), m_moment_names[i].end(), '2')) -
+                           1;
+            vars[index] = m_moments.get_last_value()[i];
+        }
+        return vars;
     }
 
     /**
@@ -288,8 +320,8 @@ private:
         const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
-        double moment                                                                   = 0.0;
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
+        double moment                                                                    = 0.0;
         for (int i = 0; i < values.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {
