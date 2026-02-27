@@ -84,8 +84,8 @@ int main()
     const size_t closure_order = 3;
     const size_t num_regions   = 1;
     double min_step_size       = 0.0001;
-    double init_time           = 0.0;
-    size_t closure             = 2;
+    double init_time           = 30.0;
+    size_t closure             = 1;
     auto closure_func          = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
     if (closure == 0) {
         closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
@@ -147,7 +147,7 @@ int main()
     auto model = moment_helper::initialize_model<num_regions, closure_order>(expected_values_init, moments_init, config,
                                                                              closure_func);
     // Create simulation
-    auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, config.t0, config.dt);
+    auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, init_time, config.dt);
 
     sim.get_integrator_core().get_dt_max() = config.dt;
     if (min_step_size > 0) {
@@ -164,10 +164,10 @@ int main()
     auto means   = sim.get_expected_values_time_series();
     auto moments = sim.get_moment_time_series(closure_order);
 
-    int num_steps = static_cast<int>(config.tmax / config.dt) + 1;
+    int num_steps = static_cast<int>((config.tmax - init_time) / config.dt) + 1;
     std::vector<double> interpolation_tps(num_steps);
     for (int i = 0; i < num_steps; ++i) {
-        interpolation_tps[i] = i * config.dt;
+        interpolation_tps[i] = init_time + i * config.dt;
     }
     means     = mio::interpolate_simulation_result(means, interpolation_tps);
     auto done = means.export_csv(save_file + "means.csv");
