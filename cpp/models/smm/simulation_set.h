@@ -236,6 +236,32 @@ public:
     }
 
     /**
+     * @brief Get last gradient of all variances.
+     */
+    std::vector<double> get_last_var_gradients()
+    {
+        std::vector<double> vars_gradient(static_cast<size_t>(osir::InfectionState::Count) * regions);
+        for (size_t i = 0; i < m_moment_names.size(); ++i) {
+            bool is_var = std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '2') == 1 &&
+                          std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '0') ==
+                              static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
+            if (!is_var) {
+                continue;
+            }
+            size_t index = std::distance(m_moment_names[i].begin(),
+                                         std::find(m_moment_names[i].begin(), m_moment_names[i].end(), '2')) -
+                           1;
+            auto last_tp              = m_moments.get_last_time();
+            auto second_last_tp_index = m_moments.get_num_time_points() - 2;
+            auto second_last_tp       = m_moments.get_time(second_last_tp_index);
+            auto y_second_last        = m_moments.get_value(second_last_tp_index);
+            auto y_last               = m_moments.get_last_value();
+            vars_gradient[index]      = (y_last[i] - y_second_last[i]) / (last_tp - second_last_tp);
+        }
+        return vars_gradient;
+    }
+
+    /**
      * @brief Get moment names.
      */
     std::vector<std::string> get_moment_names()

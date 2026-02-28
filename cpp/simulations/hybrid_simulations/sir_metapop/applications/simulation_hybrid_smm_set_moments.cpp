@@ -28,6 +28,7 @@
 #include "models/hybrid/conversion_functions.cpp"
 #include "smm_moments/closure_functions.h"
 #include <cstddef>
+#include <limits>
 
 int main()
 {
@@ -35,12 +36,12 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t closure_order    = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config3);
+    const auto config             = Config::get_config(Config::ConfigType::Config1);
     const size_t num_regions      = 1;
-    const double rel_switch_value = 1.0;
+    const double rel_switch_value = 0.0;
     double min_step_size          = 0.0001;
-    size_t closure                = 1;
-    size_t condition              = 0;
+    size_t closure                = 0;
+    size_t condition              = 1;
     auto closure_func             = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
     if (closure == 0) {
         closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
@@ -68,14 +69,14 @@ int main()
         return -1;
     }
 
-    save_file += "/" + Config::switch_condition_string[closure];
+    save_file += "/" + Config::switch_condition_string[condition];
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
 
-    if (condition == 0 || condition == 1) {
+    if (condition == 0) {
         save_file += "/" + std::to_string(rel_switch_value);
         created_directory = mio::create_directory(save_file);
         if (!created_directory) {
@@ -136,7 +137,7 @@ int main()
                 return sim.get_last_means();
             }
             else {
-                return sim.get_last_vars();
+                return sim.get_last_var_gradients();
             }
         };
 
@@ -146,7 +147,7 @@ int main()
                 return sim.get_last_means();
             }
             else {
-                return sim.get_last_vars();
+                return sim.get_last_var_gradients();
             }
         };
 
@@ -171,13 +172,12 @@ int main()
                 }
             }
             else if (condition == 1) {
-                double total_var_infected = 0;
                 for (size_t r = 0; r < num_regions; ++r) {
-                    total_var_infected += result_smm[r * (int)mio::osir::InfectionState::Count +
-                                                     (int)mio::osir::InfectionState::Infected];
-                }
-                if ((std::sqrt(total_var_infected) > rel_switch_value * total_population)) {
-                    return true;
+                    auto var_infected_gradient = result_smm[r * (int)mio::osir::InfectionState::Count +
+                                                            (int)mio::osir::InfectionState::Infected];
+                    if (var_infected_gradient < 0) {
+                        return true;
+                    }
                 }
             }
         }

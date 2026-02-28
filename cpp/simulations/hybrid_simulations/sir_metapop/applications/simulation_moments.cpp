@@ -80,12 +80,12 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::Config4);
+    auto config                = Config::get_config(Config::ConfigType::Config1);
     const size_t closure_order = 3;
     const size_t num_regions   = 1;
     double min_step_size       = 0.0001;
-    double init_time           = 30.0;
-    size_t closure             = 1;
+    double init_time           = 0.0;
+    size_t closure             = 0;
     auto closure_func          = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
     if (closure == 0) {
         closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
