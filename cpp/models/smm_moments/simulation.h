@@ -77,11 +77,6 @@ public:
             tmax, Base::get_result());
     }
 
-    void set_value_to_zero(size_t index)
-    {
-        Base::set_value_to_zero(index);
-    }
-
     /**
      * @brief Extracts time series of only the expected values from simulation result.
      * @return Time series of expected values.
