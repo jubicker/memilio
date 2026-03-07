@@ -36,8 +36,8 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t closure_order    = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config1);
-    const size_t num_regions      = 1;
+    const auto config             = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
+    const size_t num_regions      = 2;
     const double rel_switch_value = 0.0;
     double min_step_size          = 0.0001;
     size_t closure                = 0;
@@ -118,7 +118,9 @@ int main()
     }
     // Initial moments are all zero
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, closure_order> moments_array;
-    moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
+    std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> zero_index;
+    zero_index.fill(0);
+    moments_array.moments()[moments_array.flatten_index(zero_index)] = 1.0;
     auto moment_model = moment_helper::initialize_model<num_regions, closure_order>(
         expected_values_init, moments_array.moments(), config, closure_func);
 

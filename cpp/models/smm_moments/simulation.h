@@ -20,6 +20,7 @@
 #ifndef MOMENTS_SIMULATION_H
 #define MOMENTS_SIMULATION_H
 
+#include "memilio/utils/compiler_diagnostics.h"
 #include "ode_sir/infection_state.h"
 #include "smm_moments/model.h"
 #include "memilio/compartments/simulation_base.h"
@@ -74,6 +75,11 @@ public:
                 Base::get_model().eval_right_hand_side(y, y, t, dydt);
             },
             tmax, Base::get_result());
+    }
+
+    void set_value_to_zero(size_t index)
+    {
+        Base::set_value_to_zero(index);
     }
 
     /**
@@ -179,11 +185,12 @@ public:
     std::vector<ScalarType> get_last_var_gradients()
     {
         std::vector<ScalarType> vars_gradient(static_cast<size_t>(osir::InfectionState::Count) * NumRegions);
-        auto last_tp              = Base::get_result().get_last_time();
-        auto second_last_tp_index = Base::get_result().get_num_time_points() - 2;
-        auto second_last_tp       = Base::get_result().get_time(second_last_tp_index);
-        auto y_second_last        = Base::get_result().get_value(second_last_tp_index);
-        auto y_last               = Base::get_result().get_last_value();
+        auto last_tp = Base::get_result().get_last_time();
+        auto y_last  = Base::get_result().get_last_value();
+        auto second_last_tp =
+            Base::get_result().get_num_time_points() > 1 ? Base::get_result().get_num_time_points() - 2 : last_tp;
+        auto y_second_last =
+            Base::get_result().get_num_time_points() > 1 ? Base::get_result().get_value(second_last_tp) : y_last;
         for (size_t i = 0; i < y_last.size() - Base::get_model().populations.get_num_compartments(); i++) {
             auto multi_idx = Base::get_model().moments.unflatten_index(i);
             bool is_var    = std::count(multi_idx.begin(), multi_idx.end(), 2) == 1 &&

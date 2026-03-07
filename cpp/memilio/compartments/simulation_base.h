@@ -123,6 +123,11 @@ public:
     }
     /** @} */
 
+    void set_value_to_zero(size_t index)
+    {
+        m_result.get_last_value()[index] = 0;
+    }
+
     /**
      * @brief Get a reference to the model owned and used by the simulation.
      * @return The simulation model.

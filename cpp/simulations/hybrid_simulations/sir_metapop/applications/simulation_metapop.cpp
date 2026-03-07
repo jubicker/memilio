@@ -71,9 +71,9 @@ mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Co
 int main()
 {
     const size_t num_runs    = 10000;
-    const size_t max_order   = 3;
-    const auto config        = Config::get_config(Config::ConfigType::Config1);
-    const size_t num_regions = 1;
+    const size_t max_order   = 2;
+    const auto config        = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
+    const size_t num_regions = 2;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }

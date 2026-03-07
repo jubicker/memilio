@@ -74,7 +74,9 @@ mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, co
     }
     // Moment are all zero
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, 1> moments_array;
-    moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
+    std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions> zero_index;
+    zero_index.fill(0);
+    moments_array.moments()[moments_array.flatten_index(zero_index)] = 1.0;
     //Initialize moment model
     auto moment_model =
         moment_helper::initialize_model<NumRegions, 2>(expected_values_init, moments_array.moments(), config);
@@ -199,7 +201,9 @@ int main()
     }
     // Moment are all zero
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 2> moments_array;
-    moments_array.moments()[moments_array.flatten_index({0, 0, 0})] = 1.0;
+    std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> zero_index;
+    zero_index.fill(0);
+    moments_array.moments()[moments_array.flatten_index(zero_index)] = 1.0;
     //Initialize moment model
     auto moment_model = moment_helper::initialize_model<num_regions, 2>(
         expected_values_init, moments_array.moments(), config, &mio::smm_moments::truncation_closure<num_regions, 2>);

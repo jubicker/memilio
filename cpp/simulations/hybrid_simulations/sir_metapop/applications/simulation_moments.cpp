@@ -80,9 +80,9 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::Config1);
+    auto config                = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
     const size_t closure_order = 3;
-    const size_t num_regions   = 1;
+    const size_t num_regions   = 2;
     double min_step_size       = 0.0001;
     double init_time           = 0.0;
     size_t closure             = 0;

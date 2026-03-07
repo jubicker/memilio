@@ -52,10 +52,10 @@ struct TransmissionRate {
  * @brief Rate from I to R.
  */
 struct RecoveryRate {
-    using Type = ScalarType;
-    static Type get_default()
+    using Type = mio::CustomIndexArray<ScalarType, mio::regions::Region>;
+    static Type get_default(mio::regions::Region size)
     {
-        return 1.0;
+        return Type(size, 1.0);
     }
     static std::string name()
     {

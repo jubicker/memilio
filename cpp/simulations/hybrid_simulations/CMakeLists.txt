@@ -10,6 +10,10 @@ if(MEMILIO_ENABLE_OPENMP)
     add_executable(hybrid2_config sir_metapop/applications/simulation_hybrid_smm_set_moments.cpp)
     target_link_libraries(hybrid2_config PRIVATE memilio ode_sir smm moments hybrid)
     target_compile_options(hybrid2_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
+    add_executable(hybrid2_spatial_config sir_metapop/applications/simulation_spatial_hybrid_smm_set_moments.cpp)
+    target_link_libraries(hybrid2_spatial_config PRIVATE memilio ode_sir smm moments hybrid)
+    target_compile_options(hybrid2_spatial_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
 endif()
 
 add_executable(moment_config sir_metapop/applications/simulation_moments.cpp)

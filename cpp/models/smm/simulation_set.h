@@ -75,8 +75,9 @@ public:
             m_sims.push_back(Simulation(m, t0, dt));
             seed++;
         }
-        m_moments      = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
-        m_moment_names = m_mom_array.names_up_to_order(MaxMomentOrder);
+        m_moments        = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
+        m_moment_names   = m_mom_array.names_up_to_order(MaxMomentOrder);
+        m_moment_indices = m_mom_array.multiindex_up_to_order(MaxMomentOrder);
 
         // Add initial values to results
         auto& sim_ts = m_sims[0].get_result();
@@ -251,12 +252,17 @@ public:
             size_t index = std::distance(m_moment_names[i].begin(),
                                          std::find(m_moment_names[i].begin(), m_moment_names[i].end(), '2')) -
                            1;
-            auto last_tp              = m_moments.get_last_time();
-            auto second_last_tp_index = m_moments.get_num_time_points() - 2;
-            auto second_last_tp       = m_moments.get_time(second_last_tp_index);
-            auto y_second_last        = m_moments.get_value(second_last_tp_index);
-            auto y_last               = m_moments.get_last_value();
-            vars_gradient[index]      = (y_last[i] - y_second_last[i]) / (last_tp - second_last_tp);
+            auto last_tp = m_moments.get_last_time();
+            if (m_moments.get_num_time_points() > 1) {
+                auto second_last_tp_index = m_moments.get_num_time_points() - 2;
+                auto second_last_tp       = m_moments.get_time(second_last_tp_index);
+                auto y_second_last        = m_moments.get_value(second_last_tp_index);
+                auto y_last               = m_moments.get_last_value();
+                vars_gradient[index]      = (y_last[i] - y_second_last[i]) / (last_tp - second_last_tp);
+            }
+            else {
+                vars_gradient[index] = 0.;
+            }
         }
         return vars_gradient;
     }
@@ -271,6 +277,18 @@ public:
     const std::vector<std::string> get_moment_names() const
     {
         return m_moment_names;
+    }
+
+    /**
+     * @brief Get moment indices.
+     */
+    std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>> get_moment_indices()
+    {
+        return m_moment_indices;
+    }
+    const std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>> get_moment_indices() const
+    {
+        return m_moment_indices;
     }
 
     /**
@@ -313,6 +331,80 @@ public:
         m_t_index += 1;
     }
 
+    /**
+     * @brief Calculate mean time series from simulation results.
+     */
+    void recalculate_last_mean()
+    {
+        const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
+        Eigen::Matrix<ScalarType, num_elements, 1> means;
+        means.setZero();
+        // Sum up all values
+        for (auto& res : m_results) {
+            means += res.get_last_value();
+        }
+        // Average values by number of runs
+        means /= m_results.size();
+        if (m_means.get_last_time() < m_results[0].get_last_time()) {
+            m_means.add_time_point(m_results[0].get_last_time(), means);
+        }
+        else {
+            m_means.get_last_value() = means;
+        }
+    }
+
+    /**
+     * @brief Calculate moment time series from simulation results.
+     */
+    void recalculate_last_moments()
+    {
+        const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
+        // Copy results to matrix
+        Eigen::Matrix<double, Eigen::Dynamic, num_elements> result =
+            Eigen::Matrix<double, Eigen::Dynamic, num_elements>::Zero(m_results.size(), num_elements);
+        for (size_t run = 0; run < m_results.size(); run++) {
+            for (size_t r = 0; r < regions; ++r) {
+                for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
+                    result(run, static_cast<size_t>(Status::Count) * r + s) =
+                        m_results[run]
+                            .get_last_value()[r * static_cast<size_t>(Status::Count) + static_cast<size_t>(Status(s))];
+                }
+            }
+        }
+
+        std::array<int, num_elements> indices; // Vector with current indices
+        std::function<void(int, int)> fill_moments =
+            [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
+                if (pos == int(indices.size()) &&
+                    std::accumulate(indices.begin(), indices.end(), 0) <=
+                        int(MaxMomentOrder)) { // Position is at last index i.e. all indiced for the moment are filled
+                    m_mom_array[indices] = calculate_moment(result, indices);
+                    return;
+                }
+
+                int maxAllowedHere =
+                    std::min(MaxMomentOrder, MaxMomentOrder - currentSum); //maximum allowed value for current index
+                for (int v = 0; v <= maxAllowedHere; ++v) { // Iterate over all values allowed for the current index
+                    indices[pos] = v;
+                    int newSum   = currentSum + v; // Increase sum by current index
+                    fill_moments(
+                        pos + 1,
+                        newSum); // This triggers the next index to take all possible values given the value of the current index
+                }
+            };
+
+        fill_moments(0, 0); // Start with first index and sum 0
+        // Get only moments up to the given order
+        auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
+        Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
+        if (m_moments.get_last_time() < m_results[0].get_last_time()) {
+            m_moments.add_time_point(m_results[0].get_last_time(), data);
+        }
+        else {
+            m_moments.get_last_value() = data;
+        }
+    }
+
 private:
     /**
      * @brief Calculate mean time series from simulation results.
@@ -335,32 +427,6 @@ private:
             means /= m_results.size();
             m_means.add_time_point(m_results[0].get_time(t), means);
         }
-    }
-
-    /**
-    * @brief Calculates moment defined by indices for the given realizations of a stochastic variable.
-    * @param[in] values The realizations of the stochastic variable (i.e. S, I, R for each region).
-    * @param[in] indices The indices defining the moment to be calculated.
-    */
-    double calculate_moment(
-        const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
-        const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
-    {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
-        double moment                                                                    = 0.0;
-        for (int i = 0; i < values.rows(); ++i) {
-            double summand = 1.0;
-            for (size_t r = 0; r < regions; ++r) {
-                for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
-                    summand *= std::pow(values(i, r * static_cast<size_t>(Status::Count) + s) -
-                                            means(r * static_cast<size_t>(Status::Count) + s),
-                                        indices[r * static_cast<size_t>(Status::Count) + s]);
-                }
-            }
-            moment += summand;
-        }
-        moment /= static_cast<double>(values.rows());
-        return moment;
     }
 
     /**
@@ -416,12 +482,40 @@ private:
         }
     }
 
+    /**
+    * @brief Calculates moment defined by indices for the given realizations of a stochastic variable.
+    * @param[in] values The realizations of the stochastic variable (i.e. S, I, R for each region).
+    * @param[in] indices The indices defining the moment to be calculated.
+    */
+    double calculate_moment(
+        const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
+        const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
+    {
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
+        double moment                                                                    = 0.0;
+        for (int i = 0; i < values.rows(); ++i) {
+            double summand = 1.0;
+            for (size_t r = 0; r < regions; ++r) {
+                for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
+                    summand *= std::pow(values(i, r * static_cast<size_t>(Status::Count) + s) -
+                                            means(r * static_cast<size_t>(Status::Count) + s),
+                                        indices[r * static_cast<size_t>(Status::Count) + s]);
+                }
+            }
+            moment += summand;
+        }
+        moment /= static_cast<double>(values.rows());
+        return moment;
+    }
+
     std::vector<Model> m_models; ///< Models used for simulation.
     std::vector<Simulation> m_sims; ///< SMM simulations.
     TimeSeries<double> m_means; ///< Time series of means.
     TimeSeries<double> m_moments; ///< Time series of all moments up to MaxMomentOrder.
     std::vector<TimeSeries<ScalarType>> m_results; ///< Interpolated simulation results.
     std::vector<std::string> m_moment_names; ///< Moment names as they are saved in m_moments.
+    std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>>
+        m_moment_indices; ///< Moment indices as they are saved in m_moments.
     double m_dt; ///< Interpolation time step.
     double m_t; ///< Current time.
     int m_t_index; ///< Current result time point index.

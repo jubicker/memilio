@@ -129,6 +129,26 @@ public:
     }
 
     /**
+     * @brief Returns a vector of the moment indices up to a given order. Corresponds to moments calculated by moments_up_to_order.
+     * @param[in] order Maximum order of moment names to be returned.
+     */
+    std::vector<std::array<int, NumInfectionStates * NumRegions>> multiindex_up_to_order(int order)
+    {
+        std::vector<std::array<int, NumInfectionStates * NumRegions>> indices;
+        for (size_t i = 0; i < static_cast<size_t>(m_moments.rows()); ++i) {
+            auto multi_idx = unflatten_index(i);
+            int sum        = 0;
+            for (auto&& idx : multi_idx) {
+                sum += idx;
+            }
+            if (sum <= order) {
+                indices.push_back(multi_idx);
+            }
+        }
+        return indices;
+    }
+
+    /**
      * @brief Returns the array entry (moment value) given a multiindex.
      */
     double& operator[](const std::array<int, NumInfectionStates * NumRegions>& indices)

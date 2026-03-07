@@ -75,6 +75,18 @@ public:
         }
     }
 
+    Simulation(const Simulation& other)
+        : m_dt(other.m_dt)
+        , m_model(std::make_unique<Model>(*other.m_model))
+        , m_result(other.m_result)
+        , m_result_interpolated(other.m_result_interpolated)
+        , m_internal_time(other.m_internal_time)
+        , m_tp_next_event(other.m_tp_next_event)
+        , m_waiting_times(other.m_waiting_times)
+        , m_current_rates(other.m_current_rates)
+    {
+    }
+
     /**
      * @brief Advance simulation to tmax.
      * This function performs a Gillespie algorithm.
@@ -155,6 +167,15 @@ public:
     const TimeSeries<FP>& get_result() const
     {
         return m_result_interpolated;
+    }
+
+    TimeSeries<FP>& get_result1()
+    {
+        return m_result;
+    }
+    const TimeSeries<FP>& get_result1() const
+    {
+        return m_result;
     }
 
     /**
