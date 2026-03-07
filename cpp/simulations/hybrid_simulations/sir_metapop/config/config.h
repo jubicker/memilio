@@ -61,8 +61,13 @@ enum class ConfigType
     Config3r1,
     Config3r2,
     Config3r3,
-    ConfigDiseaseImport,
-    Config2regions1
+    Config2regionsNoExchange,
+    Config2regionsk1,
+    Config2regionsk2,
+    ConfigDiseaseImport1k1,
+    ConfigDiseaseImport1k2,
+    ConfigDiseaseImport2k1,
+    ConfigDiseaseImport2k2
 };
 
 Config get_config(ConfigType type);
