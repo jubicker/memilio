@@ -364,7 +364,7 @@ public:
                                                                   (int)mio::osir::InfectionState::Infected];
                     auto relation_infected     = result_smm.second[r * (int)mio::osir::InfectionState::Count +
                                                                (int)mio::osir::InfectionState::Infected];
-                    if (var_infected_gradient < 0 && relation_infected < 0.6) {
+                    if (var_infected_gradient < -1 && relation_infected < 0.6 && relation_infected > 0) {
                         return true;
                     }
                 }
@@ -373,10 +373,8 @@ public:
             return false;
         };
         while (m_t <= tmax) {
-            size_t r = 0;
             for (auto& region_sim : m_simulations) {
                 region_sim.advance(m_t + m_dt, condition_func);
-                r += 1;
             }
             for (size_t region_from = 0; region_from < num_regions; ++region_from) {
                 for (size_t region_to = 0; region_to < num_regions; ++region_to) {
@@ -613,7 +611,7 @@ int main()
     const size_t num_runs      = 10000;
     double dt_switch           = 1.;
     const size_t closure_order = 3;
-    const auto config          = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
+    const auto config          = Config::get_config(Config::ConfigType::Config2regionsk1);
     const size_t num_regions   = 2;
     double min_step_size       = 0.0001;
 
@@ -716,6 +714,8 @@ int main()
     Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     total_time.add_time_point(0., time);
     auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+
+    std::cout << "Spatial-hybrid Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
     return 0;
 }

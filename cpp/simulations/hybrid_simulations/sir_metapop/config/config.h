@@ -58,6 +58,8 @@ enum class ConfigType
     Config2,
     Config3,
     Config4,
+    Config5,
+    Config6,
     Config3r1,
     Config3r2,
     Config3r3,
