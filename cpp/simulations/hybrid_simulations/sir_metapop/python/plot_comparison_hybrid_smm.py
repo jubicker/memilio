@@ -347,9 +347,9 @@ if __name__ == "__main__":
     dir = "V:/bick_ju/TemporalHybrid"
     save_dir = "H:/Documents/TemporalHybridModel"
     hybrid_model = "Hybrid2"
-    config = "config1_1r_I0_100"
-    num_regions = 1
-    compare_values = ["var_gradient/truncation/closure_order_3", "mean_threshold/0.001000/truncation/closure_order_3", "mean_threshold/0.010000/truncation/closure_order_3", "mean_threshold/0.100000/truncation/closure_order_3", "mean_threshold/0.300000/truncation/closure_order_3"]
+    config = "config_2regions_100_0/var_gradient"
+    num_regions = 2
+    compare_values = ["truncation"]
     colors_hybrid = [[colors['dark blue'], colors['middle blue'], colors['light blue'], colors['teal'], colors['light teal'], colors['dark green'], colors['middle green'], colors['light green']], [colors['purple'], colors['rose'], colors['red'], colors['dark red'], colors['brown']]]
     color_ode = [colors['black'], colors['dark grey']]
     color_smm = colors['dark grey']
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     tmax = 300
     condition_name = ""
     
-    smm_dir = f"{dir}/SMM/{config}"
+    smm_dir = f"{dir}/SMM/config_2regions_100_0"
     hybrid_dir = f"{dir}/{hybrid_model}/{config}/{condition_name}"
     ode_dir = f"{dir}/Moments/{config}/truncation/closure_order_3/0.000000"
     save_dir = f"{save_dir}/{hybrid_model}/{config}/{condition_name}"
@@ -368,8 +368,8 @@ if __name__ == "__main__":
     # plot_mean_ts(hybrid_dir, "means_smm", ["1.000000"], comp_index, num_regions,figsize, tmax, tmin)
     # plot_var_ts(hybrid_dir, "moments_smm", ["1.000000"], comp_index, num_regions, figsize)
     # plot_mean_var_ts(hybrid_dir, "means_smm", "moments_smm", ["1.000000"], comp_index, num_regions, figsize)
-    # plot_mean_ts(hybrid_dir, "means_smm", compare_values, comp_index, num_regions, figsize, tmax, tmin, "expected_values_moments", smm_dir, color_smm)
-    # plot_var_ts(hybrid_dir, "moments_smm", compare_values, comp_index, num_regions, figsize, "moments_moments", smm_dir, color_smm)
+    plot_mean_ts(hybrid_dir, "means_smm", compare_values, comp_index, num_regions, figsize, tmax, tmin, "expected_values_moments", smm_dir, color_smm)
+    plot_var_ts(hybrid_dir, "moments_smm", compare_values, comp_index, num_regions, figsize, "moments_moments", smm_dir, color_smm)
     # plot_mean_var_ts(hybrid_dir, "means_smm", "moments_smm", switching_values, comp_index, num_regions, figsize, "expected_values_moments", "moments_moments", smm_dir, color_smm)
     
     #for comp_index in range(len(compartment_names)):
@@ -377,4 +377,4 @@ if __name__ == "__main__":
     # plot_variance_error(smm_dir, hybrid_dir, ode_dir, save_dir, compare_values, colors_hybrid, color_ode, comp_index, num_regions,figsize)
     # plot_runtimes(smm_dir, hybrid_dir, ode_dir, save_dir, compare_values, colors_hybrid, color_ode, color_smm, figsize)
     
-    plot_switching_times(hybrid_dir, save_dir, compare_values, colors_hybrid, figsize)
+    # plot_switching_times(hybrid_dir, save_dir, compare_values, colors_hybrid, figsize)

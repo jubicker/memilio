@@ -1,7 +1,7 @@
 from settings import *
 import os
 
-def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closure_colors, closure_order, init_tp, dir_smm="", color_smm=""):
+def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closure_colors, closure_order, init_tp, tmax, dir_smm="", color_smm=""):
     comp = list(compartment_colors.keys())[comp_index]
     
     for r in range(num_regions):
@@ -9,9 +9,11 @@ def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, clos
         # Plot smm mean
         if(dir_smm) != "":
             mean = pd.read_csv(dir_smm + f"/means.csv")
+            mean = mean[mean['Time'] <= tmax]
             ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=color_smm, label = "SMM")
         for c in closures:            
             mean = pd.read_csv(dir + f"/{c}/closure_order_{closure_order}/{init_tp}/" + "means.csv")
+            mean = mean[mean['Time'] <= tmax]
             ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=closure_colors[c], label = f"{c}")
                 
         ax.set_xlabel("Time [days]")
@@ -24,7 +26,7 @@ def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, clos
         fig.savefig(f"{save_dir}/mean_{compartment_names[comp]}_r{r}.png", dpi=dpi)
         plt.close(fig)
         
-def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closure_colors, closure_order, init_tp, dir_smm="", color_smm=""):
+def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closure_colors, closure_order, init_tp, tmax, dir_smm="", color_smm=""):
     comp = list(compartment_colors.keys())[comp_index]
     
     for r in range(num_regions):
@@ -37,9 +39,11 @@ def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closu
         # Plot smm mean
         if(dir_smm) != "":
             var = pd.read_csv(dir_smm + f"/moments.csv")
+            var = var[var['Time'] <= tmax]
             ax.plot(var.Time, var[col_name], color=color_smm, label = "SMM")
         for c in closures:           
             var = pd.read_csv(dir + f"/{c}/closure_order_{closure_order}/{init_tp}/" + "moments.csv")
+            var = var[var['Time'] <= tmax]
             ax.plot(var.Time, var[col_name], color=closure_colors[c], label = f"{c}")
                 
         ax.set_xlabel("Time [days]")
@@ -162,11 +166,11 @@ if __name__ == "__main__":
     figsize = (4, 3)
     dir = "V:/bick_ju/TemporalHybrid"
     save_dir = "H:/Documents/TemporalHybridModel"
-    config = "config1_1r_I0_1"
+    config = "config_2r_10_100_k1"
     closure_order = 3
-    num_regions = 1
-    closures = ["truncation", "pair_approx", "lognorm"]
-    start_tp = "30.000000"
+    num_regions = 2
+    closures = ["truncation"]
+    start_tp = "0.000000"
     colors_closures = {"truncation": colors["dark blue"], "pair_approx": colors["teal"], "lognorm": colors["dark green"]}
     color_ode = [colors['black'], colors['dark grey']]
     color_smm = colors['dark grey']
@@ -178,15 +182,16 @@ if __name__ == "__main__":
     smm_dir = f"{dir}/SMM/{config}"
     moment_dir = f"{dir}/Moments/{config}"
     ode_dir = f"{dir}/Moments/{config}"
-    #save_dir = f"{save_dir}/Moments/{config}/closure_order_{closure_order}/{start_tp}"
-    save_dir = f"{save_dir}/{hybrid_model}/{config}/{condition_name}"
+    save_dir = f"{save_dir}/Moments/{config}/closure_order_{closure_order}/{start_tp}"
     hybrid_dir = f"{dir}/{hybrid_model}/{config}/{condition_name}"
     os.makedirs(save_dir, exist_ok=True)
     
+    tmax = 100
+    
     comp_index = 1
     
-    # plot_mean_ts(moment_dir, save_dir, closures, comp_index, num_regions, figsize, colors_closures, closure_order, start_tp, smm_dir, color_smm)
-    # plot_var_ts(moment_dir, save_dir, closures, comp_index, num_regions, figsize, colors_closures, closure_order, start_tp, smm_dir, color_smm)
+    plot_mean_ts(moment_dir, save_dir, closures, comp_index, num_regions, figsize, colors_closures, closure_order, start_tp, tmax, smm_dir, color_smm)
+    plot_var_ts(moment_dir, save_dir, closures, comp_index, num_regions, figsize, colors_closures, closure_order, start_tp, tmax, smm_dir, color_smm)
     
-    plot_mean_error(smm_dir, hybrid_dir, save_dir, compare_values, colors_hybrid, comp_index, num_regions, figsize)
-    plot_var_error(smm_dir, hybrid_dir, save_dir, compare_values, colors_hybrid, comp_index, num_regions, figsize)
+    # plot_mean_error(smm_dir, hybrid_dir, save_dir, compare_values, colors_hybrid, comp_index, num_regions, figsize)
+    # plot_var_error(smm_dir, hybrid_dir, save_dir, compare_values, colors_hybrid, comp_index, num_regions, figsize)
