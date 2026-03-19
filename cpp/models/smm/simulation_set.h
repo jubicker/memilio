@@ -24,6 +24,7 @@
 #include "memilio/config.h"
 #include "memilio/timer/basic_timer.h"
 #include "memilio/utils/logging.h"
+#include "memilio/utils/random_number_generator.h"
 #include "memilio/utils/time_series.h"
 #include "memilio/utils/mioomp.h"
 #include "ode_sir/infection_state.h"
@@ -71,7 +72,7 @@ public:
     {
         u_int32_t seed = 0;
         for (auto& m : m_models) {
-            m.get_rng().seed({seed});
+            m.get_rng().seed({seed}); //mio::RandomNumberGenerator();
             m_sims.push_back(Simulation(m, t0, dt));
             seed++;
         }

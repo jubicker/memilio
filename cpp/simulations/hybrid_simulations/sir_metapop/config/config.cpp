@@ -189,7 +189,21 @@ Config get_config(ConfigType type)
         config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
         config.I0s                   = {{0, 100}, {1, 10}};
-        config.total_populations     = {5000000, 5000000};
+        config.total_populations     = {10000000, 10000000};
+        infected_commuting_reduc_fac = 1.0;
+        transition_rate              = 0;
+        return config;
+        break;
+    case ConfigType::Config2regionsNoExchange2:
+        config.name                  = "config_2r_5_100_no_exchange";
+        config.num_regions           = 2;
+        config.t0                    = 0;
+        config.tmax                  = 300;
+        config.dt                    = 0.1;
+        config.lambdas               = {0.00000007, 0.00000007};
+        config.gamma                 = 1. / 7.;
+        config.I0s                   = {{0, 100}, {1, 5}};
+        config.total_populations     = {10000000, 10000000};
         infected_commuting_reduc_fac = 1.0;
         transition_rate              = 0;
         return config;
@@ -198,12 +212,12 @@ Config get_config(ConfigType type)
         config.name                  = "config_2r_10_100_k1";
         config.num_regions           = 2;
         config.t0                    = 0;
-        config.tmax                  = 300;
+        config.tmax                  = 90;
         config.dt                    = 0.1;
         config.lambdas               = {0.00000007, 0.00000007};
         config.gamma                 = 1. / 7.;
         config.I0s                   = {{0, 100}, {1, 10}};
-        config.total_populations     = {5000000, 5000000};
+        config.total_populations     = {10000000, 10000000};
         infected_commuting_reduc_fac = 1.0;
         transition_rate              = 0.0000001;
         config.transition_rates.push_back({mio::osir::InfectionState::Susceptible, mio::regions::Region(0),

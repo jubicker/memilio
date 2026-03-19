@@ -64,6 +64,7 @@ enum class ConfigType
     Config3r2,
     Config3r3,
     Config2regionsNoExchange,
+    Config2regionsNoExchange2,
     Config2regionsk1,
     Config2regionsk2,
     ConfigDiseaseImport1k1,

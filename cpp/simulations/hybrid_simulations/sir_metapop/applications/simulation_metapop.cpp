@@ -72,7 +72,7 @@ int main()
 {
     const size_t num_runs    = 10000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
+    const auto config        = Config::get_config(Config::ConfigType::Config2regionsk1);
     const size_t num_regions = 2;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
@@ -134,6 +134,8 @@ int main()
     Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     total_time.add_time_point(0., time);
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+
+    std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
     return 0;
 }

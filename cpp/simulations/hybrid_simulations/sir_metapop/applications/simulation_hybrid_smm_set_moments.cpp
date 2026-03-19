@@ -36,9 +36,9 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t closure_order    = 3;
-    const auto config             = Config::get_config(Config::ConfigType::ConfigDiseaseImport);
-    const size_t num_regions      = 2;
-    const double rel_switch_value = 0.0;
+    const auto config             = Config::get_config(Config::ConfigType::Config6);
+    const size_t num_regions      = 1;
+    const double rel_switch_value = 0.3;
     double min_step_size          = 0.0001;
     size_t closure                = 0;
     size_t condition              = 1;
@@ -256,6 +256,8 @@ int main()
     Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     total_time.add_time_point(0., time);
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+
+    std::cout << "Tempral-hybrid Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
     return 0;
 }
