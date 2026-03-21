@@ -93,7 +93,9 @@ public:
         timing::BasicTimer total_timer;
         total_timer.start();
         // Run simulations
+#ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
+#endif
         for (size_t run = 0; run < m_simulations.size(); ++run) {
             timing::BasicTimer timer;
             timer.start();
@@ -127,7 +129,9 @@ public:
             for (int i = 0; i < num_steps; ++i) {
                 interpolation_tps[i] = t + i * m_dt;
             }
+#ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
+#endif
             for (size_t run = 0; run < m_simulations.size(); ++run) {
                 // Interpolate SMM and ODE results separately
                 auto interpolated_smm_result = m_simulations[run].get_result_model1();

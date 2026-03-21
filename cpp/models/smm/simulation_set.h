@@ -82,7 +82,9 @@ public:
 
         // Add initial values to results
         auto& sim_ts = m_sims[0].get_result();
+#ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
+#endif
         for (size_t run = 0; run < m_sims.size(); ++run) {
             if (m_results[run].get_num_time_points() == 0) {
                 m_results[run].add_time_point(sim_ts.get_time(0), sim_ts.get_value(0));
@@ -101,7 +103,9 @@ public:
     {
 
 // Run simulations
+#ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
+#endif
         for (size_t run = 0; run < m_sims.size(); ++run) {
             timing::BasicTimer timer;
             timer.start();
@@ -135,7 +139,9 @@ public:
             }
 
 // Interpolate results
+#ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
+#endif
             for (size_t run = 0; run < m_sims.size(); ++run) {
                 auto& sim_ts                  = m_sims[run].get_result();
                 const std::vector<double> tps = interpolation_tps;
@@ -492,8 +498,8 @@ private:
         const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions> means = values.colwise().mean();
-        double moment                                                                    = 0.0;
+        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
+        double moment                                                                   = 0.0;
         for (int i = 0; i < values.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {

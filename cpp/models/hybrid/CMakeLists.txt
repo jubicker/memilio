@@ -1,8 +1,12 @@
 add_library(hybrid
     temporal_hybrid_model.h
     temporal_hybrid_model.cpp
+    spatial_hybrid_model.h
+    spatial_hybrid_model.cpp
     conversion_functions.h
     conversion_functions.cpp
+    exchange_functions.h
+    exchange_functions.cpp
     simulation_set.h
     simulation_set.cpp
 )
