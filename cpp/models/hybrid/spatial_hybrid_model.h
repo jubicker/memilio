@@ -59,9 +59,14 @@ public:
         }
     }
 
+    /**
+     * @brief Advance spatial-hybrid simulation.
+     * This includes advancing the simulations for all regions and regularly exchanging agents.
+     * @param[in] tmax Simulation end time point.
+     */
     void advance(double tmax)
     {
-        //Condition: we don't switch if the relation of mean and stddev is bigger than 60%
+        // Define switching condition for temporal-hybrid model
         const auto condition_func = [](std::pair<std::vector<double>, std::vector<double>>& result_smm,
                                        std::pair<std::vector<double>, std::vector<double>>& /*result_moments*/,
                                        bool smm_used) {
@@ -71,6 +76,7 @@ public:
                                                                   (int)mio::osir::InfectionState::Infected];
                     auto relation_infected     = result_smm.second[r * (int)mio::osir::InfectionState::Count +
                                                                (int)mio::osir::InfectionState::Infected];
+                    // We don't switch if the relation of stddev and mean is bigger than 60%
                     if (var_infected_gradient < -1 && relation_infected < 0.6 && relation_infected > 0) {
                         return true;
                     }
@@ -79,23 +85,31 @@ public:
 
             return false;
         };
+
         while (m_t <= tmax) {
+
+            // Advance simulation for every region
             for (auto& region_sim : m_simulations) {
                 region_sim.advance(m_t + m_dt, condition_func);
             }
+
+            // Exchange agents
             for (size_t region_from = 0; region_from < num_regions; ++region_from) {
                 for (size_t region_to = 0; region_to < num_regions; ++region_to) {
                     if (region_from != region_to) {
                         exchange(m_simulations[region_from], region_from, m_simulations[region_to], region_to);
-                        auto a = m_simulations[region_from].get_model2().get_result();
-                        mio::unused(a);
                     }
                 }
             }
+
+            // Advance t
             m_t += m_dt;
         }
     }
 
+    /**
+     * @brief Get simulation for a specific region.
+     */
     const TemporalHybridSim& get_sim_by_region(size_t region) const
     {
         return m_simulations[region];
@@ -132,6 +146,13 @@ private:
         }
     }
 
+    /**
+     * @brief Initialize SMM for a specific region. 
+     * Populations are only set for the modeled region.
+     * Spatial transitions are only added for transitions outgoing the modeled region.
+     * @param[in] config Config used for initialization.
+     * @param[in] region Modeled region.
+     */
     mio::smm::Model<ScalarType, num_regions, mio::osir::InfectionState>
     initialize_smm_for_region(const Config::Config& config, size_t region)
     {
@@ -144,17 +165,21 @@ private:
             model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Infected}]    = 0;
             model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Recovered}]   = 0;
 
+            // Initialize total population in modelled region as Susceptible
             if (r == region) {
                 model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
                     config.total_populations[r];
             }
         }
-        // Set initially infected
+
+        // Set initially infected in modelled region
         for (size_t i = 0; i < config.I0s.size(); ++i) {
             int region_id = config.I0s[i].first;
             double I0     = config.I0s[i].second;
             if (static_cast<size_t>(region_id) == region) {
+                // Set Infected
                 model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = I0;
+                // Adapt number of Susceptibles
                 model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Susceptible}] =
                     config.total_populations[region_id] -
                     model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] -
@@ -163,6 +188,7 @@ private:
             }
         }
 
+        // Set adoption rates in all regions
         std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;
         for (size_t r = 0; r < config.num_regions; ++r) {
             // Second-order adoption rate lambda is region dependent
@@ -178,10 +204,10 @@ private:
                                       config.gamma,
                                       {}});
         }
-
         model.parameters.template get<mio::smm::AdoptionRates<ScalarType, mio::osir::InfectionState>>() =
             adoption_rates;
 
+        // Set transition rates only for transitions outgoing the modeled region
         std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
         for (const auto& rate : config.transition_rates) {
             if (rate.from == mio::regions::Region(region)) {
@@ -194,18 +220,29 @@ private:
         return model;
     }
 
+    /**
+     * @brief Initialize moment model for a specific region. 
+     * Expected values are only set for the modeled region.
+     * Spatial transitions are only added for transitions outgoing the modeled region.
+     * @param[in] expected_values_init Initial expected values.
+     * @param[in] moments_init Initial moments. Should be all zero.
+     * @param[in] config Config used for initialization.
+     * @param[in] closure_func Used closure function.
+     * @param[in] region Modeled region.
+     */
     mio::smm_moments::Model<num_regions, closure_order> initialize_moments_for_region(
         Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
         Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config,
         typename mio::smm_moments::Model<num_regions, closure_order>::ClosureFunctionType closure_func, size_t region)
     {
+        assert(config.num_regions == num_regions);
         mio::smm_moments::Model<num_regions, closure_order> model(closure_func);
         // Check whether initial expected values and moments have the correct size
         assert(expected_values_init.rows() == num_regions * static_cast<size_t>(mio::osir::InfectionState::Count) &&
                "Initial expected values do not have correct size");
         assert(moments_init.rows() == model.moments.moments().rows() && "Initial moments do not have correct size");
 
-        // Set spatial transition rates
+        // Set spatial transition rates only for transitions outgoing the modeled region
         for (auto& rate : config.transition_rates) {
             if (rate.from == mio::regions::Region(region)) {
                 model.parameters.template get<mio::smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] =
@@ -213,6 +250,7 @@ private:
             }
         }
 
+        // Set adoption rates for all regions
         for (size_t r = 0; r < config.num_regions; ++r) {
             // Set recovery rate
             model.parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(r)] = config.gamma;
@@ -221,6 +259,7 @@ private:
                 config.lambdas[r];
         }
 
+        // Set populations
         for (size_t r = 0; r < num_regions; ++r) {
             // Set initial expected values
             model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] = 0;
@@ -243,6 +282,16 @@ private:
         return model;
     }
 
+    /**
+     * @brief Initialize temporal-hybrid simulation for a given region.
+     * The initialization includes initializing the corresponding SMM Set and Moment model as well as the result functions for both.
+     * Populations are only set in the modeled region and transition rates are only considered for transitions outgoing the modeled region.
+     * @param[in] config Config used for initialization.
+     * @param[in] num_runs Number of runs for the SMM simulation set.
+     * @param[in] min_step_size Minimum step size of the integrator of the moment model.
+     * @param[in] dt_switch Step size which is used to evaluate the switching condition of the temporal-hybrid.
+     * @param[in] region Modeled region.
+     */
     TemporalHybridSim initialize_temporal_hybrid_model(const Config::Config& config, size_t num_runs,
                                                        double min_step_size, double dt_switch, size_t region)
     {
@@ -250,8 +299,9 @@ private:
         auto smm_model = initialize_smm_for_region(config, region);
         // Initialize smm simulation set
         auto sim_set = SMMSetSim(num_runs, smm_model, config.t0, config.dt);
+
         // Initialize moment model
-        // Initial expected values
+        // Initial expected values are equal to initial smm populations
         Eigen::Array<double, Eigen::Dynamic, 1> expected_values_init(
             num_regions * static_cast<size_t>(mio::osir::InfectionState::Count));
         expected_values_init.setZero();
@@ -261,6 +311,8 @@ private:
                     smm_model.populations[{mio::regions::Region(r), mio::osir::InfectionState(s)}];
             }
         }
+
+        // TODO: Use variable closure function
         auto closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
         // Initial moments are all zero
         MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, closure_order> moments_array;
@@ -278,7 +330,7 @@ private:
             sim_moments.get_integrator_core().get_dt_min() = min_step_size;
         }
 
-        // Define result function smm
+        // Result function returns the last variance gradient and the quotient of the last standard deviation and the last mean
         const auto result_fct_smm =
             [](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& sim, double /*t*/) {
                 auto last_var_gradients = sim.get_last_var_gradients();
@@ -307,9 +359,9 @@ private:
                                  config.t0, dt_switch);
     }
 
-    std::vector<TemporalHybridSim> m_simulations;
-    double m_t;
-    double m_dt;
+    std::vector<TemporalHybridSim> m_simulations; ///< Temporal hybrid simulations for each region.
+    double m_t; ///< Current time step.
+    double m_dt; ///< Step size.
 };
 
 } // namespace hybrid
