@@ -296,10 +296,6 @@ ScalarType lognormal_zero_inflation_closure(
                                      mean_var_fac_S * mean_var_skew_fac_S * mean_fac_I * mean_var_fac_I *
                                      mean_var_skew_fac_I * mean_fac_R * mean_var_fac_R * mean_var_skew_fac_R *
                                      cov_SI_fac * cov_SR_fac * cov_IR_fac;
-    for (auto& i : index) {
-        std::cout << " " << i;
-    }
-    std::cout << ": " << E_XS_rS_XI_rI_XR_rR << std::endl;
 
     return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
 }

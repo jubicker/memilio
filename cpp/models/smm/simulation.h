@@ -54,7 +54,6 @@ public:
     Simulation(Model const& model, FP t0 = 0., FP dt = 1.)
         : m_dt(dt)
         , m_model(std::make_unique<Model>(model))
-        , m_result(t0, m_model->get_initial_values())
         , m_result_interpolated(t0, m_model->get_initial_values())
         , m_internal_time(adoption_rates().size() + transition_rates().size(), t0)
         , m_tp_next_event(adoption_rates().size() + transition_rates().size(), t0)
@@ -78,7 +77,6 @@ public:
     Simulation(const Simulation& other)
         : m_dt(other.m_dt)
         , m_model(std::make_unique<Model>(*other.m_model))
-        , m_result(other.m_result)
         , m_result_interpolated(other.m_result_interpolated)
         , m_internal_time(other.m_internal_time)
         , m_tp_next_event(other.m_tp_next_event)
@@ -96,7 +94,7 @@ public:
     {
         update_current_rates_and_waiting_times();
         size_t next_event = determine_next_event(); // index of the next event
-        FP current_time   = m_result.get_last_time();
+        FP current_time   = m_result_interpolated.get_last_time();
         // set in the past to add a new time point immediately
         FP next_result_time = m_result_interpolated.get_last_time() + m_dt;
         // iterate over time
@@ -108,7 +106,7 @@ public:
                 while (current_time > next_result_time) {
                     m_result_interpolated.add_time_point(next_result_time);
                     // copy from the previous last value
-                    m_result_interpolated.get_last_value() = m_result.get_last_value();
+                    m_result_interpolated.get_last_value() = m_model->populations.get_compartments();
                     next_result_time += m_dt;
                 }
             }
@@ -116,17 +114,13 @@ public:
             if (next_event < adoption_rates().size()) {
                 // perform adoption event
                 const auto& rate = adoption_rates()[next_event];
-                m_result.get_last_value()[m_model->populations.get_flat_index({rate.region, rate.from})] -= 1;
                 m_model->populations[{rate.region, rate.from}] -= 1.0;
-                m_result.get_last_value()[m_model->populations.get_flat_index({rate.region, rate.to})] += 1;
                 m_model->populations[{rate.region, rate.to}] += 1.0;
             }
             else {
                 // perform transition event
                 const auto& rate = transition_rates()[next_event - adoption_rates().size()];
-                m_result.get_last_value()[m_model->populations.get_flat_index({rate.from, rate.status})] -= 1;
                 m_model->populations[{rate.from, rate.status}] -= 1.0;
-                m_result.get_last_value()[m_model->populations.get_flat_index({rate.to, rate.status})] += 1;
                 m_model->populations[{rate.to, rate.status}] += 1.0;
             }
             // update internal times
@@ -143,17 +137,15 @@ public:
         if (m_result_interpolated.get_last_time() < tmax) {
             while (tmax > next_result_time) {
                 m_result_interpolated.add_time_point(next_result_time);
-                m_result_interpolated.get_last_value() = m_result.get_last_value();
+                m_result_interpolated.get_last_value() = m_model->populations.get_compartments();
                 next_result_time += m_dt;
             }
-            m_result.add_time_point(tmax);
-            m_result.get_last_value() = m_result[m_result.get_num_time_points() - 2];
             // update internal times
             for (size_t i = 0; i < m_internal_time.size(); i++) {
                 m_internal_time[i] += m_current_rates[i] * (tmax - current_time);
             }
         }
-        return m_result.get_last_value();
+        return m_result_interpolated.get_last_value();
     }
 
     /**
@@ -167,15 +159,6 @@ public:
     const TimeSeries<FP>& get_result() const
     {
         return m_result_interpolated;
-    }
-
-    TimeSeries<FP>& get_result1()
-    {
-        return m_result;
-    }
-    const TimeSeries<FP>& get_result1() const
-    {
-        return m_result;
     }
 
     /**
@@ -214,14 +197,14 @@ private:
     {
         size_t i = 0; // shared index for iterating both rates
         for (const auto& rate : adoption_rates()) {
-            m_current_rates[i] = m_model->evaluate(rate, m_result.get_last_value());
+            m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments());
             m_waiting_times[i] = (m_current_rates[i] > 0)
                                      ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
                                      : std::numeric_limits<FP>::max();
             i++;
         }
         for (const auto& rate : transition_rates()) {
-            m_current_rates[i] = m_model->evaluate(rate, m_result.get_last_value());
+            m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments());
             m_waiting_times[i] = (m_current_rates[i] > 0)
                                      ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
                                      : std::numeric_limits<FP>::max();
@@ -239,9 +222,7 @@ private:
 
     FP m_dt; ///< Initial step size
     std::unique_ptr<Model> m_model; ///< Pointer to the model used in the simulation.
-    mio::TimeSeries<FP> m_result; ///< Result time series.
-    mio::TimeSeries<FP> m_result_interpolated; ///< Interpolated result time.
-
+    mio::TimeSeries<FP> m_result_interpolated; ///< Interpolated result.
     std::vector<FP> m_internal_time; ///< Internal times of all poisson processes (aka T_k).
     std::vector<FP> m_tp_next_event; ///< Internal time points of next event i after m_internal[i] (aka P_k).
     std::vector<FP> m_waiting_times; ///< External times between m_internal_time and m_tp_next_event.

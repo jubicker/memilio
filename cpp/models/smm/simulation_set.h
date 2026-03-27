@@ -143,10 +143,10 @@ public:
 #pragma omp parallel for
 #endif
             for (size_t run = 0; run < m_sims.size(); ++run) {
-                auto& sim_ts                  = m_sims[run].get_result();
-                const std::vector<double> tps = interpolation_tps;
-                auto interpolated_ts          = sim_ts; //interpolate_smm_simulation_result(sim_ts, tps);
-                sim_ts                        = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
+                auto& sim_ts         = m_sims[run].get_result();
+                auto interpolated_ts = sim_ts;
+                // Remove individual simulation result time series
+                sim_ts = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
                 while (interpolated_ts.get_num_time_points() > 1) {
                     if (m_results[run].get_num_time_points() == 0 ||
                         m_results[run].get_last_time() < interpolated_ts.get_time(0)) {
