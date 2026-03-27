@@ -25,6 +25,9 @@ namespace mio
 namespace hybrid
 {
 
+/**
+ * @brief Specialization for SMM Set -> SMM Set.
+ */
 template <>
 void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& model_from,
                      mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& model_to, size_t /*region_from*/,

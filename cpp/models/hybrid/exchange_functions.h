@@ -30,6 +30,8 @@ namespace mio
 namespace hybrid
 {
 
+// This header contains template specilizations for the exchange_agents function, see mio::hybrid::SpatialHybridSimulation. This function is needed to exchange agents from one model to another.
+
 template <class ModelFrom, class ModelTo>
 void exchange_agents(ModelFrom&, ModelTo&, size_t, size_t) = delete;
 

@@ -120,27 +120,39 @@ public:
     }
 
 private:
+    /**
+     * @brief Exchange agents between two temporal-hybrid models.
+     * The concrete models between agents are exchanged depend on whether the temporal-hybrid has already switched or not.
+     * @param[in, out] model_from Model from which agents should be exchanged.
+     * @param[in] region_from Modeled region in model_from.
+     * @param[in, out] model_to Model to which agents should be added.
+     * @param[in] region_to Modeled region on model_to.
+     */
     void exchange(TemporalHybridSim& model_from, size_t region_from, TemporalHybridSim& model_to, size_t region_to)
     {
-        if (model_from.using_model1()) {
+        if (model_from.using_model1()) { // Temporal-hybrid model_from is currently using SMM Set for simulation
             auto& model_from_used = model_from.get_model1();
-            if (model_to.using_model1()) {
+            if (model_to.using_model1()) { // Temporal-hybrid model_to is currently using SMM Set for simulation
                 auto& model_to_used = model_to.get_model1();
+                // SMM Set -> SMM Set
                 exchange_agents(model_from_used, model_to_used, region_from, region_to);
             }
-            else {
+            else { // Temporal-hybrid model_to is currently using Moments for simulation
                 auto& model_to_used = model_to.get_model2();
+                // SMM Set -> Moment Model
                 exchange_agents(model_from_used, model_to_used, region_from, region_to);
             }
         }
-        else {
+        else { // Temporal-hybrid model_from is currently using Moments for simulation
             auto& model_from_used = model_from.get_model2();
-            if (model_to.using_model1()) {
+            if (model_to.using_model1()) { // Temporal-hybrid model_to is currently using SMM Set for simulation
                 auto& model_to_used = model_to.get_model1();
+                // Moment Model -> SMM Set
                 exchange_agents(model_from_used, model_to_used, region_from, region_to);
             }
-            else {
+            else { // Temporal-hybrid model_to is currently using Moments for simulation
                 auto& model_to_used = model_to.get_model2();
+                // Moment Model -> Moment Model
                 exchange_agents(model_from_used, model_to_used, region_from, region_to);
             }
         }

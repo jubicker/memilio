@@ -80,12 +80,12 @@ void run_moments_sim(std::string save_dir, const Config::Config& config,
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::ConfigDiseaseImport1k1);
-    const size_t closure_order = 3;
-    const size_t num_regions   = 2;
+    auto config                = Config::get_config(Config::ConfigType::Config1);
+    const size_t closure_order = 4;
+    const size_t num_regions   = 1;
     double min_step_size       = 0.0001;
     double init_time           = 0.0;
-    size_t closure             = 0;
+    size_t closure             = 3;
     auto closure_func          = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
     if (closure == 0) {
         closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
@@ -95,6 +95,9 @@ int main()
     }
     else if (closure == 2) {
         closure_func = &mio::smm_moments::lognormal_closure<num_regions, closure_order>;
+    }
+    else if (closure == 3) {
+        closure_func = &mio::smm_moments::lognormal_zero_inflation_closure<num_regions, closure_order>;
     }
     else {
         mio::log_error("Unkown closure type: ", closure);
