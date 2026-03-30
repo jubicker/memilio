@@ -186,6 +186,15 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from, mio::smm_mo
     }
 }
 
+/**
+ * @brief Specialization for SMM set -> Moment model for two regions.
+ * Exchanging agents between SMM and Moment model requires:
+ * - Move means from one model to another (additively)
+ * - Update populations in both models (add mean to moment populations and set smm populations to 0)
+ * - Move moments only considering target region from one model to another (additively)
+ * - Set "mixed" source-target-region moments in SMM to 0
+ * - Set last results in SMM (in every simulation and in set object) to 0
+ */
 template <>
 void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& model_from,
                      mio::smm_moments::Simulation<2, 3>& model_to, size_t /*region_from*/, size_t region_to)
@@ -193,6 +202,7 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
     auto& mean_smm_set = model_from.get_mean();
     bool exchange      = false;
 
+    // Check if agents need to be exchanged
     for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
         double value =
             mean_smm_set.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp];
@@ -214,12 +224,14 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
     for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
         size_t comp_index_region_to =
             moment_model.populations.get_flat_index({mio::regions::Region(region_to), mio::osir::InfectionState(comp)});
+        // Update last result in moment model
         moment_result.get_last_value()[comp_index_region_to] += mean_smm_set.get_last_value()[comp_index_region_to];
+        // Update population in moment model
         moment_model.populations[{mio::regions::Region(region_to), mio::osir::InfectionState(comp)}] +=
             mean_smm_set.get_last_value()[comp_index_region_to];
     }
 
-    //Update moments of moment model
+    // Update moments of moment model
     auto moment_indices_smm_set = model_from.get_moment_indices();
     auto& moments_smm_set       = model_from.get_moments();
     for (size_t i = 0; i < moment_indices_smm_set.size(); ++i) {
@@ -229,9 +241,11 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
             moment_indices_smm_set[i].begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
                 static_cast<size_t>(mio::osir::InfectionState::Count),
             0.0);
-        if (order_region_to != 0) {
-            if (order_region_to == order) {
+        if (order_region_to != 0) { // If the moment has no indices in region_to, it does not have to be considered
+            if (order_region_to ==
+                order) { // Mixed source-target-region moments are also not considered for the moment model
                 auto index = moment_model.moments.flatten_index(moment_indices_smm_set[i]);
+                // If the moment is "fully" in region_to it's value is added to the moment model
                 moment_result.get_last_value()[moment_model.populations.get_num_compartments() + index] +=
                     moments_smm_set.get_last_value()[i];
             }
@@ -240,13 +254,16 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
 
     auto& smm_set_sims    = model_from.get_simulations();
     auto& smm_set_results = model_from.get_result();
-    //Reset results and simulations of simulation set
+    // Reset results and simulations of simulation set
     for (size_t sim = 0; sim < smm_set_sims.size(); ++sim) {
         auto& sim_result = smm_set_sims[sim].get_result();
         auto& sim_pop    = smm_set_sims[sim].get_model().populations;
         for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
+            // Reset last result in all Simulation objects
             sim_result.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] = 0;
-            sim_pop[{mio::regions::Region(region_to), mio::osir::InfectionState(comp)}]                           = 0;
+            // Reset population in all Simulation objects
+            sim_pop[{mio::regions::Region(region_to), mio::osir::InfectionState(comp)}] = 0;
+            // Reset last result in SimulationSet object
             smm_set_results[sim]
                 .get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] = 0;
         }
@@ -259,6 +276,14 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
     model_from.recalculate_last_moments();
 }
 
+/**
+ * @brief Specialization for Moment model -> SMM Set for two regions.
+ * Exchanging agents between Moment model and SMM Set requires:
+ * - Sample number of incoming agents for every SMM simulation (normally distributed with mean and variance from moment model)
+ * - Add incoming agents to populations and last results in every SMM simulation and in SMM set object
+ * - Update mean and moments in SMM set
+ * - Set means and moments in moment model to zero
+ */
 template <>
 void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
                      mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& model_to, size_t /*region_from*/,
@@ -268,6 +293,7 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
     auto& moment_result      = model_from.get_result();
     auto& moment_model       = model_from.get_model();
     bool exchange            = false;
+    // Check if agents need to be exchanged
     for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
         size_t comp_index_region_to =
             moment_model.populations.get_flat_index({mio::regions::Region(region_to), mio::osir::InfectionState(comp)});
@@ -282,36 +308,38 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
     if (!exchange) {
         return;
     }
-    // For each smm simulation draw number of individuals coming to "to" region from mean and variances of moments model for every compartment
+    // For each smm simulation draw number of individuals coming to region_to from mean and variances of moments model for every compartment
     auto& smm_set_sims    = model_to.get_simulations();
     auto& smm_set_results = model_to.get_result();
     for (size_t sim = 0; sim < smm_set_sims.size(); ++sim) {
         auto& sim_result = smm_set_sims[sim].get_result();
-        // auto& sim_result1 = smm_set_sims[sim].get_result1();
-        auto& sim_pop = smm_set_sims[sim].get_model().populations;
+        auto& sim_pop    = smm_set_sims[sim].get_model().populations;
         for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
+            // Get mean and variance in region_to for corresponding compartment
             double mean =
                 moment_result
                     .get_last_value()[region_to * static_cast<size_t>(mio::osir::InfectionState::Count) + comp];
             std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
             indices_var.fill(0);
             indices_var[region_to * static_cast<size_t>(mio::osir::InfectionState::Count) + comp] = 2;
-            double var       = moment_result.get_last_value()[moment_model.populations.get_num_compartments() +
+            double var = moment_result.get_last_value()[moment_model.populations.get_num_compartments() +
                                                         moment_model.moments.flatten_index(indices_var)];
+            // Sample number of incoming agents for simulation
             double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
                                                 smm_set_sims[sim].get_model().get_rng(), mean, var)));
+            // Add agents to last result in all Simulation objects
             sim_result.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] +=
                 sim_value;
-            // sim_result1.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] +=
-            //     sim_value;
+            // Add agents to population in all Simulation objects
             sim_pop[{mio::regions::Region(region_to), mio::osir::InfectionState(comp)}] += sim_value;
+            // Add agents to last result in SimulationSet object
             smm_set_results[sim]
                 .get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] +=
                 sim_value;
         }
     }
 
-    //Reset and update mean and moment ts of simulation set
+    // Update mean and moment ts of simulation set
     model_to.get_mean().remove_last_time_point();
     model_to.recalculate_last_mean();
     model_to.get_moments().remove_last_time_point();
@@ -332,7 +360,7 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
                                 multiindex.begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
                                     static_cast<size_t>(mio::osir::InfectionState::Count),
                                 0.0);
-            if (order_region_to > 0) {
+            if (order_region_to > 0) { // This includes mixed and full target-region moemnts
                 moment_result.get_last_value()[index] = 0;
             }
         }
