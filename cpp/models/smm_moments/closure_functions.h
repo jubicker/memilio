@@ -266,38 +266,96 @@ ScalarType lognormal_zero_inflation_closure(
     ScalarType skewness_R = y[moments.flatten_index({0, 0, 3}) + static_cast<size_t>(osir::InfectionState::Count)];
     ScalarType p          = 1. - (std::pow(mean_S, 6.) * (1. + 3. * var_S) + std::pow(mean_S, 3.) * skewness_S) /
                             std::pow(var_S + std::pow(mean_S, 2.), 3.);
-    ScalarType cov_SI_fac = mean_S * mean_I != 0 ? std::pow(1 + cov_SI / (mean_S * mean_I), rS * rI) : 1.;
-    ScalarType cov_SR_fac = mean_S * mean_R != 0 ? std::pow(1 + cov_SR / (mean_S * mean_R), rS * rR) : 1.;
-    ScalarType cov_IR_fac = mean_I * mean_R != 0 ? std::pow(1 + cov_IR / (mean_I * mean_R), rI * rR) : 1.;
-    ScalarType mean_fac_S = (mean_S == 0.) && (rS + rS * rS < 0) ? 0. : std::pow(std::sqrt(mean_S), rS + rS * rS);
-    ScalarType mean_var_fac_S =
+    ScalarType mean_fac_S = (mean_S == 0.) && (1 - rI - rR < 0) ? 1. : std::pow(mean_S, rS * (1 - rI - rR));
+    ScalarType mean_fac_I = (mean_I == 0.) && (1 - rS - rR < 0) ? 1. : std::pow(mean_I, rI * (1 - rS - rR));
+    ScalarType mean_fac_R = (mean_R == 0.) && (1 - rS - rI < 0) ? 1. : std::pow(mean_R, rR * (1 - rS - rI));
+    ScalarType sqrt_fac_S =
+        std::pow(std::sqrt(std::pow(mean_S, 4.) * (1 + 3 * var_S) + mean_S * skewness_S), rS * rS - rS);
+    ScalarType sqrt_fac_I =
+        std::pow(std::sqrt(std::pow(mean_I, 4.) * (1 + 3 * var_I) + mean_I * skewness_I), rI * rI - rI);
+    ScalarType sqrt_fac_R =
+        std::pow(std::sqrt(std::pow(mean_R, 4.) * (1 + 3 * var_R) + mean_R * skewness_R), rR * rR - rR);
+    ScalarType fac_S =
         (mean_S * mean_S + var_S == 0.) && (rS - rS * rS < 0) ? 0. : std::pow(mean_S * mean_S + var_S, rS - rS * rS);
-    ScalarType mean_var_skew_fac_S =
-        (mean_S * mean_S * mean_S + 3 * mean_S * var_S + skewness_S == 0.) && (rS - rS * rS < 0)
-            ? 0.
-            : std::pow(mean_S * mean_S * mean_S + 3 * mean_S * var_S + skewness_S, rS - rS * rS);
-    ScalarType mean_fac_I = (mean_I == 0.) && (rI + rI * rI < 0) ? 0. : std::pow(std::sqrt(mean_I), rI + rI * rI);
-    ScalarType mean_var_fac_I =
+    ScalarType fac_I =
         (mean_I * mean_I + var_I == 0.) && (rI - rI * rI < 0) ? 0. : std::pow(mean_I * mean_I + var_I, rI - rI * rI);
-    ScalarType mean_var_skew_fac_I =
-        (mean_I * mean_I * mean_I + 3 * mean_I * var_I + skewness_I == 0.) && (rI - rI * rI < 0)
-            ? 0.
-            : std::pow(mean_I * mean_I * mean_I + 3 * mean_I * var_I + skewness_I, rI - rI * rI);
-    ScalarType mean_fac_R = (mean_R == 0.) && (rR + rR * rR < 0) ? 0. : std::pow(std::sqrt(mean_R), rR + rR * rR);
-    ScalarType mean_var_fac_R =
+    ScalarType fac_R =
         (mean_R * mean_R + var_R == 0.) && (rR - rR * rR < 0) ? 0. : std::pow(mean_R * mean_R + var_R, rR - rR * rR);
-    ScalarType mean_var_skew_fac_R =
-        (mean_R * mean_R * mean_R + 3 * mean_R * var_R + skewness_R == 0.) && (rR - rR * rR < 0)
-            ? 0.
-            : std::pow(mean_R * mean_R * mean_R + 3 * mean_R * var_R + skewness_R, rR - rR * rR);
+    ScalarType cov_SI_fac = std::pow(mean_S * mean_I + cov_SI, rS * rI);
+    ScalarType cov_SR_fac = std::pow(mean_S * mean_R + cov_SR, rS * rR);
+    ScalarType cov_IR_fac = std::pow(mean_I * mean_R + cov_IR, rI * rR);
 
     // Raw moment (r_S, r_I, r_R) which is approximated: E[X_S^r_S * X_I^r_I * X_R^r_R]
     ScalarType E_XS_rS_XI_rI_XR_rR = std::pow(1 - p, 1 - rS - rI - rR + rS * rI + rS * rR + rI * rR) * mean_fac_S *
-                                     mean_var_fac_S * mean_var_skew_fac_S * mean_fac_I * mean_var_fac_I *
-                                     mean_var_skew_fac_I * mean_fac_R * mean_var_fac_R * mean_var_skew_fac_R *
-                                     cov_SI_fac * cov_SR_fac * cov_IR_fac;
+                                     mean_fac_I * mean_fac_R * sqrt_fac_S * sqrt_fac_I * sqrt_fac_R * fac_S * fac_I *
+                                     fac_R * cov_SI_fac * cov_SR_fac * cov_IR_fac;
 
     return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+}
+
+template <size_t NumRegions, size_t ClosureOrder>
+ScalarType lognormal_zero_inflation_cap_closure(
+    std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
+    Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+{
+    int order = std::accumulate(index.begin(), index.end(), 0);
+    if (order != ClosureOrder) {
+        mio::log_error("The order of the moment that should be approximated is unequal to the given closure order. "
+                       "Moment order is {} and closure order is {}.",
+                       order, ClosureOrder);
+    }
+    if (NumRegions > 1) {
+        mio::unused(index, y, moments);
+        return 0;
+    }
+    auto rS               = index[0];
+    auto rI               = index[1];
+    auto rR               = index[2];
+    ScalarType mean_S     = y[0];
+    ScalarType mean_I     = y[1];
+    ScalarType mean_R     = y[2];
+    ScalarType var_S      = y[moments.flatten_index({2, 0, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType var_I      = y[moments.flatten_index({0, 2, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType var_R      = y[moments.flatten_index({0, 0, 2}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType cov_SI     = y[moments.flatten_index({1, 1, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType cov_SR     = y[moments.flatten_index({1, 0, 1}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType cov_IR     = y[moments.flatten_index({0, 1, 1}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType skewness_S = y[moments.flatten_index({3, 0, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType skewness_I = y[moments.flatten_index({0, 3, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType skewness_R = y[moments.flatten_index({0, 0, 3}) + static_cast<size_t>(osir::InfectionState::Count)];
+    ScalarType p          = 1. - (std::pow(mean_S, 6.) * (1. + 3. * var_S) + std::pow(mean_S, 3.) * skewness_S) /
+                            std::pow(var_S + std::pow(mean_S, 2.), 3.);
+    ScalarType mean_fac_S = (mean_S == 0.) && (1 - rI - rR < 0) ? 1. : std::pow(mean_S, rS * (1 - rI - rR));
+    ScalarType mean_fac_I = (mean_I == 0.) && (1 - rS - rR < 0) ? 1. : std::pow(mean_I, rI * (1 - rS - rR));
+    ScalarType mean_fac_R = (mean_R == 0.) && (1 - rS - rI < 0) ? 1. : std::pow(mean_R, rR * (1 - rS - rI));
+    ScalarType sqrt_fac_S =
+        std::pow(std::sqrt(std::pow(mean_S, 4.) * (1 + 3 * var_S) + mean_S * skewness_S), rS * rS - rS);
+    ScalarType sqrt_fac_I =
+        std::pow(std::sqrt(std::pow(mean_I, 4.) * (1 + 3 * var_I) + mean_I * skewness_I), rI * rI - rI);
+    ScalarType sqrt_fac_R =
+        std::pow(std::sqrt(std::pow(mean_R, 4.) * (1 + 3 * var_R) + mean_R * skewness_R), rR * rR - rR);
+    ScalarType fac_S =
+        (mean_S * mean_S + var_S == 0.) && (rS - rS * rS < 0) ? 0. : std::pow(mean_S * mean_S + var_S, rS - rS * rS);
+    ScalarType fac_I =
+        (mean_I * mean_I + var_I == 0.) && (rI - rI * rI < 0) ? 0. : std::pow(mean_I * mean_I + var_I, rI - rI * rI);
+    ScalarType fac_R =
+        (mean_R * mean_R + var_R == 0.) && (rR - rR * rR < 0) ? 0. : std::pow(mean_R * mean_R + var_R, rR - rR * rR);
+    ScalarType cov_SI_fac = std::pow(mean_S * mean_I + cov_SI, rS * rI);
+    ScalarType cov_SR_fac = std::pow(mean_S * mean_R + cov_SR, rS * rR);
+    ScalarType cov_IR_fac = std::pow(mean_I * mean_R + cov_IR, rI * rR);
+
+    // Raw moment (r_S, r_I, r_R) which is approximated: E[X_S^r_S * X_I^r_I * X_R^r_R]
+    ScalarType E_XS_rS_XI_rI_XR_rR = std::pow(1 - p, 1 - rS - rI - rR + rS * rI + rS * rR + rI * rR) * mean_fac_S *
+                                     mean_fac_I * mean_fac_R * sqrt_fac_S * sqrt_fac_I * sqrt_fac_R * fac_S * fac_I *
+                                     fac_R * cov_SI_fac * cov_SR_fac * cov_IR_fac;
+    auto moment = get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+    return std::all_of(index.begin(), index.end(),
+                       [](int x) {
+                           return x % 2 == 0;
+                       })
+               ? std::max(moment, 0.0)
+               : moment;
 }
 
 /**

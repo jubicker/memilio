@@ -88,7 +88,10 @@ public:
 
         while (m_t <= tmax) {
 
-            // Advance simulation for every region
+// Advance simulation for every region
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
             for (auto& region_sim : m_simulations) {
                 region_sim.advance(m_t + m_dt, condition_func);
             }
