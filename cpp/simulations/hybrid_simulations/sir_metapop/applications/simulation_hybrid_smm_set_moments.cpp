@@ -19,10 +19,13 @@
 */
 
 #include "hybrid/temporal_hybrid_model.h"
+#include "memilio/utils/compiler_diagnostics.h"
+#include "memilio/utils/uncertain_value.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
 #include "memilio/utils/logging.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/smm_helper.h"
+#include "simulations/hybrid_simulations/sir_metapop/library/condition_functions.h"
 #include "smm/simulation_set.h"
 #include "smm_moments/simulation.h"
 #include "models/hybrid/conversion_functions.cpp"
@@ -132,69 +135,18 @@ int main()
         sim_moments.get_integrator_core().get_dt_min() = min_step_size;
     }
 
-    // Define result function smm
-    const auto result_fct_smm =
-        [condition](mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& sim, double /*t*/) {
-            if (condition == 0) {
-                return sim.get_last_means();
-            }
-            else {
-                return sim.get_last_var_gradients();
-            }
-        };
-
-    const auto result_fct_moments =
-        [condition, closure_order](mio::smm_moments::Simulation<num_regions, closure_order>& sim, double /*t*/) {
-            if (condition == 0) {
-                return sim.get_last_means();
-            }
-            else {
-                return sim.get_last_var_gradients();
-            }
-        };
-
-    // Define switching conditions - Model switches when total number of infected is bigger that given percentage of the total population
-    const auto condition_func = [rel_switch_value, &config, condition](std::vector<double>& result_smm,
-                                                                       std::vector<double>& /*result_moments*/,
-                                                                       bool smm_used) {
-        double total_population = 0;
-        for (size_t r = 0; r < num_regions; ++r) {
-            total_population += config.total_populations[r];
-        }
-
-        if (smm_used) {
-            if (condition == 0) {
-                double total_infected = 0;
-                for (size_t r = 0; r < num_regions; ++r) {
-                    total_infected += result_smm[r * (int)mio::osir::InfectionState::Count +
-                                                 (int)mio::osir::InfectionState::Infected];
-                }
-                if ((total_infected > rel_switch_value * total_population) || (total_infected < 1)) {
-                    return true;
-                }
-            }
-            else if (condition == 1) {
-                for (size_t r = 0; r < num_regions; ++r) {
-                    auto var_infected_gradient = result_smm[r * (int)mio::osir::InfectionState::Count +
-                                                            (int)mio::osir::InfectionState::Infected];
-                    if (var_infected_gradient < 0) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    };
+    mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
+    Condition.set_config(config);
+    Condition.set_rel_switch_threshold(rel_switch_value);
 
     mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), std::vector<double>,
                                           std::vector<double>>
-        hybrid_sim(std::move(sim_set), std::move(sim_moments), result_fct_smm, result_fct_moments, true, config.t0,
-                   dt_switch);
+        hybrid_sim(std::move(sim_set), std::move(sim_moments), Condition.current_smm_means,
+                   Condition.current_moment_means, true, config.t0, dt_switch);
 
     mio::timing::BasicTimer timer;
     timer.start();
-    hybrid_sim.advance(config.tmax, condition_func);
+    hybrid_sim.advance(config.tmax, Condition.rel_threshold_condition);
     timer.stop();
 
     // Calculate moments and expected values of sim set
