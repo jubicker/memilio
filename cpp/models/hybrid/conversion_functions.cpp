@@ -471,9 +471,21 @@ void convert_model(smm::SimulationSet<2, mio::osir::InfectionState, 3>& current_
                             target_model.get_model().populations.get_num_compartments();
         last_moment_values[flat_index] = last_smm_moment_values[i];
     }
+
+    // Set last value in smm simulation results to zero
+    auto& smm_set_result = current_model.get_result();
+    auto& smm_simulation = current_model.get_simulations();
+    for (size_t sim = 0; sim < smm_simulation.size(); ++sim) {
+        smm_simulation[sim].get_result().get_last_value().setZero();
+        smm_set_result[sim].get_last_value().setZero();
+        smm_simulation[sim].get_model().populations.array().setZero();
+    }
+
+    // Set last means and moments in smm simulation set to zero
+    smm_means.get_last_value().setZero();
+    smm_moments.get_last_value().setZero();
 }
 
-//TODO
 template <>
 void convert_model(smm_moments::Simulation<2, 3>& current_model,
                    smm::SimulationSet<2, mio::osir::InfectionState, 3>& target_model)
@@ -481,52 +493,55 @@ void convert_model(smm_moments::Simulation<2, 3>& current_model,
     const size_t num_regions = 2;
     auto mean_ts             = current_model.get_expected_values_time_series();
     auto means               = mean_ts.get_last_value();
-    auto moment_ts           = current_model.get_moment_time_series(target_model.get_order()).first;
+    auto moment_results      = current_model.get_result().get_last_value();
     // Set mean and moments
     if (mean_ts.get_last_time() < target_model.get_mean().get_last_time()) {
         mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
                        "time point is bigger than last moment time point.");
     }
 
-    if (target_model.get_mean().get_last_time() < mean_ts.get_last_time()) {
-        target_model.get_mean().add_time_point(mean_ts.get_last_time());
-        target_model.get_moments().add_time_point(moment_ts.get_last_time());
-    }
-
-    target_model.get_mean().get_last_value()    = means;
-    target_model.get_moments().get_last_value() = moment_ts.get_last_value();
-
-    // Set current state of all simulations of target model to mean
-    auto& target_simulations = target_model.get_simulations();
-    auto& target_results     = target_model.get_result();
-    for (size_t sim = 0; sim < target_simulations.size(); ++sim) {
-        if (mean_ts.get_last_time() < target_simulations[sim].get_result().get_last_time()) {
-            mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
-                           "time point is bigger than last moment time point.");
-        }
-
-        if (target_simulations[sim].get_result().get_last_time() < mean_ts.get_last_time()) {
-            target_simulations[sim].get_result().add_time_point(mean_ts.get_last_time());
-            target_results[sim].add_time_point(mean_ts.get_last_time());
-        }
-        auto smm_values = target_simulations[sim].get_result().get_last_value();
-        // Set expected values
-        smm_values                           = means;
-        target_results[sim].get_last_value() = means;
-
-        // Update smm populations
+    auto& smm_set_sims = target_model.get_simulations();
+    auto& smm_set_res  = target_model.get_result();
+    for (size_t sim = 0; sim < smm_set_sims.size(); ++sim) {
+        auto& sim_result = smm_set_sims[sim].get_result();
+        auto& sim_pop    = smm_set_sims[sim].get_model().populations;
         for (size_t region = 0; region < num_regions; ++region) {
-            for (int i = 0; i < (int)mio::osir::InfectionState::Count; ++i) {
-                target_simulations[sim]
-                    .get_model()
-                    .populations[{regions::Region(region), mio::osir::InfectionState(i)}] =
-                    means[target_simulations[sim].get_model().populations.get_flat_index(
-                        {regions::Region(region), mio::osir::InfectionState(i)})];
+            for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
+                double mean = means[region * static_cast<size_t>(mio::osir::InfectionState::Count) + comp];
+                std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
+                indices_var.fill(0);
+                indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + comp] = 2;
+                double var = moment_results[current_model.get_model().populations.get_num_compartments() +
+                                            current_model.get_model().moments.flatten_index(indices_var)];
+                // Sample number of agents for simulation and region
+                double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
+                                                    smm_set_sims[sim].get_model().get_rng(), mean, var)));
+                // Set population in Simulation object
+                sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(comp)}] = sim_value;
+
+                if (sim_result.get_last_time() < mean_ts.get_last_time()) {
+                    sim_result.add_time_point(mean_ts.get_last_time());
+                }
+                // Set last result in Simulation object
+                sim_result.get_last_value()[sim_pop.get_flat_index(
+                    {mio::regions::Region(region), mio::osir::InfectionState(comp)})] = sim_value;
+
+                if (smm_set_res[sim].get_last_time() < mean_ts.get_last_time()) {
+                    smm_set_res[sim].add_time_point(mean_ts.get_last_time());
+                }
+                // Set last result in SimulationSet object
+                smm_set_res[sim].get_last_value()[sim_pop.get_flat_index(
+                    {mio::regions::Region(region), mio::osir::InfectionState(comp)})] = sim_value;
             }
         }
     }
-    target_model.advance_t(mean_ts.get_last_time());
-    target_model.advance_t_index();
+
+    // Recalculate last means and moments in smm simulation set
+    target_model.recalculate_last_mean();
+    target_model.recalculate_last_moments();
+
+    // Set last means and moments in moment sim to 0
+    moment_results.setZero();
 }
 
 // One region, closure order 5
@@ -565,56 +580,73 @@ void convert_model(smm::SimulationSet<1, mio::osir::InfectionState, 5>& current_
                             target_model.get_model().populations.get_num_compartments();
         last_moment_values[flat_index] = last_smm_moment_values[i];
     }
+
+    // Set last value in smm simulation results to zero
+    auto& smm_set_result = current_model.get_result();
+    auto& smm_simulation = current_model.get_simulations();
+    for (size_t sim = 0; sim < smm_simulation.size(); ++sim) {
+        smm_simulation[sim].get_result().get_last_value().setZero();
+        smm_set_result[sim].get_last_value().setZero();
+        smm_simulation[sim].get_model().populations.array().setZero();
+    }
+
+    // Set last means and moments in smm simulation set to zero
+    smm_means.get_last_value().setZero();
+    smm_moments.get_last_value().setZero();
 }
 
 template <>
 void convert_model(smm_moments::Simulation<1, 5>& current_model,
                    smm::SimulationSet<1, mio::osir::InfectionState, 5>& target_model)
 {
-    auto mean_ts   = current_model.get_expected_values_time_series();
-    auto means     = mean_ts.get_last_value();
-    auto moment_ts = current_model.get_moment_time_series(target_model.get_order()).first;
+    auto mean_ts        = current_model.get_expected_values_time_series();
+    auto means          = mean_ts.get_last_value();
+    auto moment_results = current_model.get_result().get_last_value();
+
     // Set mean and moments
     if (mean_ts.get_last_time() < target_model.get_mean().get_last_time()) {
         mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
                        "time point is bigger than last moment time point.");
     }
 
-    if (target_model.get_mean().get_last_time() < mean_ts.get_last_time()) {
-        target_model.get_mean().add_time_point(mean_ts.get_last_time());
-        target_model.get_moments().add_time_point(moment_ts.get_last_time());
-    }
+    auto& smm_set_sims = target_model.get_simulations();
+    auto& smm_set_res  = target_model.get_result();
+    for (size_t sim = 0; sim < smm_set_sims.size(); ++sim) {
+        auto& sim_result = smm_set_sims[sim].get_result();
+        auto& sim_pop    = smm_set_sims[sim].get_model().populations;
+        for (size_t comp = 0; comp < static_cast<size_t>(mio::osir::InfectionState::Count); ++comp) {
+            double mean = means[comp];
+            std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count)> indices_var;
+            indices_var.fill(0);
+            indices_var[comp] = 2;
+            double var        = moment_results[current_model.get_model().populations.get_num_compartments() +
+                                        current_model.get_model().moments.flatten_index(indices_var)];
+            // Sample number of agents for simulation
+            double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
+                                                smm_set_sims[sim].get_model().get_rng(), mean, var)));
+            // Set population in Simulation object
+            sim_pop[{mio::regions::Region(0), mio::osir::InfectionState(comp)}] = sim_value;
 
-    target_model.get_mean().get_last_value()    = means;
-    target_model.get_moments().get_last_value() = moment_ts.get_last_value();
+            if (sim_result.get_last_time() < mean_ts.get_last_time()) {
+                sim_result.add_time_point(mean_ts.get_last_time());
+            }
+            // Set last result in Simulation object
+            sim_result.get_last_value()[comp] = sim_value;
 
-    // Set current state of all simulations of target model to mean
-    auto& target_simulations = target_model.get_simulations();
-    auto& target_results     = target_model.get_result();
-    for (size_t sim = 0; sim < target_simulations.size(); ++sim) {
-        if (mean_ts.get_last_time() < target_simulations[sim].get_result().get_last_time()) {
-            mio::log_error("Conversion from moments to smm simulation set not possible because last smm simulation set "
-                           "time point is bigger than last moment time point.");
-        }
-
-        if (target_simulations[sim].get_result().get_last_time() < mean_ts.get_last_time()) {
-            target_simulations[sim].get_result().add_time_point(mean_ts.get_last_time());
-            target_results[sim].add_time_point(mean_ts.get_last_time());
-        }
-        auto smm_values = target_simulations[sim].get_result().get_last_value();
-        // Set expected values
-        smm_values                           = means;
-        target_results[sim].get_last_value() = means;
-
-        // Update smm populations
-        for (int i = 0; i < (int)mio::osir::InfectionState::Count; ++i) {
-            target_simulations[sim].get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] =
-                means[target_simulations[sim].get_model().populations.get_flat_index(
-                    {regions::Region(0), mio::osir::InfectionState(i)})];
+            if (smm_set_res[sim].get_last_time() < mean_ts.get_last_time()) {
+                smm_set_res[sim].add_time_point(mean_ts.get_last_time());
+            }
+            // Set last result in SimulationSet object
+            smm_set_res[sim].get_last_value()[comp] = sim_value;
         }
     }
-    target_model.advance_t(mean_ts.get_last_time());
-    target_model.advance_t_index();
+
+    // Recalculate last means and moments in smm simulation set
+    target_model.recalculate_last_mean();
+    target_model.recalculate_last_moments();
+
+    // Set last means and moments in moment sim to 0
+    moment_results.setZero();
 }
 
 } //namespace hybrid
