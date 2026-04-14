@@ -28,6 +28,7 @@
 #include "memilio/epidemiology/age_group.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <numeric>
 
@@ -409,7 +410,7 @@ void convert_model(smm_moments::Simulation<1, 3>& current_model,
                                         current_model.get_model().moments.flatten_index(indices_var)];
             // Sample number of agents for simulation
             double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                                smm_set_sims[sim].get_model().get_rng(), mean, var)));
+                                                smm_set_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
             // Set population in Simulation object
             sim_pop[{mio::regions::Region(0), mio::osir::InfectionState(comp)}] = sim_value;
 
@@ -515,7 +516,7 @@ void convert_model(smm_moments::Simulation<2, 3>& current_model,
                                             current_model.get_model().moments.flatten_index(indices_var)];
                 // Sample number of agents for simulation and region
                 double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                                    smm_set_sims[sim].get_model().get_rng(), mean, var)));
+                                                    smm_set_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
                 // Set population in Simulation object
                 sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(comp)}] = sim_value;
 
@@ -623,7 +624,7 @@ void convert_model(smm_moments::Simulation<1, 5>& current_model,
                                         current_model.get_model().moments.flatten_index(indices_var)];
             // Sample number of agents for simulation
             double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                                smm_set_sims[sim].get_model().get_rng(), mean, var)));
+                                                smm_set_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
             // Set population in Simulation object
             sim_pop[{mio::regions::Region(0), mio::osir::InfectionState(comp)}] = sim_value;
 

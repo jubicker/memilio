@@ -39,12 +39,12 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t closure_order    = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config6);
+    const auto config             = Config::get_config(Config::ConfigType::Config5);
     const size_t num_regions      = 1;
     const double rel_switch_value = 0.3;
     double min_step_size          = 0.0001;
     size_t closure                = 0;
-    size_t condition              = 1;
+    size_t condition              = 3;
     auto closure_func             = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
     if (closure == 0) {
         closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>;
@@ -135,18 +135,22 @@ int main()
         sim_moments.get_integrator_core().get_dt_min() = min_step_size;
     }
 
+    // Set switching condition - INPUT
     mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
     Condition.set_config(config);
-    Condition.set_rel_switch_threshold(rel_switch_value);
+    //Condition.set_rel_switch_threshold(rel_switch_value);
+    Condition.set_mean_stddev_relation(0.3);
 
+    // Initialize hybrid simulation with correct result functions for switching condition - INPUT
     mio::hybrid::TemporalHybridSimulation<decltype(sim_set), decltype(sim_moments), std::vector<double>,
                                           std::vector<double>>
-        hybrid_sim(std::move(sim_set), std::move(sim_moments), Condition.current_smm_means,
-                   Condition.current_moment_means, true, config.t0, dt_switch);
+        hybrid_sim(std::move(sim_set), std::move(sim_moments), Condition.current_smm_relations,
+                   Condition.current_moment_relations, true, config.t0, dt_switch);
 
     mio::timing::BasicTimer timer;
     timer.start();
-    hybrid_sim.advance(config.tmax, Condition.rel_threshold_condition);
+    // Run hybrid simulation with switching condition - INPUT
+    hybrid_sim.advance(config.tmax, Condition.mean_stddev_relation_condition);
     timer.stop();
 
     // Calculate moments and expected values of sim set
@@ -181,8 +185,8 @@ int main()
     finished      = p95[0].export_csv(save_file + "smm_p95.csv");
 
     // Save merged time series
-    auto hybrid_result_means   = mio::merge_time_series(means_smm, expected_values).value();
-    auto hybrid_result_moments = mio::merge_time_series(moments_smm, moments_moments.first).value();
+    auto hybrid_result_means   = mio::merge_time_series(means_smm, expected_values, true).value();
+    auto hybrid_result_moments = mio::merge_time_series(moments_smm, moments_moments.first, true).value();
 
     int num_steps = static_cast<int>(config.tmax / config.dt) + 1;
     std::vector<double> interpolation_tps(num_steps);
