@@ -326,7 +326,7 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
                                                         moment_model.moments.flatten_index(indices_var)];
             // Sample number of incoming agents for simulation
             double sim_value = std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                                smm_set_sims[sim].get_model().get_rng(), mean, var)));
+                                                smm_set_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
             // Add agents to last result in all Simulation objects
             sim_result.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to + comp] +=
                 sim_value;
