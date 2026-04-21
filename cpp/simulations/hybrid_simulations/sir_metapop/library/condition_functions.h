@@ -23,6 +23,7 @@
 #include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "smm/simulation_set.h"
 #include "smm_moments/simulation.h"
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -173,6 +174,91 @@ public:
             }
         }
         return false;
+    }
+
+    static bool region_index_condition(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
+        mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
+        size_t region)
+    {
+        // Regions with even index are modeled deterministically, regions with odd index are modeled stochastically
+        return stochastic_used ? (region % 2 == 0) : (region % 2 == 1);
+    }
+
+    static bool mean_stddev_relation_condition_region(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+        mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
+        size_t region)
+    {
+        if (stochastic_used) {
+            auto relations = current_smm_relations(stochastic_model, 0.);
+            if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                m_mean_stddev_relation) {
+                return false;
+            }
+            return true;
+        }
+        else {
+            auto relations = current_moment_relations(deterministic_model, 0.);
+            if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                m_mean_stddev_relation) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    static bool combined_relation_var_gradient_condition_region(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+        mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
+        size_t region)
+    {
+        if (stochastic_used) {
+            auto relations     = current_smm_relations(stochastic_model, 0.);
+            auto var_gradients = current_smm_var_gradients(stochastic_model, 0.);
+            if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                    m_mean_stddev_relation ||
+                var_gradients[region * (int)mio::osir::InfectionState::Count +
+                              (int)mio::osir::InfectionState::Infected] > m_var_gradient_threshold) {
+                return false;
+            }
+            return true;
+        }
+        else {
+            auto relations     = current_moment_relations(deterministic_model, 0.);
+            auto var_gradients = current_moment_var_gradients(deterministic_model, 0.);
+            if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                m_mean_stddev_relation) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    static bool
+    pure_ode(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
+             mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
+             size_t /*region*/)
+    {
+        if (stochastic_used) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    static bool pure_stochastic(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
+        mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
+        size_t /*region*/)
+    {
+        if (stochastic_used) {
+            return false;
+        }
+        else {
+            return true;
+        }
     }
 
     static std::vector<double>

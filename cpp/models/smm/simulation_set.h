@@ -131,12 +131,6 @@ public:
         // Time steps for interpolation
         int num_steps = static_cast<int>((m_t - t) / m_dt);
         if (num_steps > 0) {
-            num_steps += 1;
-
-            std::vector<double> interpolation_tps(num_steps);
-            for (int i = 0; i < num_steps; ++i) {
-                interpolation_tps[i] = t + i * m_dt;
-            }
 
 // Interpolate results
 #ifdef MEMILIO_ENABLE_OPENMP
@@ -352,7 +346,7 @@ public:
         }
         // Average values by number of runs
         means /= m_results.size();
-        if (m_means.get_last_time() < m_results[0].get_last_time()) {
+        if (m_means.get_num_time_points() == 0 || m_means.get_last_time() < m_results[0].get_last_time()) {
             m_means.add_time_point(m_results[0].get_last_time(), means);
         }
         else {
@@ -404,7 +398,7 @@ public:
         // Get only moments up to the given order
         auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
         Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
-        if (m_moments.get_last_time() < m_results[0].get_last_time()) {
+        if (m_moments.get_num_time_points() == 0 || m_moments.get_last_time() < m_results[0].get_last_time()) {
             m_moments.add_time_point(m_results[0].get_last_time(), data);
         }
         else {

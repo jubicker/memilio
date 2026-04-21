@@ -26,6 +26,7 @@
 #include "smm/model.h"
 #include "smm/parameters.h"
 #include "memilio/compartments/simulation.h"
+#include <algorithm>
 
 namespace mio
 {
@@ -135,8 +136,10 @@ public:
         }
         // copy last result, if no event occurs between last_result_time and tmax
         if (m_result_interpolated.get_last_time() < tmax) {
-            while (tmax >= next_result_time) {
-                m_result_interpolated.add_time_point(next_result_time);
+            while (tmax >=
+                   (next_result_time -
+                    1e-10)) { // add time points until tmax is reached, with a small tolerance to avoid numerical issues
+                m_result_interpolated.add_time_point(std::min(next_result_time, tmax));
                 m_result_interpolated.get_last_value() = m_model->populations.get_compartments();
                 next_result_time += m_dt;
             }

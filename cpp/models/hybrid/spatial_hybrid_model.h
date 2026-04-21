@@ -22,10 +22,12 @@
 #define MIO_SPATIAL_HYBRID_MODEL_H
 
 #include "hybrid/temporal_hybrid_model.h"
+#include "memilio/data/analyze_result.h"
+#include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/random_number_generator.h"
+#include "memilio/utils/time_series.h"
 #include "ode_sir/infection_state.h"
-#include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
-#include "simulations/hybrid_simulations/sir_metapop/library/moment_helper.h"
+#include "smm/parameters.h"
 #include "smm/simulation_set.h"
 #include "smm_moments/parameters.h"
 #include "smm_moments/simulation.h"
@@ -33,13 +35,13 @@
 #include "smm/model.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/smm_helper.h"
-#include "hybrid/conversion_functions.h"
-#include "hybrid/exchange_functions.h"
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <numeric>
+#include <utility>
 #include <vector>
 #include <unordered_set>
 
@@ -63,13 +65,14 @@ public:
     SpatialHybridSimulation(
         const Config::Config& config, size_t num_runs, double min_step_size, double dt,
         ClosureFunctionType closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>)
-        : m_stochastic_simulation(initialize_stochastic_model(num_runs))
+        : m_config(std::make_shared<Config::Config>(config))
+        , m_stochastic_simulation(initialize_stochastic_model(num_runs))
         , m_moment_simulation(initialize_deterministic_model(closure_func, min_step_size))
         , m_stochastic_regions(num_regions)
         , m_deterministic_regions(0)
         , m_t(config.t0)
         , m_dt(dt)
-        , m_config(std::make_shared<Config::Config>(config))
+        , m_model_used(Eigen::Index(num_regions))
     {
         // Initially all regions are modeled stochastically
         std::iota(m_stochastic_regions.begin(), m_stochastic_regions.end(), 0);
@@ -80,13 +83,9 @@ public:
      * @param[in] tmax Simulation end time point.
      * @param[in] condition Switching condition for determining when to switch a region between stochastic and deterministic modeling.
      */
-    void advance(double tmax, const switching_condition& condition)
+    void advance(double tmax, const switching_condition& condition, bool log_model_used = false)
     {
         while (m_t < tmax) {
-            auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
-            auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
-            auto& moment_model_result      = m_moment_simulation.get_result();
-            assert(m_stochastic_simulation.get_mean().get_last_time() == moment_model_result.get_last_time());
             // Evaluate switching conditions for all stochastic regions
             std::unordered_set<size_t> regions_to_switch_to_deterministic;
             for (size_t region : m_stochastic_regions) {
@@ -143,6 +142,15 @@ public:
                                                              }),
                                               m_deterministic_regions.end());
             }
+            { // Log information which model is used at current time point
+                if (log_model_used) {
+                    Eigen::VectorXi zeros = Eigen::VectorXi::Constant(num_regions, 0);
+                    m_model_used.add_time_point(m_t, zeros);
+                    for (size_t det_region : m_deterministic_regions) {
+                        m_model_used.get_last_value()[det_region] = 1;
+                    }
+                }
+            }
             { // Advance simulations for all regions
                 double next_step = std::min(tmax, m_t + m_dt);
                 // Advance stochastic simulation
@@ -160,6 +168,102 @@ public:
                 }
             }
         }
+    }
+
+    /**
+     * @brief Get mean time series of stochastic simulation.
+     * The time series is interpolated to the given interpolation step size.
+     * @param[in] interpolation_step_size Step size for interpolation of mean time series.
+     */
+    TimeSeries<double> get_stochastic_mean(double interpolation_step_size)
+    {
+        auto mean_ts  = m_stochastic_simulation.get_mean();
+        int num_steps = static_cast<int>((mean_ts.get_last_time() - mean_ts.get_time(0)) / interpolation_step_size) + 1;
+        std::vector<double> interpolation_tps(num_steps);
+
+        for (int i = 0; i < num_steps; ++i) {
+            interpolation_tps[i] = i * interpolation_step_size;
+        }
+        return interpolate_simulation_result(mean_ts, interpolation_tps);
+    }
+
+    /**
+     * @brief Get moment time series of stochastic simulation.
+     * The time series is interpolated to the given interpolation step size.
+     * @param[in] interpolation_step_size Step size for interpolation of moment time series.
+     */
+    std::pair<TimeSeries<double>, std::vector<std::string>> get_stochastic_moments(double interpolation_step_size)
+    {
+        auto moment_ts = m_stochastic_simulation.get_moments();
+        int num_steps =
+            static_cast<int>((moment_ts.get_last_time() - moment_ts.get_time(0)) / interpolation_step_size) + 1;
+        std::vector<double> interpolation_tps(num_steps);
+
+        for (int i = 0; i < num_steps; ++i) {
+            interpolation_tps[i] = i * interpolation_step_size;
+        }
+        return std::make_pair(interpolate_simulation_result(moment_ts, interpolation_tps),
+                              m_stochastic_simulation.get_moment_names());
+    }
+
+    /**
+     * @brief Get mean time series of moment simulation.
+     * The time series is interpolated to the given interpolation step size.
+     * @param[in] interpolation_step_size Step size for interpolation of mean time series.
+     */
+    TimeSeries<double> get_deterministic_mean(double interpolation_step_size)
+    {
+        auto mean_ts  = m_moment_simulation.get_expected_values_time_series();
+        int num_steps = static_cast<int>((mean_ts.get_last_time() - mean_ts.get_time(0)) / interpolation_step_size) + 1;
+        std::vector<double> interpolation_tps(num_steps);
+
+        for (int i = 0; i < num_steps; ++i) {
+            interpolation_tps[i] = i * interpolation_step_size;
+        }
+        return interpolate_simulation_result(mean_ts, interpolation_tps);
+    }
+
+    /**
+     * @brief Get moment time series of moment simulation.
+     * The time series is interpolated to the given interpolation step size.
+     * @param[in] interpolation_step_size Step size for interpolation of moment time series.
+     */
+    std::pair<TimeSeries<double>, std::vector<std::string>> get_deterministic_moments(double interpolation_step_size)
+    {
+        auto moment_ts = m_moment_simulation.get_moment_time_series(closure_order);
+        int num_steps  = static_cast<int>((moment_ts.first.get_last_time() - moment_ts.first.get_time(0)) /
+                                         interpolation_step_size) +
+                        1;
+        std::vector<double> interpolation_tps(num_steps);
+
+        for (int i = 0; i < num_steps; ++i) {
+            interpolation_tps[i] = i * interpolation_step_size;
+        }
+        return std::make_pair(interpolate_simulation_result(moment_ts.first, interpolation_tps), moment_ts.second);
+    }
+
+    TimeSeries<double> get_joint_mean(double interpolation_step_size)
+    {
+        return merge_time_series(get_stochastic_mean(interpolation_step_size),
+                                 get_deterministic_mean(interpolation_step_size), true)
+            .value();
+    }
+
+    std::pair<TimeSeries<double>, std::vector<std::string>> get_joint_moments(double interpolation_step_size)
+    {
+        auto stochastic_moments    = get_stochastic_moments(interpolation_step_size);
+        auto deterministic_moments = get_deterministic_moments(interpolation_step_size);
+        assert(stochastic_moments.second.size() == deterministic_moments.second.size());
+        for (size_t i = 0; i < stochastic_moments.second.size(); ++i) {
+            assert(stochastic_moments.second[i] == deterministic_moments.second[i]);
+        }
+        return std::make_pair(merge_time_series(stochastic_moments.first, deterministic_moments.first, true).value(),
+                              stochastic_moments.second);
+    }
+
+    TimeSeries<int> get_model_used_ts()
+    {
+        return m_model_used;
     }
 
 private:
@@ -204,6 +308,7 @@ private:
         if (regions_to_switch.empty()) {
             return;
         }
+
         auto& moment_model_result      = m_moment_simulation.get_result();
         auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
         auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
@@ -230,9 +335,11 @@ private:
             if (switch_moment) { // If all regions that have entries > 0 are switching, so we can switch the moment
                 size_t flat_index = m_moment_simulation.get_model().moments.flatten_index(moment_index) +
                                     m_moment_simulation.get_model().populations.get_num_compartments();
-                assert(moment_model_result.get_last_value()[flat_index] ==
-                       0.); // Check that region is not already modeled in moment model
-                moment_model_result.get_last_value()[flat_index] = stochastic_model_moments.get_last_value()[i];
+                if (std::accumulate(moment_index.begin(), moment_index.end(), 0.0) > 0) {
+                    assert(moment_model_result.get_last_value()[flat_index] ==
+                           0.); // Check that region is not already modeled in moment model
+                    moment_model_result.get_last_value()[flat_index] = stochastic_model_moments.get_last_value()[i];
+                }
             }
         }
     }
@@ -299,15 +406,20 @@ private:
             return;
         }
         for (size_t region : regions_to_switch) {
-            m_stochastic_simulation.get_model()
-                .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] = 0.0;
-            m_stochastic_simulation.get_model()
-                .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] = 0.0;
+            for (size_t sim = 0; sim < m_stochastic_simulation.get_simulations().size(); ++sim) {
+                auto& sim_model = m_stochastic_simulation.get_simulations()[sim].get_model();
+                for (auto& rate :
+                     sim_model.parameters.template get<mio::smm::AdoptionRates<double, mio::osir::InfectionState>>()) {
+                    if (rate.region == mio::regions::Region(region)) {
+                        rate.factor = 0.;
+                    }
+                }
 
-            for (auto& rate : m_config->transition_rates) {
-                if (rate.from == mio::regions::Region(region)) {
-                    m_stochastic_simulation.get_model().parameters.template get<mio::smm_moments::TransitionRate>()[{
-                        rate.status, rate.from, rate.to}] = 0.0;
+                for (auto& rate : sim_model.parameters
+                                      .template get<mio::smm::TransitionRates<double, mio::osir::InfectionState>>()) {
+                    if (rate.from == mio::regions::Region(region)) {
+                        rate.factor = 0.;
+                    }
                 }
             }
         }
@@ -346,12 +458,12 @@ private:
                     sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(state)}] = sim_value;
 
                     // Set sampled value in SMMSet result object
-                    assert(mean_ts.get_last_time() == stochastic_results[sim].get_last_time());
-                    stochastic_results
+                    assert(m_moment_simulation.get_result().get_last_time() == stochastic_results[sim].get_last_time());
+                    stochastic_results[sim]
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] =
                         sim_value;
                     // Set sampled value in Simulation object
-                    assert(mean_ts.get_last_time() == sim_result.get_last_time());
+                    assert(m_moment_simulation.get_result().get_last_time() == sim_result.get_last_time());
                     sim_result
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] =
                         sim_value;
@@ -374,17 +486,29 @@ private:
             return;
         }
         for (size_t region : regions_to_switch) {
-            m_stochastic_simulation.get_model()
-                .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] =
-                m_config->lambdas[region];
-            m_stochastic_simulation.get_model()
-                .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] =
-                m_config->gamma;
+            for (size_t sim = 0; sim < m_stochastic_simulation.get_simulations().size(); ++sim) {
+                auto& sim_model = m_stochastic_simulation.get_simulations()[sim].get_model();
+                for (auto& rate :
+                     sim_model.parameters.template get<mio::smm::AdoptionRates<double, mio::osir::InfectionState>>()) {
+                    if (rate.region == mio::regions::Region(region)) {
+                        if (rate.from == mio::osir::InfectionState::Susceptible) {
+                            rate.factor = m_config->lambdas[region];
+                        }
+                        if (rate.from == mio::osir::InfectionState::Infected) {
+                            rate.factor = m_config->gamma;
+                        }
+                    }
+                }
 
-            for (auto& rate : m_config->transition_rates) {
-                if (rate.from == mio::regions::Region(region)) {
-                    m_stochastic_simulation.get_model().parameters.template get<mio::smm_moments::TransitionRate>()[{
-                        rate.status, rate.from, rate.to}] = rate.factor;
+                for (auto& rate : sim_model.parameters
+                                      .template get<mio::smm::TransitionRates<double, mio::osir::InfectionState>>()) {
+                    if (rate.from == mio::regions::Region(region)) {
+                        auto config_rate_it = std::find_if(
+                            m_config->transition_rates.begin(), m_config->transition_rates.end(), [&](const auto& r) {
+                                return r.status == rate.status && r.from == rate.from && r.to == rate.to;
+                            });
+                        rate.factor = config_rate_it->factor;
+                    }
                 }
             }
         }
@@ -527,7 +651,6 @@ private:
     {
         auto moment_results            = m_moment_simulation.get_result();
         auto& stochastic_sims          = m_stochastic_simulation.get_simulations();
-        auto& stochastic_results       = m_stochastic_simulation.get_result();
         auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
         auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
         for (size_t region_to : m_deterministic_regions) {
@@ -556,9 +679,8 @@ private:
                         // Reset population in all Simulation objects
                         sim_pop[{mio::regions::Region(region_to), mio::osir::InfectionState(state)}] = 0;
                         // Reset last result in SimulationSet object
-                        stochastic_sims[sim]
-                            .get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
-                                              state] = 0;
+                        sim_result.get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
+                                                    state] = 0;
                     }
                 }
             }
@@ -613,7 +735,7 @@ private:
         assert(m_config->num_regions == num_regions);
         mio::smm::Model<ScalarType, num_regions, mio::osir::InfectionState> model =
             smm_helper::initialize_model<num_regions>(*m_config);
-        return SMMSetSim(model, num_runs, m_config->t0, m_config->dt);
+        return SMMSetSim(num_runs, model, m_config->t0, m_config->dt);
     }
 
     MomentSim initialize_deterministic_model(ClosureFunctionType closure_func, double min_step_size)
@@ -634,16 +756,19 @@ private:
         if (min_step_size > 0) {
             sim.get_integrator_core().get_dt_min() = min_step_size;
         }
+        sim.get_integrator_core().get_dt_max() = m_config->dt;
         return sim;
     }
 
+    std::shared_ptr<Config::Config> m_config; ///< Config of the simulation.
     SMMSetSim m_stochastic_simulation; ///< SMM simulation containing stochastically modeled regions.
     MomentSim m_moment_simulation; ///< Moment simulation containing deterministically modeled regions.
     std::vector<size_t> m_stochastic_regions; ///< Regions which are currently modeled stochastically.
     std::vector<size_t> m_deterministic_regions; ///< Regions which are currently modeled deterministically.
     double m_t; ///< Current time step.
     double m_dt; ///< Step size.
-    std::shared_ptr<Config::Config> m_config; ///< Config of the simulation.
+    TimeSeries<int>
+        m_model_used; ///< Time series which indicates which model is used for each region at each time step (0: stochastic, 1: moment).
 };
 
 } // namespace hybrid
