@@ -519,14 +519,17 @@ private:
         if (regions_to_switch.empty()) {
             return;
         }
-        auto moment_result = m_moment_simulation.get_result();
+        auto& moment_result = m_moment_simulation.get_result();
         for (size_t region : regions_to_switch) {
             for (size_t index = 0; index < static_cast<size_t>(moment_result.get_num_elements()); ++index) {
                 // Mean entries for corresponding regions are set to zero
                 if (index >= region * static_cast<size_t>(mio::osir::InfectionState::Count) &&
                     index < region * static_cast<size_t>(mio::osir::InfectionState::Count) +
                                 static_cast<size_t>(mio::osir::InfectionState::Count)) {
-                    moment_result.get_last_value()[index] = 0;
+                    moment_result.get_last_value()[index]                                                          = 0;
+                    m_moment_simulation.get_model().populations[{
+                        mio::regions::Region(region),
+                        mio::osir::InfectionState(index % static_cast<size_t>(mio::osir::InfectionState::Count))}] = 0;
                 }
                 if (index >= m_moment_simulation.get_model().populations.get_num_compartments()) {
                     auto multiindex = m_moment_simulation.get_model().moments.unflatten_index(
