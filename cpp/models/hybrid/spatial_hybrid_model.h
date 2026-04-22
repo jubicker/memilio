@@ -569,7 +569,7 @@ private:
 
     void exchange_moment_to_stochastic()
     {
-        auto moment_results      = m_moment_simulation.get_result();
+        auto& moment_results     = m_moment_simulation.get_result();
         auto& stochastic_sims    = m_stochastic_simulation.get_simulations();
         auto& stochastic_results = m_stochastic_simulation.get_result();
         for (size_t region : m_stochastic_regions) {
@@ -578,10 +578,11 @@ private:
                 double mean =
                     moment_results
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
-                if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
-                    continue;
-                }
-                else {
+                // if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
+                //     continue;
+                // }
+                // else {
+                {
                     region_exchanged = true;
                     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
                     indices_var.fill(0);
@@ -652,7 +653,7 @@ private:
 
     void exchange_stochastic_to_moment()
     {
-        auto moment_results            = m_moment_simulation.get_result();
+        auto& moment_results           = m_moment_simulation.get_result();
         auto& stochastic_sims          = m_stochastic_simulation.get_simulations();
         auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
         auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
@@ -662,10 +663,11 @@ private:
                 double mean =
                     stochastic_model_means
                         .get_last_value()[region_to * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
-                if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
-                    continue;
-                }
-                else {
+                // if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
+                //     continue;
+                // }
+                // else {
+                {
                     region_exchanged = true;
                     // Add mean to moment model result
                     moment_results.get_last_value()[m_moment_simulation.get_model().populations.get_flat_index(
@@ -703,8 +705,13 @@ private:
                                         0.0);
                     if (order_region_to !=
                         0) { // If the moment has no indices in region_to, it does not have to be considered
-                        if (order_region_to ==
-                            order) { // Only moments that are fully in the region are considered (Variances)
+                        if (order_region_to == order &&
+                            (std::count(moment_indices_stochastic_model[i].begin(),
+                                        moment_indices_stochastic_model[i].end(), 2) == 1 &&
+                             std::count(moment_indices_stochastic_model[i].begin(),
+                                        moment_indices_stochastic_model[i].end(),
+                                        0) == num_regions * static_cast<size_t>(mio::osir::InfectionState::Count) -
+                                                  1)) { // Only variances that are fully in the region are considered
                             auto index = m_moment_simulation.get_model().moments.flatten_index(
                                 moment_indices_stochastic_model[i]);
                             // Sample new variance value

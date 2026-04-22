@@ -71,7 +71,8 @@ enum class ConfigType
     ConfigDiseaseImport1k1,
     ConfigDiseaseImport1k2,
     ConfigDiseaseImport2k1,
-    ConfigDiseaseImport2k2
+    ConfigDiseaseImport2k2,
+    Config2regionsasymmExchange
 };
 
 Config get_config(ConfigType type);

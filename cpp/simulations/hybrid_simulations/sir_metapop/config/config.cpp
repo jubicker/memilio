@@ -324,6 +324,22 @@ Config get_config(ConfigType type)
                                            mio::regions::Region(1), infected_commuting_reduc_fac * transition_rate});
         return config;
         break;
+    case ConfigType::Config2regionsasymmExchange:
+        config.name                  = "config_2r_100_10_k1_asym";
+        config.num_regions           = 2;
+        config.t0                    = 0;
+        config.tmax                  = 100;
+        config.dt                    = 0.1;
+        config.lambdas               = {0.00000007, 0.00000007};
+        config.gamma                 = 1. / 7.;
+        config.I0s                   = {{0, 100}, {1, 10}};
+        config.total_populations     = {5000000, 5000000};
+        infected_commuting_reduc_fac = 1.0;
+        transition_rate              = 0.0000001;
+        config.transition_rates.push_back({mio::osir::InfectionState::Infected, mio::regions::Region(0),
+                                           mio::regions::Region(1), infected_commuting_reduc_fac * transition_rate});
+        return config;
+        break;
     }
     return config;
 }

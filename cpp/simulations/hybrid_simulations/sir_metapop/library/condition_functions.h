@@ -185,6 +185,15 @@ public:
         return stochastic_used ? (region % 2 == 0) : (region % 2 == 1);
     }
 
+    static bool reversed_region_index_condition(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
+        mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
+        size_t region)
+    {
+        // Regions with odd index are modeled deterministically, regions with even index are modeled stochastically
+        return stochastic_used ? (region % 2 == 1) : (region % 2 == 0);
+    }
+
     static bool mean_stddev_relation_condition_region(
         mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
         mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
