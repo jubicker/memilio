@@ -40,7 +40,7 @@
  * @param[in, out] timer_sim Timer used to time simulation.
  */
 template <int NumRegions>
-mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Config::Config& config,
+mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Config::sir::Config& config,
                                     mio::timing::BasicTimer& timer_init, mio::timing::BasicTimer& timer_sim)
 {
     timer_init.start();
@@ -70,15 +70,15 @@ mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Co
 
 int main()
 {
-    const size_t num_runs    = 10;
+    const size_t num_runs    = 10000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::Config3);
-    const size_t num_regions = 1;
+    const auto config        = Config::sirs::get_config(Config::sirs::ConfigType::Config4regionsTransmNoExchange);
+    const size_t num_regions = 4;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::string save_file = Config::SAVE_DIR + "Test/";
+    std::string save_file = Config::SAVE_DIR + "SMM/SIRS/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {

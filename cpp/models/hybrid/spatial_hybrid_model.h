@@ -50,7 +50,7 @@ namespace mio
 namespace hybrid
 {
 
-template <size_t num_regions, size_t closure_order>
+template <size_t num_regions, size_t closure_order, typename ConfigType>
 class SpatialHybridSimulation
 {
 
@@ -63,9 +63,9 @@ public:
                            bool stochastic_used, size_t region)>;
 
     SpatialHybridSimulation(
-        const Config::Config& config, size_t num_runs, double min_step_size, double dt,
+        const ConfigType& config, size_t num_runs, double min_step_size, double dt,
         ClosureFunctionType closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>)
-        : m_config(std::make_shared<Config::Config>(config))
+        : m_config(std::make_shared<ConfigType>(config))
         , m_stochastic_simulation(initialize_stochastic_model(num_runs))
         , m_moment_simulation(initialize_deterministic_model(closure_func, min_step_size))
         , m_stochastic_regions(num_regions)
@@ -351,6 +351,9 @@ private:
         }
         auto& stochastic_sims    = m_stochastic_simulation.get_simulations();
         auto& stochastic_results = m_stochastic_simulation.get_result();
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
         // Reset results and simulations of simulation set
         for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
             auto& sim_result = stochastic_sims[sim].get_result();
@@ -406,6 +409,9 @@ private:
             return;
         }
         for (size_t region : regions_to_switch) {
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
             for (size_t sim = 0; sim < m_stochastic_simulation.get_simulations().size(); ++sim) {
                 auto& sim_model = m_stochastic_simulation.get_simulations()[sim].get_model();
                 for (auto& rate :
@@ -438,18 +444,22 @@ private:
                 assert(m_stochastic_simulation.get_mean()
                            .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] ==
                        0.); // Check that region is not already modeled in stochastic model
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
                 for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
                     auto& sim_result = stochastic_sims[sim].get_result();
                     auto& sim_pop    = stochastic_sims[sim].get_model().populations;
 
                     // Get current mean and variance from moment model for region and state
-                    double mean =
+                    const double mean =
                         moment_results[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
                     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
                     indices_var.fill(0);
                     indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] = 2;
-                    double var = moment_results[m_moment_simulation.get_model().populations.get_num_compartments() +
-                                                m_moment_simulation.get_model().moments.flatten_index(indices_var)];
+                    const double var =
+                        moment_results[m_moment_simulation.get_model().populations.get_num_compartments() +
+                                       m_moment_simulation.get_model().moments.flatten_index(indices_var)];
                     // Sample number of agents for stochastic trajectory normally distributed
                     double sim_value =
                         std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
@@ -486,6 +496,9 @@ private:
             return;
         }
         for (size_t region : regions_to_switch) {
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
             for (size_t sim = 0; sim < m_stochastic_simulation.get_simulations().size(); ++sim) {
                 auto& sim_model = m_stochastic_simulation.get_simulations()[sim].get_model();
                 for (auto& rate :
@@ -572,25 +585,29 @@ private:
         auto& moment_results     = m_moment_simulation.get_result();
         auto& stochastic_sims    = m_stochastic_simulation.get_simulations();
         auto& stochastic_results = m_stochastic_simulation.get_result();
+        bool recalc_stoch_means  = false;
         for (size_t region : m_stochastic_regions) {
             bool region_exchanged = false;
             for (size_t state = 0; state < static_cast<size_t>(mio::osir::InfectionState::Count); ++state) {
-                double mean =
+                const double mean =
                     moment_results
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
-                // if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
-                //     continue;
-                // }
-                // else {
-                {
-                    region_exchanged = true;
+                if (mean <= 0.) { // No agents to exchange for this region and state
+                    continue;
+                }
+                else {
+                    recalc_stoch_means = true;
+                    region_exchanged   = true;
                     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
                     indices_var.fill(0);
                     indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] = 2;
-                    double var =
+                    const double var =
                         moment_results
                             .get_last_value()[m_moment_simulation.get_model().populations.get_num_compartments() +
                                               m_moment_simulation.get_model().moments.flatten_index(indices_var)];
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
                     for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
                         auto& sim_result = stochastic_sims[sim].get_result();
                         auto& sim_pop    = stochastic_sims[sim].get_model().populations;
@@ -644,11 +661,12 @@ private:
             }
         }
 
-        // Update mean and moment ts of simulation set
-        m_stochastic_simulation.get_mean().remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_mean();
-        m_stochastic_simulation.get_moments().remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_moments();
+        if (recalc_stoch_means) { // Update mean and moment ts of simulation set
+            m_stochastic_simulation.get_mean().remove_last_time_point();
+            m_stochastic_simulation.recalculate_last_mean();
+            m_stochastic_simulation.get_moments().remove_last_time_point();
+            m_stochastic_simulation.recalculate_last_moments();
+        }
     }
 
     void exchange_stochastic_to_moment()
@@ -657,22 +675,26 @@ private:
         auto& stochastic_sims          = m_stochastic_simulation.get_simulations();
         auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
         auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
+        bool recalc_stoch_mean         = false;
         for (size_t region_to : m_deterministic_regions) {
             bool region_exchanged = false;
             for (size_t state = 0; state < static_cast<size_t>(mio::osir::InfectionState::Count); ++state) {
                 double mean =
                     stochastic_model_means
                         .get_last_value()[region_to * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
-                // if (mean < 1.) { // No (or not enough) agents to exchange for this region and state
-                //     continue;
-                // }
-                // else {
-                {
-                    region_exchanged = true;
+                if (mean <= 0.) { // No agents to exchange for this region and state
+                    continue;
+                }
+                else {
+                    recalc_stoch_mean = true;
+                    region_exchanged  = true;
                     // Add mean to moment model result
                     moment_results.get_last_value()[m_moment_simulation.get_model().populations.get_flat_index(
                         {mio::regions::Region(region_to), mio::osir::InfectionState(state)})] += mean;
 
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
                     // Reset results and simulations of simulation set
                     for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
                         auto& sim_result = stochastic_sims[sim].get_result();
@@ -733,11 +755,13 @@ private:
             }
         }
 
-        // Reset and update mean and moment ts of stochastic model
-        stochastic_model_means.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_mean();
-        stochastic_model_moments.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_moments();
+        if (recalc_stoch_mean) {
+            // Reset and update mean and moment ts of stochastic model
+            stochastic_model_means.remove_last_time_point();
+            m_stochastic_simulation.recalculate_last_mean();
+            stochastic_model_moments.remove_last_time_point();
+            m_stochastic_simulation.recalculate_last_moments();
+        }
     }
 
     SMMSetSim initialize_stochastic_model(size_t num_runs)
@@ -770,7 +794,7 @@ private:
         return sim;
     }
 
-    std::shared_ptr<Config::Config> m_config; ///< Config of the simulation.
+    std::shared_ptr<ConfigType> m_config; ///< Config of the simulation.
     SMMSetSim m_stochastic_simulation; ///< SMM simulation containing stochastically modeled regions.
     MomentSim m_moment_simulation; ///< Moment simulation containing deterministically modeled regions.
     std::vector<size_t> m_stochastic_regions; ///< Regions which are currently modeled stochastically.

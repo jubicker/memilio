@@ -51,7 +51,7 @@
  * @return Simulation time series i.e. merged time series of smm and ode.
  */
 template <size_t NumRegions>
-mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, const Config::Config& config,
+mio::TimeSeries<double> run_hybrid_sim(size_t sim_num, std::string save_file, const Config::sir::Config& config,
                                        double rel_switch_value, mio::timing::BasicTimer& timer_init,
                                        mio::timing::BasicTimer& timer_sim)
 {
@@ -163,7 +163,7 @@ int main()
     const size_t num_runs         = 1;
     double dt_switch              = 1.;
     const size_t max_order        = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config1);
+    const auto config             = Config::sir::get_config(Config::sir::ConfigType::Config1);
     const size_t num_regions      = 1;
     const double rel_switch_value = 1.0;
     if (num_regions != config.num_regions) {

@@ -39,7 +39,7 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t closure_order    = 3;
-    const auto config             = Config::get_config(Config::ConfigType::Config5);
+    const auto config             = Config::sir::get_config(Config::sir::ConfigType::Config5);
     const size_t num_regions      = 1;
     const double rel_switch_value = 0.3;
     double min_step_size          = 0.0001;
@@ -136,7 +136,7 @@ int main()
     }
 
     // Set switching condition - INPUT
-    mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
+    mio::hybrid::SwitchingCondition<num_regions, closure_order, decltype(config)> Condition;
     Condition.set_config(config);
     //Condition.set_rel_switch_threshold(rel_switch_value);
     Condition.set_mean_stddev_relation(0.3);

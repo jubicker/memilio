@@ -63,6 +63,18 @@ struct RecoveryRate {
     }
 };
 
+struct ImmunityLossRate {
+    using Type = mio::CustomIndexArray<ScalarType, mio::regions::Region>;
+    static Type get_default(mio::regions::Region size)
+    {
+        return Type(size, 0.0);
+    }
+    static std::string name()
+    {
+        return "ImmunityLossRate";
+    }
+};
+
 /**
  * @brief Spatial transition rate from region k to region l. Is dependent on infection state.
  */
@@ -80,7 +92,7 @@ struct TransitionRate {
     }
 };
 
-using ParametersBase = mio::ParameterSet<TransmissionRate, RecoveryRate, TransitionRate>;
+using ParametersBase = mio::ParameterSet<TransmissionRate, RecoveryRate, ImmunityLossRate, TransitionRate>;
 
 } // namespace smm_moments
 

@@ -33,14 +33,14 @@ namespace mio
 namespace hybrid
 {
 
-template <size_t num_regions, size_t closure_order>
+template <size_t num_regions, size_t closure_order, typename ConfigType>
 class SwitchingCondition
 {
-    inline static double m_rel_switch_threshold            = 0.1;
-    inline static double m_absolute_switch_threshold       = 100.;
-    inline static double m_mean_stddev_relation            = 0.6;
-    inline static double m_var_gradient_threshold          = -1;
-    inline static std::unique_ptr<Config::Config> m_config = nullptr;
+    inline static double m_rel_switch_threshold        = 0.1;
+    inline static double m_absolute_switch_threshold   = 100.;
+    inline static double m_mean_stddev_relation        = 0.6;
+    inline static double m_var_gradient_threshold      = -1;
+    inline static std::unique_ptr<ConfigType> m_config = nullptr;
 
 public:
     SwitchingCondition() = default;
@@ -50,9 +50,9 @@ public:
         m_rel_switch_threshold = value;
     }
 
-    static void set_config(const Config::Config& config)
+    static void set_config(const ConfigType& config)
     {
-        m_config = std::make_unique<Config::Config>(config);
+        m_config = std::make_unique<ConfigType>(config);
     }
 
     static void set_absolute_switch_threshold(double value)
@@ -228,7 +228,7 @@ public:
             if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
                     m_mean_stddev_relation ||
                 var_gradients[region * (int)mio::osir::InfectionState::Count +
-                              (int)mio::osir::InfectionState::Infected] > m_var_gradient_threshold) {
+                              (int)mio::osir::InfectionState::Infected] >= m_var_gradient_threshold) {
                 return false;
             }
             return true;
@@ -237,7 +237,9 @@ public:
             auto relations     = current_moment_relations(deterministic_model, 0.);
             auto var_gradients = current_moment_var_gradients(deterministic_model, 0.);
             if (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                m_mean_stddev_relation) {
+                    m_mean_stddev_relation &&
+                var_gradients[region * (int)mio::osir::InfectionState::Count +
+                              (int)mio::osir::InfectionState::Infected] > m_var_gradient_threshold) {
                 return true;
             }
             return false;

@@ -85,10 +85,12 @@ public:
             assert(ClosureOrder >= 2);
             double M_1SlIl =
                 ClosureOrder > 2 ? y[moments.flatten_index(indices) + populations.get_num_compartments()] : 0;
-            dydt[Sl] = -parameters.template get<TransmissionRate>()[Region(l)] * (y[Sl] * y[Il] + M_1SlIl);
+            dydt[Sl] = -parameters.template get<TransmissionRate>()[Region(l)] * (y[Sl] * y[Il] + M_1SlIl) +
+                       parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
             dydt[Il] = parameters.template get<TransmissionRate>()[Region(l)] * (y[Sl] * y[Il] + M_1SlIl) -
                        parameters.template get<RecoveryRate>()[Region(l)] * y[Il];
-            dydt[Rl] = parameters.template get<RecoveryRate>()[Region(l)] * y[Il];
+            dydt[Rl] = parameters.template get<RecoveryRate>()[Region(l)] * y[Il] -
+                       parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
             for (size_t k = 0; k < NumRegions; ++k) {
                 if (k == l) {
                     continue;
@@ -145,7 +147,7 @@ public:
                                     if (h_S_l + h_I_l == i_S_l + i_I_l) {
                                         continue;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_S_l_h_I_l_index                                               = indices;
                                     h_S_l_h_I_l_index[l * static_cast<size_t>(InfectionState::Count) +
                                                       static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
@@ -173,7 +175,7 @@ public:
                                     if (h_I_l + h_R_l == i_I_l + i_R_l) {
                                         continue;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_I_l_h_R_l_index                                             = indices;
                                     h_I_l_h_R_l_index[l * static_cast<size_t>(InfectionState::Count) +
                                                       static_cast<size_t>(InfectionState::Infected)]  = h_I_l;
@@ -195,6 +197,33 @@ public:
                                 } // h_R_l
                             } // h_I_l
 
+                            for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
+                                for (size_t h_R_l = 0; h_R_l <= i_R_l; ++h_R_l) {
+                                    if (h_S_l + h_R_l == i_S_l + i_R_l) {
+                                        continue;
+                                    }
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
+                                        h_S_l_h_R_l_index                                               = indices;
+                                    h_S_l_h_R_l_index[l * static_cast<size_t>(InfectionState::Count) +
+                                                      static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
+                                    h_S_l_h_R_l_index[l * static_cast<size_t>(InfectionState::Count) +
+                                                      static_cast<size_t>(InfectionState::Recovered)]   = h_R_l;
+                                    int current_order =
+                                        std::accumulate(h_S_l_h_R_l_index.begin(), h_S_l_h_R_l_index.end(), 0);
+                                    double M_h_S_l_h_R_l = int(ClosureOrder) > current_order
+                                                               ? y[moments.flatten_index(h_S_l_h_R_l_index) +
+                                                                   populations.get_num_compartments()]
+                                                               : m_closure_function(h_S_l_h_R_l_index, y, moments);
+                                    if (current_order == 0) {
+                                        M_h_S_l_h_R_l = 1.;
+                                    }
+                                    dydt[flat_index] += parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl] *
+                                                        boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
+                                                        boost::math::binomial_coefficient<double>(i_R_l, h_R_l) *
+                                                        std::pow(-1, i_R_l - h_R_l) * M_h_S_l_h_R_l;
+                                } // h_R_l
+                            } // h_S_l
+
                             for (size_t k = l + 1; k < NumRegions; ++k) {
                                 size_t Sk = this->populations.get_flat_index({Region(k), InfectionState::Susceptible});
                                 size_t Ik = this->populations.get_flat_index({Region(k), InfectionState::Infected});
@@ -210,7 +239,7 @@ public:
                                         if (h_S_l + h_S_k == i_S_l + i_S_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_S_l_h_S_k_index                                               = indices;
                                         h_S_l_h_S_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                           static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
@@ -244,7 +273,7 @@ public:
                                         if (h_I_l + h_I_k == i_I_l + i_I_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_I_l_h_I_k_index                                            = indices;
                                         h_I_l_h_I_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                           static_cast<size_t>(InfectionState::Infected)] = h_I_l;
@@ -278,7 +307,7 @@ public:
                                         if (h_R_l + h_R_k == i_R_l + i_R_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_R_l_h_R_k_index                                             = indices;
                                         h_R_l_h_R_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                           static_cast<size_t>(InfectionState::Recovered)] = h_R_l;
@@ -313,7 +342,7 @@ public:
                                     if (h_S_l + h_I_l == i_S_l + i_I_l) {
                                         continue;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_S_l_p1_h_I_l_index                                               = indices;
                                     h_S_l_p1_h_I_l_index[l * static_cast<size_t>(InfectionState::Count) +
                                                          static_cast<size_t>(InfectionState::Susceptible)] = h_S_l + 1;
@@ -329,7 +358,7 @@ public:
                                     if (current_order1 == 0) {
                                         M_h_S_l_p1_h_I_l = 1.;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_S_l_h_I_l_p1_index                                               = indices;
                                     h_S_l_h_I_l_p1_index[l * static_cast<size_t>(InfectionState::Count) +
                                                          static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
@@ -359,7 +388,7 @@ public:
                                     if (h_I_l + h_R_l == i_I_l + i_R_l) {
                                         continue;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_I_l_p1_h_R_l_index                                             = indices;
                                     h_I_l_p1_h_R_l_index[l * static_cast<size_t>(InfectionState::Count) +
                                                          static_cast<size_t>(InfectionState::Infected)]  = h_I_l + 1;
@@ -382,6 +411,34 @@ public:
                                 } // h_R_l
                             } // h_I_l
 
+                            for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
+                                for (size_t h_R_l = 0; h_R_l <= i_R_l; ++h_R_l) {
+                                    if (h_S_l + h_R_l == i_S_l + i_R_l) {
+                                        continue;
+                                    }
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
+                                        h_S_l_h_R_l_p1_index                                               = indices;
+                                    h_S_l_h_R_l_p1_index[l * static_cast<size_t>(InfectionState::Count) +
+                                                         static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
+                                    h_S_l_h_R_l_p1_index[l * static_cast<size_t>(InfectionState::Count) +
+                                                         static_cast<size_t>(InfectionState::Recovered)]   = h_R_l + 1;
+                                    int current_order =
+                                        std::accumulate(h_S_l_h_R_l_p1_index.begin(), h_S_l_h_R_l_p1_index.end(), 0);
+                                    double M_h_S_l_h_R_l_p1 =
+                                        int(ClosureOrder) > current_order
+                                            ? y[moments.flatten_index(h_S_l_h_R_l_p1_index) +
+                                                populations.get_num_compartments()]
+                                            : m_closure_function(h_S_l_h_R_l_p1_index, y, moments);
+                                    if (current_order == 0) {
+                                        M_h_S_l_h_R_l_p1 = 1.;
+                                    }
+                                    dydt[flat_index] += parameters.template get<ImmunityLossRate>()[Region(l)] *
+                                                        boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
+                                                        boost::math::binomial_coefficient<double>(i_R_l, h_R_l) *
+                                                        std::pow(-1, i_R_l - h_R_l) * M_h_S_l_h_R_l_p1;
+                                } // h_R_l
+                            } // h_S_l
+
                             for (size_t k = l + 1; k < NumRegions; ++k) {
                                 size_t i_S_k = indices[k * static_cast<size_t>(InfectionState::Count) +
                                                        static_cast<size_t>(InfectionState::Susceptible)];
@@ -394,7 +451,7 @@ public:
                                         if (h_S_l + h_S_k == i_S_l + i_S_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_S_l_p1_h_S_k_index = indices;
                                         h_S_l_p1_h_S_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Susceptible)] =
@@ -411,7 +468,7 @@ public:
                                         if (current_order1 == 0) {
                                             M_h_S_l_p1_h_S_k = 1.;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_S_l_h_S_k_p1_index = indices;
                                         h_S_l_h_S_k_p1_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
@@ -447,7 +504,7 @@ public:
                                         if (h_I_l + h_I_k == i_I_l + i_I_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_I_l_p1_h_I_k_index                                            = indices;
                                         h_I_l_p1_h_I_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_l + 1;
@@ -463,7 +520,7 @@ public:
                                         if (current_order1 == 0) {
                                             M_h_I_l_p1_h_I_k = 1.;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_I_l_h_I_k_p1_index                                            = indices;
                                         h_I_l_h_I_k_p1_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Infected)] = h_I_l;
@@ -497,7 +554,7 @@ public:
                                         if (h_R_l + h_R_k == i_R_l + i_R_k) {
                                             continue;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_R_l_p1_h_R_k_index = indices;
                                         h_R_l_p1_h_R_k_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Recovered)] =
@@ -514,7 +571,7 @@ public:
                                         if (current_order1 == 0) {
                                             M_h_R_l_p1_h_R_k = 1.;
                                         }
-                                        std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                        std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                             h_R_l_h_R_k_p1_index                                             = indices;
                                         h_R_l_h_R_k_p1_index[l * static_cast<size_t>(InfectionState::Count) +
                                                              static_cast<size_t>(InfectionState::Recovered)] = h_R_l;
@@ -550,7 +607,7 @@ public:
                                     if (h_S_l + h_I_l == i_S_l + i_I_l) {
                                         continue;
                                     }
-                                    std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions>
+                                    std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions>
                                         h_S_l_p1_h_I_l_p1_index = indices;
                                     h_S_l_p1_h_I_l_p1_index[l * static_cast<size_t>(InfectionState::Count) +
                                                             static_cast<size_t>(InfectionState::Susceptible)] =
@@ -576,7 +633,7 @@ public:
                                 } // h_I_l
                             } // h_S_l
                             // Rest
-                            std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> i_S_l_m1_index =
+                            std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions> i_S_l_m1_index =
                                 indices;
                             i_S_l_m1_index[l * static_cast<size_t>(InfectionState::Count) +
                                            static_cast<size_t>(InfectionState::Susceptible)] = i_S_l - 1;
@@ -593,7 +650,7 @@ public:
                             }
                             dydt[flat_index] -= i_S_l * dydt[Sl] * M_i_S_l_m1;
 
-                            std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> i_I_l_m1_index =
+                            std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions> i_I_l_m1_index =
                                 indices;
                             i_I_l_m1_index[l * static_cast<size_t>(InfectionState::Count) +
                                            static_cast<size_t>(InfectionState::Infected)] = i_I_l - 1;
@@ -610,7 +667,7 @@ public:
                             }
                             dydt[flat_index] -= i_I_l * dydt[Il] * M_i_I_l_m1;
 
-                            std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> i_R_l_m1_index =
+                            std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions> i_R_l_m1_index =
                                 indices;
                             i_R_l_m1_index[l * static_cast<size_t>(InfectionState::Count) +
                                            static_cast<size_t>(InfectionState::Recovered)] = i_R_l - 1;

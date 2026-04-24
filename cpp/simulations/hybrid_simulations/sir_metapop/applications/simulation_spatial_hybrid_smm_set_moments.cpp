@@ -41,8 +41,8 @@ int main()
     const size_t num_runs      = 10000;
     double dt_exchange         = 1.;
     const size_t closure_order = 3;
-    const auto config          = Config::get_config(Config::ConfigType::Config2);
-    const size_t num_regions   = 1;
+    const auto config          = Config::sir::get_config(Config::sir::ConfigType::Config4regionsTransmNoExchange);
+    const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
 
     if (num_regions != config.num_regions) {
@@ -81,15 +81,15 @@ int main()
     save_file += "/";
 
     // Create spatial-hybrid simulation - INPUT: Closure function
-    mio::hybrid::SpatialHybridSimulation<num_regions, closure_order> spatial_hybrid_sim(
+    mio::hybrid::SpatialHybridSimulation<num_regions, closure_order, decltype(config)> spatial_hybrid_sim(
         config, num_runs, min_step_size, dt_exchange,
         &mio::smm_moments::truncation_closure<num_regions, closure_order>);
 
     // Create switching condition - INPUT: threshold value etc. for condition
-    mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
+    mio::hybrid::SwitchingCondition<num_regions, closure_order, decltype(config)> Condition;
     Condition.set_config(config);
     Condition.set_mean_stddev_relation(0.25);
-    Condition.set_var_gradient_threshold(-1.);
+    Condition.set_var_gradient_threshold(0.);
 
     mio::timing::BasicTimer timer;
     timer.start();
