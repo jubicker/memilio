@@ -393,6 +393,12 @@ private:
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] =
                 m_config->gamma;
+            if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+                // Set immunity loss rate for sirs
+                m_moment_simulation.get_model()
+                    .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] =
+                    m_config->nu;
+            }
 
             for (auto& rate : m_config->transition_rates) {
                 if (rate.from == mio::regions::Region(region)) {
@@ -510,6 +516,11 @@ private:
                         if (rate.from == mio::osir::InfectionState::Infected) {
                             rate.factor = m_config->gamma;
                         }
+                        if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+                            if (rate.from == mio::osir::InfectionState::Recovered) {
+                                rate.factor = m_config->nu;
+                            }
+                        }
                     }
                 }
 
@@ -570,6 +581,11 @@ private:
                 .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] = 0.0;
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] = 0.0;
+            if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+                // Set immunity loss rate for sirs
+                m_moment_simulation.get_model()
+                    .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] = 0.;
+            }
 
             for (auto& rate : m_config->transition_rates) {
                 if (rate.from == mio::regions::Region(region)) {
@@ -785,6 +801,7 @@ private:
 
         model.parameters.template get<mio::smm_moments::TransmissionRate>() = 0.0;
         model.parameters.template get<mio::smm_moments::RecoveryRate>()     = 0.0;
+        model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
 
         MomentSim sim(model, m_config->t0, m_config->dt);
         if (min_step_size > 0) {
