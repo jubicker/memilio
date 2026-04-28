@@ -263,7 +263,7 @@ std::pair<mio::TimeSeries<ScalarType>, std::vector<std::string>>
 calculate_moments_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarType>>>& sim_results)
 {
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, Order> moments;
-    mio::TimeSeries<double> moment_ts(moments.moments_up_to_order(Order).size());
+    mio::TimeSeries<double> moment_ts(moments.get_indices().size());
     for (int t = 0; t < sim_results[0][0].get_num_time_points(); ++t) {
         Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions>
             result =
@@ -285,30 +285,12 @@ calculate_moments_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarT
             }
         }
 
-        std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions>
-            indices; // Vector holding the
-        std::function<void(int, int)> fill_moments =
-            [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
-                if (pos == int(indices.size()) &&
-                    std::accumulate(indices.begin(), indices.end(), 0) <=
-                        Order) { // Position is at last index i.e. all indiced for the moment are filled
-                    moments[indices] = calculate_moment<NumRegions>(result, indices);
-                    return;
-                }
-
-                int maxAllowedHere = std::min(Order, Order - currentSum); //maximum allowed value for current index
-                for (int v = 0; v <= maxAllowedHere; ++v) { // Iterate over all values allowed for the current index
-                    indices[pos] = v;
-                    int newSum   = currentSum + v; // Increase sum by current index
-                    fill_moments(
-                        pos + 1,
-                        newSum); // This triggers the next index to take all possible values given the value of the current index
-                }
-            };
-
-        fill_moments(0, 0); // Start with first index and sum 0
+        auto& indices = moments.get_indices();
+        for (auto& idx : indices) {
+            moments[idx] = calculate_moment<NumRegions>(result, indices);
+        }
         // Get only moments up to the given order
-        auto moment_values   = moments.moments_up_to_order(Order);
+        auto moment_values   = moments.get_values();
         Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
         moment_ts.add_time_point(sim_results[0][0].get_time(t), data);
     }

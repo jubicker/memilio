@@ -21,8 +21,12 @@
 #ifndef MOMENT_ARRAY_H
 #define MOMENT_ARRAY_H
 
+#include <Eigen/src/Core/Array.h>
+#include <boost/math/tools/mp.hpp>
 #include <cmath>
 #include <cstddef>
+#include <map>
+#include <numeric>
 #include <string>
 #include <vector>
 #include "memilio/math/eigen.h"
@@ -31,44 +35,52 @@
  * @brief A class template for a moment array.
  * @tparam NumInfectionStates Number of infection states in the model.
  * @tparam NumRegions Number of regions in the model; there is one index per infection state and region.
- * @tparam MaxIndex Maximum value each index can take; determines the maximum order of moments that can be stored.
+ * @tparam MaxOrder Maximum order of moments that can be stored.
  */
-template <size_t NumInfectionStates, size_t NumRegions, size_t MaxIndex>
+template <size_t NumInfectionStates, size_t NumRegions, size_t MaxOrder>
 class MomentArray
 {
 public:
-    using ArrayType = Eigen::Array<double, Eigen::Dynamic, 1>;
+    using ArrayType  = Eigen::Array<double, Eigen::Dynamic, 1>;
+    using MultiIndex = std::array<int, NumInfectionStates * NumRegions>;
 
     MomentArray()
-        : m_moments(ArrayType::Constant(std::pow(MaxIndex + 1, NumInfectionStates * NumRegions), 1, 0.))
     {
-    }
-
-    /**
-     * @brief Takes an array of indices (one for each subpopulation/species i.e. one per region and infection state) and calculates the flat index of the corresponding moment.
-     */
-    size_t flatten_index(const std::array<int, NumInfectionStates * NumRegions>& indices) const
-    {
-        size_t index = 0;
-        for (size_t i = 0; i < indices.size(); ++i) {
-            index = index * (MaxIndex + 1) + indices[i];
+        // Once add all MultiIndices with order <= MaxOrder to m_indices
+        MultiIndex idx{};
+        fill_indices(0, 0, idx);
+        // Initialize moments with correct size
+        m_moments = ArrayType::Zero(m_indices.size());
+        // Hash lookup for flat index
+        for (size_t i = 0; i < m_indices.size(); ++i) {
+            m_lookup[m_indices[i]] = i;
         }
-        return index;
+        // Calculate orders
+        m_orders.reserve(m_indices.size());
+        for (auto& m : m_indices) {
+            m_orders.push_back(std::accumulate(m.begin(), m.end(), 0));
+        }
+        // Fill moment names
+        m_names.reserve(m_indices.size());
+        fill_moment_names();
     }
 
     /**
-     * @brief Inversion function to flatten_index. Takes a flat index and calculates the multiindex of the corresponding moment.
+     * @brief Takes an array of indices (One per region and infection state) and returns the flat index of the corresponding moment.
      */
-    std::array<int, NumInfectionStates * NumRegions> unflatten_index(size_t flat_index)
+    size_t flatten_index(const MultiIndex& idx) const
+    {
+        return m_lookup.at(idx);
+    }
+
+    /**
+     * @brief Inversion function to flatten_index. Takes a flat index and returns the multi-index of the corresponding moment.
+     */
+    MultiIndex unflatten_index(size_t flat_index) const
     {
         assert(flat_index < static_cast<size_t>(m_moments.rows()) &&
                "Flat index is bigger than number of moments for given order.");
-        std::array<int, NumInfectionStates * NumRegions> indices{};
-        for (size_t i = 0; i < indices.size(); ++i) {
-            indices[NumInfectionStates * NumRegions - 1 - i] = flat_index % (MaxIndex + 1);
-            flat_index /= (MaxIndex + 1);
-        }
-        return indices;
+        return m_indices[flat_index];
     }
 
     /**
@@ -85,97 +97,103 @@ public:
     }
 
     /**
-     * @brief Returns a vector of the moments up to a given order.
-     * @param[in] order Maximum order of moments to be returned.
+     * @brief Returns MultiIndex vector for given moments.
      */
-    std::vector<double> moments_up_to_order(int order)
+    const std::vector<MultiIndex>& get_indices() const
     {
-        std::vector<double> moments;
-        for (size_t i = 0; i < static_cast<size_t>(m_moments.rows()); ++i) {
-            auto multi_idx = unflatten_index(i);
-            int sum        = 0;
-            for (auto&& idx : multi_idx) {
-                sum += idx;
-            }
-            if (sum <= order) {
-                moments.push_back(m_moments[i]);
-            }
-        }
-        return moments;
+        return m_indices;
+    }
+
+    /*
+     * @brief Returns MultiIndex at position flat_index. 
+     */
+    MultiIndex& index(size_t flat_index) const
+    {
+        return m_indices[flat_index];
     }
 
     /**
-     * @brief Returns a vector of the moment names up to a given order. Corresponds to moments calculated by moments_up_to_order.
-     * @param[in] order Maximum order of moment names to be returned.
+     * @brief Returns MultiIndex strings for given moments.
      */
-    std::vector<std::string> names_up_to_order(int order)
+    const std::vector<std::string>& get_names() const
     {
-        std::vector<std::string> names;
-        for (size_t i = 0; i < static_cast<size_t>(m_moments.rows()); ++i) {
-            auto multi_idx = unflatten_index(i);
-            int sum        = 0;
-            for (auto&& idx : multi_idx) {
-                sum += idx;
-            }
-            if (sum <= order) {
-                std::string moment_name = "M";
-                for (auto&& idx : multi_idx) {
-                    moment_name += std::to_string(idx);
-                }
-                names.push_back(moment_name);
-            }
-        }
-        return names;
+        return m_names;
     }
 
     /**
-     * @brief Returns a vector of the moment indices up to a given order. Corresponds to moments calculated by moments_up_to_order.
-     * @param[in] order Maximum order of moment names to be returned.
+     * @brief Returns orders for given moments.
      */
-    std::vector<std::array<int, NumInfectionStates * NumRegions>> multiindex_up_to_order(int order)
+    const std::vector<size_t>& get_order() const
     {
-        std::vector<std::array<int, NumInfectionStates * NumRegions>> indices;
-        for (size_t i = 0; i < static_cast<size_t>(m_moments.rows()); ++i) {
-            auto multi_idx = unflatten_index(i);
-            int sum        = 0;
-            for (auto&& idx : multi_idx) {
-                sum += idx;
-            }
-            if (sum <= order) {
-                indices.push_back(multi_idx);
-            }
-        }
-        return indices;
+        return m_orders;
     }
 
     /**
-     * @brief Returns the array entry (moment value) given a multiindex.
+     * @brief Returns order of moment at position flat_index.
+     */
+    size_t order(size_t flat_index) const
+    {
+        return m_orders[flat_index];
+    }
+
+    /**
+     * @brief Returns moment values.
+     */
+    ArrayType get_values() const
+    {
+        return m_moments;
+    }
+
+    /**
+     * @brief Returns the array entry (moment value) given a multi-index.
      */
     double& operator[](const std::array<int, NumInfectionStates * NumRegions>& indices)
     {
         return m_moments[flatten_index(indices)];
     }
 
+private:
     /**
-     * @brief Returns a vector of the moment names in the same order as they are stored in m_moments.
+     * @brief Recursively adds all MultiIndices with order <= MaxOrder to m_indices vector.
+     * @param[in] pos Current position in MultiInddex that is to fill.
+     * @param[in] sum Sum of the MultiIndex positions 0,...,pos-1 that have already been set.
+     * @param[in, out] idx Current MultiIndex whose values 0,..,pos-1 have already been filled. Is added to m_indices when fully filled.
      */
-    std::vector<std::string> get_names()
+    void fill_indices(size_t pos, size_t sum, MultiIndex& idx)
     {
-
-        std::vector<std::string> names(m_moments.rows());
-        for (size_t index = 0; index < static_cast<size_t>(m_moments.rows()); ++index) {
-            std::string moment_name = "M";
-            auto multi_idx          = unflatten_index(index);
-            for (auto&& i : multi_idx) {
-                moment_name += std::to_string(i);
-            }
-            names[index] = moment_name;
+        if (pos == NumInfectionStates * NumRegions) {
+            // full multi-index
+            m_indices.push_back(idx);
+            return;
         }
-        return names;
+
+        const size_t maxAllowed = MaxOrder - sum;
+        for (size_t v = 0; v <= maxAllowed; ++v) {
+            idx[pos] = v;
+            fill_indices(pos + 1, sum + v, idx);
+        }
     }
 
-private:
-    ArrayType m_moments;
+    /**
+     * @brief Returns multi-indices as string for given moments.
+     */
+    void fill_moment_names()
+    {
+        for (const auto& m : m_indices) {
+            std::string moment_name = "M";
+            for (auto&& idx : m) {
+                moment_name += std::to_string(idx);
+            }
+            m_names.push_back(moment_name);
+        }
+    }
+
+    std::vector<MultiIndex> m_indices; ///< Multi-index of all moments with order <= MaxOrder.
+    std::vector<std::string> m_names; ///< m_indices as string vector.
+    std::vector<size_t> m_orders; ///< Orders of all moments considered.
+    std::map<MultiIndex, size_t>
+        m_lookup; ///< Map that maps a moment's multi-index to its corresponding flat index in m_moments.
+    ArrayType m_moments; ///< Array containing all moment values.
 };
 
 #endif //MOMENT_ARRAY_H

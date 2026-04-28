@@ -29,6 +29,7 @@
 #include "memilio/utils/time_series.h"
 #include <cassert>
 #include <cstddef>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -100,43 +101,18 @@ public:
     std::pair<mio::TimeSeries<double>, std::vector<std::string>> get_moment_time_series(size_t order)
     {
         assert(order <= ClosureOrder);
-        mio::TimeSeries<double> moment_ts(Base::get_model().moments.moments_up_to_order(order).size());
-        std::vector<std::string> moment_names;
+        mio::TimeSeries<double> moment_ts(Base::get_model().moments.get_indices().size());
         // Add first moments and fill name vector
         size_t index               = 0;
         Eigen::VectorXd moment_vec = Eigen::VectorXd::Zero(moment_ts.get_num_elements());
-        auto y0                    = Base::get_result().get_value(0);
-        for (size_t i = 0; i < y0.size() - Base::get_model().populations.get_num_compartments(); i++) {
-            auto multi_idx = Base::get_model().moments.unflatten_index(i);
-            int sum        = 0;
-            for (auto&& idx : multi_idx) {
-                sum += idx;
-            }
-            if (sum <= int(order)) {
-                std::string moment_name = "M";
-                for (auto&& idx : multi_idx) {
-                    moment_name += std::to_string(idx);
-                }
-                moment_names.push_back(moment_name);
-                moment_vec(index) = y0[Base::get_model().populations.get_num_compartments() + i];
-                index++;
-                if (index == static_cast<size_t>(moment_vec.size())) {
-                    break;
-                }
-            }
-        }
-        moment_ts.add_time_point(Base::get_result().get_time(0), moment_vec);
         // Add remaining time points
-        for (auto t = 1; t < Base::get_result().get_num_time_points(); ++t) {
+        for (auto t = 0; t < Base::get_result().get_num_time_points(); ++t) {
             index      = 0;
             moment_vec = Eigen::VectorXd::Zero(moment_ts.get_num_elements());
             auto y     = Base::get_result().get_value(t);
             for (size_t i = 0; i < y.size() - Base::get_model().populations.get_num_compartments(); i++) {
                 auto multi_idx = Base::get_model().moments.unflatten_index(i);
-                int sum        = 0;
-                for (auto&& idx : multi_idx) {
-                    sum += idx;
-                }
+                int sum        = std::accumulate(multi_idx.begin(), multi_idx.end(), 0);
                 if (sum <= int(order)) {
                     moment_vec(index) = y[Base::get_model().populations.get_num_compartments() + i];
                     index++;
@@ -147,7 +123,7 @@ public:
             }
             moment_ts.add_time_point(Base::get_result().get_time(t), moment_vec);
         }
-        return std::make_pair(moment_ts, moment_names);
+        return std::make_pair(moment_ts, Base::get_model().moments.get_names());
     }
 
     /**

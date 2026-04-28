@@ -72,8 +72,7 @@ public:
         , m_dt(dt)
         , m_t(t0)
     {
-        m_moments       = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
-        m_moments_names = m_mom_array.names_up_to_order(MaxMomentOrder);
+        m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
 
         u_int32_t seed = 0;
         for (size_t run = 0; run < num_runs; ++run) {
@@ -224,11 +223,11 @@ public:
      */
     std::vector<std::string> get_moment_names()
     {
-        return m_moments_names;
+        return m_mom_array.get_names();
     }
     const std::vector<std::string> get_moment_names() const
     {
-        return m_moments_names;
+        return m_mom_array.get_names();
     }
 
     /**
@@ -315,31 +314,11 @@ private:
                     }
                 }
             }
-
-            std::array<int, num_elements> indices; // Vector with current indices
-            std::function<void(int, int)> fill_moments =
-                [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
-                    if (pos == int(indices.size()) &&
-                        std::accumulate(indices.begin(), indices.end(), 0) <=
-                            int(MaxMomentOrder)) { // Position is at last index i.e. all indiced for the moment are filled
-                        m_mom_array[indices] = calculate_moment(result, indices);
-                        return;
-                    }
-
-                    int maxAllowedHere =
-                        std::min(MaxMomentOrder, MaxMomentOrder - currentSum); //maximum allowed value for current index
-                    for (int v = 0; v <= maxAllowedHere; ++v) { // Iterate over all values allowed for the current index
-                        indices[pos] = v;
-                        int newSum   = currentSum + v; // Increase sum by current index
-                        fill_moments(
-                            pos + 1,
-                            newSum); // This triggers the next index to take all possible values given the value of the current index
-                    }
-                };
-
-            fill_moments(0, 0); // Start with first index and sum 0
-            // Get only moments up to the given order
-            auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
+            auto& indices = m_mom_array.get_indices();
+            for (auto& idx : indices) {
+                m_mom_array[idx] = calculate_moment(result, idx);
+            }
+            auto moment_values   = m_mom_array.get_values();
             Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
             m_moments.add_time_point(m_results[0].get_time(t), data);
             m_t_index += 1;
@@ -352,7 +331,6 @@ private:
     std::vector<TimeSeries<double>> m_results; ///< Interpolated simulation results.
     TimeSeries<double> m_means; ///< Time series of means.
     TimeSeries<double> m_moments; ///< Time series of all moments up to MaxMomentOrder.
-    std::vector<std::string> m_moments_names; ///< Moment names as they are saved in m_moments.
     std::vector<double> m_sim_time; ///< Simulation time per run.
     double m_dt; ///< Interpolation time step.
     double m_t; ///< Current time.

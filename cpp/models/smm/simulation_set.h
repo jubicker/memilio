@@ -76,9 +76,7 @@ public:
             m_sims.push_back(Simulation(m, t0, dt));
             seed++;
         }
-        m_moments        = TimeSeries<double>(m_mom_array.names_up_to_order(MaxMomentOrder).size());
-        m_moment_names   = m_mom_array.names_up_to_order(MaxMomentOrder);
-        m_moment_indices = m_mom_array.multiindex_up_to_order(MaxMomentOrder);
+        m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
 
         // Add initial values to results
         auto& sim_ts = m_sims[0].get_result();
@@ -222,17 +220,16 @@ public:
     std::vector<double> get_last_vars()
     {
         std::vector<double> vars(static_cast<size_t>(osir::InfectionState::Count) * regions);
-        for (size_t i = 0; i < m_moment_names.size(); ++i) {
-            bool is_var = std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '2') == 1 &&
-                          std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '0') ==
+        auto& names = m_mom_array.get_names();
+        for (size_t i = 0; i < names.size(); ++i) {
+            bool is_var = std::count(names[i].begin(), names[i].end(), '2') == 1 &&
+                          std::count(names[i].begin(), names[i].end(), '0') ==
                               static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
             if (!is_var) {
                 continue;
             }
-            size_t index = std::distance(m_moment_names[i].begin(),
-                                         std::find(m_moment_names[i].begin(), m_moment_names[i].end(), '2')) -
-                           1;
-            vars[index] = m_moments.get_last_value()[i];
+            size_t index = std::distance(names[i].begin(), std::find(names[i].begin(), names[i].end(), '2')) - 1;
+            vars[index]  = m_moments.get_last_value()[i];
         }
         return vars;
     }
@@ -243,16 +240,15 @@ public:
     std::vector<double> get_last_var_gradients()
     {
         std::vector<double> vars_gradient(static_cast<size_t>(osir::InfectionState::Count) * regions);
-        for (size_t i = 0; i < m_moment_names.size(); ++i) {
-            bool is_var = std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '2') == 1 &&
-                          std::count(m_moment_names[i].begin(), m_moment_names[i].end(), '0') ==
+        auto& names = m_mom_array.get_names();
+        for (size_t i = 0; i < names.size(); ++i) {
+            bool is_var = std::count(names[i].begin(), names[i].end(), '2') == 1 &&
+                          std::count(names[i].begin(), names[i].end(), '0') ==
                               static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
             if (!is_var) {
                 continue;
             }
-            size_t index = std::distance(m_moment_names[i].begin(),
-                                         std::find(m_moment_names[i].begin(), m_moment_names[i].end(), '2')) -
-                           1;
+            size_t index = std::distance(names[i].begin(), std::find(names[i].begin(), names[i].end(), '2')) - 1;
             auto last_tp = m_moments.get_last_time();
             if (m_moments.get_num_time_points() > 1) {
                 auto second_last_tp_index = m_moments.get_num_time_points() - 2;
@@ -273,11 +269,11 @@ public:
      */
     std::vector<std::string> get_moment_names()
     {
-        return m_moment_names;
+        return m_mom_array.get_names();
     }
     const std::vector<std::string> get_moment_names() const
     {
-        return m_moment_names;
+        return m_mom_array.get_names();
     }
 
     /**
@@ -285,11 +281,11 @@ public:
      */
     std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>> get_moment_indices()
     {
-        return m_moment_indices;
+        return m_mom_array.get_indices();
     }
     const std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>> get_moment_indices() const
     {
-        return m_moment_indices;
+        return m_mom_array.get_indices();
     }
 
     /**
@@ -373,30 +369,12 @@ public:
             }
         }
 
-        std::array<int, num_elements> indices; // Vector with current indices
-        std::function<void(int, int)> fill_moments =
-            [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
-                if (pos == int(indices.size()) &&
-                    std::accumulate(indices.begin(), indices.end(), 0) <=
-                        int(MaxMomentOrder)) { // Position is at last index i.e. all indiced for the moment are filled
-                    m_mom_array[indices] = calculate_moment(result, indices);
-                    return;
-                }
-
-                int maxAllowedHere =
-                    std::min(MaxMomentOrder, MaxMomentOrder - currentSum); //maximum allowed value for current index
-                for (int v = 0; v <= maxAllowedHere; ++v) { // Iterate over all values allowed for the current index
-                    indices[pos] = v;
-                    int newSum   = currentSum + v; // Increase sum by current index
-                    fill_moments(
-                        pos + 1,
-                        newSum); // This triggers the next index to take all possible values given the value of the current index
-                }
-            };
-
-        fill_moments(0, 0); // Start with first index and sum 0
+        auto& indices = m_mom_array.get_indices();
+        for (auto& idx : indices) {
+            m_mom_array[idx] = calculate_moment(result, idx);
+        }
         // Get only moments up to the given order
-        auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
+        auto moment_values   = m_mom_array.get_values();
         Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
         if (m_moments.get_num_time_points() == 0 || m_moments.get_last_time() < m_results[0].get_last_time()) {
             m_moments.add_time_point(m_results[0].get_last_time(), data);
@@ -453,30 +431,12 @@ private:
                 }
             }
 
-            std::array<int, num_elements> indices; // Vector with current indices
-            std::function<void(int, int)> fill_moments =
-                [&](int pos, int currentSum) { // pos: current position in indices, currentSum: sum of indices so far
-                    if (pos == int(indices.size()) &&
-                        std::accumulate(indices.begin(), indices.end(), 0) <=
-                            int(MaxMomentOrder)) { // Position is at last index i.e. all indiced for the moment are filled
-                        m_mom_array[indices] = calculate_moment(result, indices);
-                        return;
-                    }
-
-                    int maxAllowedHere =
-                        std::min(MaxMomentOrder, MaxMomentOrder - currentSum); //maximum allowed value for current index
-                    for (int v = 0; v <= maxAllowedHere; ++v) { // Iterate over all values allowed for the current index
-                        indices[pos] = v;
-                        int newSum   = currentSum + v; // Increase sum by current index
-                        fill_moments(
-                            pos + 1,
-                            newSum); // This triggers the next index to take all possible values given the value of the current index
-                    }
-                };
-
-            fill_moments(0, 0); // Start with first index and sum 0
+            auto& indices = m_mom_array.get_indices();
+            for (auto& idx : indices) {
+                m_mom_array[idx] = calculate_moment(result, idx);
+            }
             // Get only moments up to the given order
-            auto moment_values   = m_mom_array.moments_up_to_order(MaxMomentOrder);
+            auto moment_values   = m_mom_array.get_values();
             Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
             m_moments.add_time_point(m_results[0].get_time(t), data);
             m_t_index += 1;
@@ -514,9 +474,6 @@ private:
     TimeSeries<double> m_means; ///< Time series of means.
     TimeSeries<double> m_moments; ///< Time series of all moments up to MaxMomentOrder.
     std::vector<TimeSeries<ScalarType>> m_results; ///< Interpolated simulation results.
-    std::vector<std::string> m_moment_names; ///< Moment names as they are saved in m_moments.
-    std::vector<std::array<int, static_cast<size_t>(Status::Count) * regions>>
-        m_moment_indices; ///< Moment indices as they are saved in m_moments.
     double m_dt; ///< Interpolation time step.
     double m_t; ///< Current time.
     int m_t_index; ///< Current result time point index.
