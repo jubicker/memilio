@@ -91,20 +91,16 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
         }
     }
 
-    // Update mean timeseries in both regions
+    // Update mean and moment timeseries in both regions
     mean_from.remove_last_time_point();
-    model_from.recalculate_last_mean();
     auto& mean_to = model_to.get_mean();
     mean_to.remove_last_time_point();
-    model_to.recalculate_last_mean();
-
-    // Update moments in both regions
     auto& moments_from = model_from.get_moments();
     moments_from.remove_last_time_point();
-    model_from.recalculate_last_moments();
     auto& moments_to = model_to.get_moments();
     moments_to.remove_last_time_point();
-    model_to.recalculate_last_moments();
+    model_from.recalculate_last_means_and_moments();
+    model_to.recalculate_last_means_and_moments();
 }
 
 /**
@@ -271,9 +267,8 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
 
     //Reset and update mean and moment ts of simulation set
     mean_smm_set.remove_last_time_point();
-    model_from.recalculate_last_mean();
     moments_smm_set.remove_last_time_point();
-    model_from.recalculate_last_moments();
+    model_from.recalculate_last_means_and_moments();
 }
 
 /**
@@ -341,9 +336,8 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from,
 
     // Update mean and moment ts of simulation set
     model_to.get_mean().remove_last_time_point();
-    model_to.recalculate_last_mean();
     model_to.get_moments().remove_last_time_point();
-    model_to.recalculate_last_moments();
+    model_to.recalculate_last_means_and_moments();
 
     // Set means and moments in region to in moment model to zero
     for (size_t index = 0; index < static_cast<size_t>(moment_result.get_num_elements()); ++index) {

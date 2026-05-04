@@ -39,11 +39,15 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <math.h>
 #include <memory>
 #include <numeric>
 #include <utility>
 #include <vector>
 #include <unordered_set>
+
+#include <boost/math/tools/roots.hpp>
+#include <boost/math/distributions/normal.hpp>
 
 namespace mio
 {
@@ -83,7 +87,8 @@ public:
      * @param[in] tmax Simulation end time point.
      * @param[in] condition Switching condition for determining when to switch a region between stochastic and deterministic modeling.
      */
-    void advance(double tmax, const switching_condition& condition, bool log_model_used = false)
+    template <typename Condition>
+    void advance(double tmax, Condition&& condition, bool log_model_used = false)
     {
         while (m_t < tmax) {
             // Evaluate switching conditions for all stochastic regions
@@ -351,6 +356,7 @@ private:
         }
         auto& stochastic_sims    = m_stochastic_simulation.get_simulations();
         auto& stochastic_results = m_stochastic_simulation.get_result();
+
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
@@ -372,13 +378,11 @@ private:
             }
         }
 
-        //Reset and update mean and moment ts of simulation set
-        auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
-        auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
-        stochastic_model_means.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_mean();
-        stochastic_model_moments.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_moments();
+        // Set means and moments in corresponding regions to zero
+        for (size_t region_to : regions_to_switch) {
+            m_stochastic_simulation.remove_means_for_region(region_to);
+            m_stochastic_simulation.remove_moments_for_region(region_to);
+        }
     }
 
     void set_rates_in_moment_model(const std::unordered_set<size_t>& regions_to_switch)
@@ -450,6 +454,32 @@ private:
                 assert(m_stochastic_simulation.get_mean()
                            .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] ==
                        0.); // Check that region is not already modeled in stochastic model
+
+                // Get current mean and variance from moment model for region and state
+                double mean = moment_results[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
+                std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
+                indices_var.fill(0);
+                indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] = 2;
+                double std =
+                    std::sqrt(moment_results[m_moment_simulation.get_model().populations.get_num_compartments() +
+                                             m_moment_simulation.get_model().moments.flatten_index(indices_var)]);
+                if (mean - 3 * std < 0) {
+                    auto new_params = calculate_trunc_normal_params(0., mean, std);
+                    double l_old    = lambda(-mean / std);
+                    double old_m    = mean + std * l_old;
+                    double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
+                    double l_new    = lambda(-new_params.first / new_params.second);
+                    double new_m    = new_params.first + new_params.second * l_new;
+                    double new_s    = new_params.second * new_params.second *
+                                   (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                    if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
+                        mean = new_params.first;
+                    }
+                    if (std::abs(std - old_s) > std::abs(std - new_s)) {
+                        std = new_params.second;
+                    }
+                }
+                double rounding_err = 0.;
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
@@ -457,32 +487,33 @@ private:
                     auto& sim_result = stochastic_sims[sim].get_result();
                     auto& sim_pop    = stochastic_sims[sim].get_model().populations;
 
-                    // Get current mean and variance from moment model for region and state
-                    const double mean =
-                        moment_results[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
-                    std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
-                    indices_var.fill(0);
-                    indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] = 2;
-                    const double var =
-                        moment_results[m_moment_simulation.get_model().populations.get_num_compartments() +
-                                       m_moment_simulation.get_model().moments.flatten_index(indices_var)];
                     // Sample number of agents for stochastic trajectory normally distributed
                     double sim_value =
-                        std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                         stochastic_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
+                        sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                    while (sim_value < 0) {
+                        sim_value = sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                        // sim_value = mio::NormalDistribution<double>::get_instance()(
+                        //     stochastic_sims[sim].get_model().get_rng(), mean, std);
+                    }
+                    if (correct_for_rounding_error && rounding_err != 0.) {
+                        sim_value += rounding_err;
+                        rounding_err = 0.;
+                    }
+                    double sim_value_rounded = std::max(0., std::round(sim_value));
+                    rounding_err += sim_value - sim_value_rounded;
                     // Set population in Simulation object
-                    sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(state)}] = sim_value;
+                    sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(state)}] = sim_value_rounded;
 
                     // Set sampled value in SMMSet result object
                     assert(m_moment_simulation.get_result().get_last_time() == stochastic_results[sim].get_last_time());
                     stochastic_results[sim]
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] =
-                        sim_value;
+                        sim_value_rounded;
                     // Set sampled value in Simulation object
                     assert(m_moment_simulation.get_result().get_last_time() == sim_result.get_last_time());
                     sim_result
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] =
-                        sim_value;
+                        sim_value_rounded;
                 }
             }
         }
@@ -491,9 +522,8 @@ private:
         auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
         auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
         stochastic_model_means.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_mean();
         stochastic_model_moments.remove_last_time_point();
-        m_stochastic_simulation.recalculate_last_moments();
+        m_stochastic_simulation.recalculate_last_means_and_moments();
     }
 
     void set_rates_in_stochastic_model(const std::unordered_set<size_t>& regions_to_switch)
@@ -605,7 +635,7 @@ private:
         for (size_t region : m_stochastic_regions) {
             bool region_exchanged = false;
             for (size_t state = 0; state < static_cast<size_t>(mio::osir::InfectionState::Count); ++state) {
-                const double mean =
+                double mean =
                     moment_results
                         .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state];
                 if (mean <= 0.) { // No agents to exchange for this region and state
@@ -617,20 +647,47 @@ private:
                     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> indices_var;
                     indices_var.fill(0);
                     indices_var[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] = 2;
-                    const double var =
+                    double std                                                                          = std::sqrt(
                         moment_results
                             .get_last_value()[m_moment_simulation.get_model().populations.get_num_compartments() +
-                                              m_moment_simulation.get_model().moments.flatten_index(indices_var)];
+                                              m_moment_simulation.get_model().moments.flatten_index(indices_var)]);
+                    if (mean - 3 * std < 0) {
+                        auto new_params = calculate_trunc_normal_params(0., mean, std);
+                        double l_old    = lambda(-mean / std);
+                        double old_m    = mean + std * l_old;
+                        double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
+                        double l_new    = lambda(-new_params.first / new_params.second);
+                        double new_m    = new_params.first + new_params.second * l_new;
+                        double new_s    = new_params.second * new_params.second *
+                                       (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                        if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
+                            mean = new_params.first;
+                        }
+                        if (std::abs(std - old_s) > std::abs(std - new_s)) {
+                            std = new_params.second;
+                        }
+                    }
+                    double rounding_err = 0.;
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
                     for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
                         auto& sim_result = stochastic_sims[sim].get_result();
                         auto& sim_pop    = stochastic_sims[sim].get_model().populations;
+
                         // Sample number of incoming agents for simulation
                         double sim_value =
-                            std::max(0., std::round(mio::NormalDistribution<double>::get_instance()(
-                                             stochastic_sims[sim].get_model().get_rng(), mean, std::sqrt(var))));
+                            sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                        while (sim_value < 0) {
+                            sim_value =
+                                sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                        }
+                        if (correct_for_rounding_error && rounding_err != 0.) {
+                            sim_value += rounding_err;
+                            rounding_err = 0.;
+                        }
+                        double sim_value_rounded = std::max(0., std::round(sim_value));
+                        rounding_err += sim_value - sim_value_rounded;
 
                         // Assert time last time point of moment and stochastic simulation is the same
                         assert(m_moment_simulation.get_result().get_last_time() == sim_result.get_last_time());
@@ -639,13 +696,13 @@ private:
                         // Add agents to last result in all Simulation objects
                         sim_result
                             .get_last_value()[region * static_cast<size_t>(mio::osir::InfectionState::Count) + state] +=
-                            sim_value;
+                            sim_value_rounded;
                         // Add agents to population in all Simulation objects
-                        sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(state)}] += sim_value;
+                        sim_pop[{mio::regions::Region(region), mio::osir::InfectionState(state)}] += sim_value_rounded;
                         // Add agents to last result in SimulationSet object
                         stochastic_results[sim]
                             .get_last_value()[static_cast<size_t>(mio::osir::InfectionState::Count) * region + state] +=
-                            sim_value;
+                            sim_value_rounded;
                     }
                 }
             }
@@ -679,19 +736,20 @@ private:
 
         if (recalc_stoch_means) { // Update mean and moment ts of simulation set
             m_stochastic_simulation.get_mean().remove_last_time_point();
-            m_stochastic_simulation.recalculate_last_mean();
             m_stochastic_simulation.get_moments().remove_last_time_point();
-            m_stochastic_simulation.recalculate_last_moments();
+            m_stochastic_simulation.recalculate_last_means_and_moments();
         }
     }
 
     void exchange_stochastic_to_moment()
     {
-        auto& moment_results           = m_moment_simulation.get_result();
-        auto& stochastic_sims          = m_stochastic_simulation.get_simulations();
-        auto& stochastic_model_means   = m_stochastic_simulation.get_mean();
-        auto& stochastic_model_moments = m_stochastic_simulation.get_moments();
-        bool recalc_stoch_mean         = false;
+        auto& moment_results                  = m_moment_simulation.get_result();
+        auto& stochastic_sims                 = m_stochastic_simulation.get_simulations();
+        auto& stochastic_model_means          = m_stochastic_simulation.get_mean();
+        auto& stochastic_model_moments        = m_stochastic_simulation.get_moments();
+        auto& moment_indices_stochastic_model = m_stochastic_simulation.get_moment_indices();
+        auto& moment_orders_stochastic_model  = m_stochastic_simulation.get_moment_orders();
+        bool recalc_stoch_mean                = false;
         for (size_t region_to : m_deterministic_regions) {
             bool region_exchanged = false;
             for (size_t state = 0; state < static_cast<size_t>(mio::osir::InfectionState::Count); ++state) {
@@ -730,10 +788,8 @@ private:
 
             if (region_exchanged) {
                 // Exchange moments
-                auto moment_indices_stochastic_model = m_stochastic_simulation.get_moment_indices();
                 for (size_t i = 0; i < moment_indices_stochastic_model.size(); ++i) {
-                    int order = std::accumulate(moment_indices_stochastic_model[i].begin(),
-                                                moment_indices_stochastic_model[i].end(), 0.0);
+                    int order = moment_orders_stochastic_model[i];
                     int order_region_to =
                         std::accumulate(moment_indices_stochastic_model[i].begin() +
                                             static_cast<size_t>(mio::osir::InfectionState::Count) * region_to,
@@ -772,11 +828,11 @@ private:
         }
 
         if (recalc_stoch_mean) {
-            // Reset and update mean and moment ts of stochastic model
-            stochastic_model_means.remove_last_time_point();
-            m_stochastic_simulation.recalculate_last_mean();
-            stochastic_model_moments.remove_last_time_point();
-            m_stochastic_simulation.recalculate_last_moments();
+            for (size_t region_to : m_deterministic_regions) {
+                // Remove means and moments in deterministic regions
+                m_stochastic_simulation.remove_means_for_region(region_to);
+                m_stochastic_simulation.remove_moments_for_region(region_to);
+            }
         }
     }
 
@@ -811,6 +867,100 @@ private:
         return sim;
     }
 
+    double Phi(double x)
+    {
+        return 0.5 * (1. + std::erf(x / std::sqrt(2.)));
+    }
+
+    double phi(double x)
+    {
+        static const double INV_SQRT_2PI = 1.0 / std::sqrt(2.0 * M_PI);
+        return INV_SQRT_2PI * std::exp(-0.5 * x * x);
+    }
+
+    double lambda(double alpha)
+    {
+        return phi(alpha) / (1. - Phi(alpha));
+    }
+
+    double V(double alpha)
+    {
+        double l = lambda(alpha);
+        return 1 + alpha * l - l * l;
+    }
+
+    double f(double alpha, double z)
+    {
+        double l = lambda(alpha);
+        double v = V(alpha);
+
+        if (v < 0) {
+            v = 0;
+        }
+        return (l - alpha) / std::sqrt(V(alpha)) - z;
+    }
+
+    double solve_for_alpha(double m, double a, double s)
+    {
+        auto f = [m, a, s, this](double alpha) {
+            double l = lambda(alpha);
+            double v = V(alpha);
+            if (v <= 0) {
+                v = 1;
+            }
+            return (l - alpha) / std::sqrt(v) - (m - a) / s;
+        };
+        double lo = -1.0;
+        double hi = 1.0;
+
+        while (f(lo) * f(hi) > 0) {
+            lo *= 2.;
+            hi *= 2.;
+        }
+
+        auto tol = [](double x1, double x2) {
+            return std::abs(x1 - x2) < 1e-8;
+        };
+
+        std::uintmax_t max_iter = 100;
+
+        std::pair<double, double> result = boost::math::tools::toms748_solve(f, lo, hi, tol, max_iter);
+        return 0.5 * (result.first + result.second);
+    }
+
+    std::pair<double, double> calculate_trunc_normal_params(double a, double m, double s)
+    {
+        double alpha = solve_for_alpha(m, a, s);
+
+        double sigma0 = s / std::sqrt(V(alpha));
+        double mu0    = a - alpha * sigma0;
+        return std::make_pair(mu0, sigma0);
+    }
+
+    double sample_truncated_normal(mio::RandomNumberGenerator& rng, double mu0, double sigma0, double a)
+    {
+        boost::math::normal dist;
+
+        double alpha = (a - mu0) / sigma0;
+
+        double Phi_alpha = cdf(dist, alpha);
+
+        double u = mio::UniformDistribution<ScalarType>::get_instance()(rng, 0.0, 1.0);
+
+        double u_prime = Phi_alpha + u * (1.0 - Phi_alpha);
+
+        const double eps = 1e-15;
+
+        if (u_prime >= 1.0)
+            u_prime = 1.0 - eps;
+        if (u_prime <= 0.0)
+            u_prime = eps;
+
+        double z = quantile(dist, u_prime);
+
+        return mu0 + sigma0 * z;
+    }
+
     std::shared_ptr<ConfigType> m_config; ///< Config of the simulation.
     SMMSetSim m_stochastic_simulation; ///< SMM simulation containing stochastically modeled regions.
     MomentSim m_moment_simulation; ///< Moment simulation containing deterministically modeled regions.
@@ -820,6 +970,8 @@ private:
     double m_dt; ///< Step size.
     TimeSeries<int>
         m_model_used; ///< Time series which indicates which model is used for each region at each time step (0: stochastic, 1: moment).
+
+    const bool correct_for_rounding_error = true;
 };
 
 } // namespace hybrid

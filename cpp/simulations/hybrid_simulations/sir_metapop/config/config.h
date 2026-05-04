@@ -53,6 +53,8 @@ struct Config {
     std::vector<double> total_populations;
     // Transition rates
     std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
+    // not used
+    double nu = 0;
 };
 
 enum class ConfigType
