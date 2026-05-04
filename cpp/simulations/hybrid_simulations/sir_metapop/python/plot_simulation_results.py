@@ -4,6 +4,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import os
 from settings import *
+from cycler import cycler
 
 def plot_percentiles(dir, percentiles, save_dir, figsize, comp_index, tmax, other_ts_file = "", other_label="", color_other = "black"):
        
@@ -82,12 +83,44 @@ def plot_percentiles(dir, percentiles, save_dir, figsize, comp_index, tmax, othe
     )
     plt.close(fig)
     plt.close(fig_leg)
-    
+ 
+def plot_simulation_results(num_runs, dir, save_dir, figsize, num_regions, comp_index, start_sim=0):
+    # Get number of figure rows and cols
+    num_cols = 1
+    i = 1
+    while(i**2 < num_regions):
+        num_cols += 1
+        i += 1
+    num_rows = min(num_cols, num_regions - num_cols + 1)
+    # Create joint figure and axes
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
+    for sim in range(start_sim, start_sim + num_runs):
+        results = pd.read_csv(dir + f"/{sim}_result.csv")
+        for r in range(num_regions):
+            if(num_regions == 1):
+                ax = axes
+            elif(num_rows == 1):
+                ax = axes[r]
+            else:
+                ax = axes[int(r/num_rows), r%num_cols]
+            
+            ax.plot(results.Time, results.iloc[:, 1 + comp_index + r * len(compartment_names)])
+            if(r%num_cols == 0):
+                ax.set_ylabel(f"{compartment_names[list(compartment_colors.keys())[comp_index]]} [#]")
+            if(int(r/num_cols) == num_rows-1):
+                ax.set_xlabel("Time [days]")
+            else:
+                ax.set_xticks([])
+            ax.set_title(f"Region {r}")
+    fig.tight_layout()
+    fig.savefig(f"{save_dir}/{list(compartment_colors.keys())[comp_index]}_sim_{start_sim}-{start_sim+num_runs}.png", dpi=dpi)
+    plt.close(fig)
+        
 if __name__ == "__main__":
     dir = "V:/bick_ju/TemporalHybrid"
     save_dir = "H:/Documents/TemporalHybridModel"
     model = "SMM"
-    config = "config_2r3"
+    config = "SIR/config_4r_0_1_10_100_k2"
     percentiles = ["05", "95"]
     other_model_dir = "V:/bick_ju/TemporalHybrid/Moments"
     other_label = "ODE"
@@ -99,7 +132,9 @@ if __name__ == "__main__":
     dir = f"{dir}/{model}/{config}"
     save_dir = f"{save_dir}/{model}/{config}"
     os.makedirs(save_dir, exist_ok=True)
+    
+    plot_simulation_results(100, dir, save_dir, (7, 5), 4, 1, 0)
 
-    for r in range(num_regions):
-        for comp_index in range(len(compartment_names)):
-            plot_percentiles(dir, percentiles, save_dir, figsize_percentiles, comp_index + r * len(compartment_names), tmax, other_ts_file=other_model_dir, other_label=other_label)
+    # for r in range(num_regions):
+    #     for comp_index in range(len(compartment_names)):
+    #         plot_percentiles(dir, percentiles, save_dir, figsize_percentiles, comp_index + r * len(compartment_names), tmax, other_ts_file=other_model_dir, other_label=other_label)

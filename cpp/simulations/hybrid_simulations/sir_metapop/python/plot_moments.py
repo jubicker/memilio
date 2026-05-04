@@ -12,7 +12,7 @@ def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, clos
             mean = mean[mean['Time'] <= tmax]
             ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=color_smm, label = "SMM")
         for c in closures:            
-            mean = pd.read_csv(dir + f"/{c}/closure_order_{closure_order}/{init_tp}/" + "means.csv")
+            mean = pd.read_csv(dir + f"/{c}/{init_tp}/" + "means.csv")
             mean = mean[mean['Time'] <= tmax]
             ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=closure_colors[c], label = f"{c}")
                 
@@ -20,10 +20,17 @@ def plot_mean_ts(dir, save_dir, closures, comp_index, num_regions, figsize, clos
         ax.set_ylabel(f"{compartment_names[comp]} [#]")
         if(dir_smm!=""):
             mean_smm = pd.read_csv(dir_smm + f"/means.csv")
-            ax.set_ylim(-0.5*np.max(mean_smm.iloc[1:, 1 + comp_index + r * len(compartment_names)]), 2*np.max(mean_smm.iloc[1:, 1 + comp_index]))
-        ax.legend()
+            # ax.set_ylim(-0.5*np.max(mean_smm.iloc[1:, 1 + comp_index + r * len(compartment_names)]), 2*np.max(mean_smm.iloc[1:, 1 + comp_index]))
+        #ax.legend()
         fig.tight_layout()
         fig.savefig(f"{save_dir}/mean_{compartment_names[comp]}_r{r}.png", dpi=dpi)
+        
+        handles, labels = ax.get_legend_handles_labels()
+        fig_leg = plt.figure(figsize=figsize)                   
+        fig_leg.legend(handles, labels, loc='center')      
+        fig_leg.tight_layout()
+        fig_leg.savefig(save_dir + f"/legend_{comp}.png", dpi=dpi, bbox_inches='tight', transparent=True)
+        plt.close(fig_leg)
         plt.close(fig)
         
 def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closure_colors, closure_order, init_tp, tmax, dir_smm="", color_smm=""):
@@ -42,7 +49,7 @@ def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closu
             var = var[var['Time'] <= tmax]
             ax.plot(var.Time, var[col_name], color=color_smm, label = "SMM")
         for c in closures:           
-            var = pd.read_csv(dir + f"/{c}/closure_order_{closure_order}/{init_tp}/" + "moments.csv")
+            var = pd.read_csv(dir + f"/{c}/{init_tp}/" + "moments.csv")
             var = var[var['Time'] <= tmax]
             ax.plot(var.Time, var[col_name], color=closure_colors[c], label = f"{c}")
                 
@@ -50,8 +57,8 @@ def plot_var_ts(dir, save_dir, closures, comp_index, num_regions, figsize, closu
         ax.set_ylabel(f"{compartment_names[comp]} [#]")
         if(dir_smm!=""):
             var_smm = pd.read_csv(dir_smm + f"/moments.csv")
-            ax.set_ylim(-0.5*np.max(var_smm[col_name].iloc[:]), 1.5*np.max(var_smm[col_name].iloc[:]))
-        ax.legend()
+            #ax.set_ylim(-0.5*np.max(var_smm[col_name].iloc[:]), 1.5*np.max(var_smm[col_name].iloc[:]))
+        #ax.legend()
         fig.tight_layout()
         fig.savefig(f"{save_dir}/var_{compartment_names[comp]}_r{r}.png", dpi=dpi)
         plt.close(fig)
@@ -166,12 +173,12 @@ if __name__ == "__main__":
     figsize = (4, 3)
     dir = "V:/bick_ju/TemporalHybrid"
     save_dir = "H:/Documents/TemporalHybridModel"
-    config = "config_2r_10_100_k1"
+    config = "config_4r_0_1_10_100_k2"
     closure_order = 3
-    num_regions = 2
-    closures = ["truncation"]
+    num_regions = 4
+    closures = ["truncation/closure_order_3"]
     start_tp = "0.000000"
-    colors_closures = {"truncation": colors["dark blue"], "pair_approx": colors["teal"], "lognorm": colors["dark green"]}
+    colors_closures = {"truncation": colors["dark blue"], "pair_approx": colors["teal"], "lognorm": colors["dark green"], "lognorm/closure_order_3": colors["middle blue"], "lognorm_zero_infl/closure_order_4": colors["red"], "truncation/closure_order_3": colors["dark green"], "pair_approx/closure_order_3": colors["orange"]}
     color_ode = [colors['black'], colors['dark grey']]
     color_smm = colors['dark grey']
     condition_name = "mean_threshold/0.000000"
@@ -179,14 +186,13 @@ if __name__ == "__main__":
     compare_values = ["truncation", "pair_approx", "lognorm"]
     colors_hybrid = [[colors['dark blue'], colors['middle blue'], colors['light blue'], colors['teal'], colors['light teal'], colors['dark green'], colors['middle green'], colors['light green']], [colors['purple'], colors['rose'], colors['red'], colors['dark red'], colors['brown']]]
     
-    smm_dir = f"{dir}/SMM/{config}"
-    moment_dir = f"{dir}/Moments/{config}"
-    ode_dir = f"{dir}/Moments/{config}"
-    save_dir = f"{save_dir}/Moments/{config}/closure_order_{closure_order}/{start_tp}"
+    smm_dir = f"{dir}/SMM/SIR/{config}"
+    moment_dir = f"{dir}/Moments/SIR/{config}"
+    save_dir = f"{save_dir}/Moments/SIR/{config}"
     hybrid_dir = f"{dir}/{hybrid_model}/{config}/{condition_name}"
     os.makedirs(save_dir, exist_ok=True)
     
-    tmax = 100
+    tmax = 300
     
     comp_index = 1
     
