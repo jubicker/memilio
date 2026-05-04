@@ -72,13 +72,13 @@ int main()
 {
     const size_t num_runs    = 10000;
     const size_t max_order   = 2;
-    const auto config        = Config::sirs::get_config(Config::sirs::ConfigType::Config4regionsTransmNoExchange);
-    const size_t num_regions = 4;
+    const auto config        = Config::sir::get_config(Config::sir::ConfigType::ConfigDiseaseImport1k1);
+    const size_t num_regions = 2;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::string save_file = Config::SAVE_DIR + "SMM/SIRS/";
+    std::string save_file = Config::SAVE_DIR + "SMM/SIR/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
@@ -118,6 +118,12 @@ int main()
     finished      = p50[0].export_csv(save_file + "p50.csv");
     finished      = p75[0].export_csv(save_file + "p75.csv");
     finished      = p95[0].export_csv(save_file + "p95.csv");
+
+    // Save first 100 simulations
+    for (size_t sim = 0; sim < 100; ++sim) {
+        finished = sim_set.get_result()[sim].export_csv(save_file + std::to_string(sim) + "_result.csv");
+    }
+
     // Save means and moments
     finished = sim_set.get_mean().export_csv(save_file + "means.csv");
     finished = sim_set.get_moments().export_csv(save_file + "moments.csv", sim_set.get_moment_names());

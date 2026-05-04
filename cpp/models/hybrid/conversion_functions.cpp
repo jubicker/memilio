@@ -429,8 +429,7 @@ void convert_model(smm_moments::Simulation<1, 3>& current_model,
     }
 
     // Recalculate last means and moments in smm simulation set
-    target_model.recalculate_last_mean();
-    target_model.recalculate_last_moments();
+    target_model.recalculate_last_means_and_moments();
 
     // Set last means and moments in moment sim to 0
     moment_results.setZero();
@@ -538,8 +537,7 @@ void convert_model(smm_moments::Simulation<2, 3>& current_model,
     }
 
     // Recalculate last means and moments in smm simulation set
-    target_model.recalculate_last_mean();
-    target_model.recalculate_last_moments();
+    target_model.recalculate_last_means_and_moments();
 
     // Set last means and moments in moment sim to 0
     moment_results.setZero();
@@ -643,8 +641,7 @@ void convert_model(smm_moments::Simulation<1, 5>& current_model,
     }
 
     // Recalculate last means and moments in smm simulation set
-    target_model.recalculate_last_mean();
-    target_model.recalculate_last_moments();
+    target_model.recalculate_last_means_and_moments();
 
     // Set last means and moments in moment sim to 0
     moment_results.setZero();
