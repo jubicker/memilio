@@ -73,6 +73,12 @@ public:
         , m_dt(dt)
         , m_t(t0)
         , m_t_index(0)
+        , last_results(Eigen::Matrix<double, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>::Zero(
+              num_runs, static_cast<size_t>(Status::Count) * regions))
+        , means(Eigen::Matrix<double, 1, static_cast<size_t>(Status::Count) * regions>::Zero(
+              1, static_cast<size_t>(Status::Count) * regions))
+        , centered_values(Eigen::Matrix<double, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>::Zero(
+              num_runs, static_cast<size_t>(Status::Count) * regions))
     {
         m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
 
@@ -156,8 +162,7 @@ public:
             }
 
             //Update means and moments
-            update_means();
-            update_moments();
+            update_means_and_moments();
         }
     }
 
@@ -235,25 +240,50 @@ public:
 
 private:
     /**
-     * @brief Calculate mean time series from simulation results.
+     * @brief Calculate mean and moment time series from simulation results.
      */
-    void update_means()
+    void update_means_and_moments()
     {
-        const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
         for (auto t = m_t_index; t < m_results[0].get_num_time_points(); ++t) {
-            Eigen::Matrix<ScalarType, num_elements, 1> means;
             means.setZero();
+            last_results.setZero();
+            centered_values.setZero();
             if (m_means.get_num_time_points() >= t + 1 && m_means.get_time(t) == m_results[0].get_time(t)) {
                 log_warning("Mean time series already has time point t={}.", m_means.get_time(t));
                 continue;
             }
-            // Sum up all values
-            for (auto& res : m_results) {
-                means += res.get_value(t);
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+            // Copy simulation values to matrix
+            for (size_t run = 0; run < m_results.size(); run++) {
+                for (size_t r = 0; r < regions; ++r) {
+                    for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
+                        last_results(run, static_cast<size_t>(Status::Count) * r + s) = m_results[run].get_value(
+                            t)[r * static_cast<size_t>(Status::Count) + static_cast<size_t>(Status(s))];
+                    }
+                }
             }
-            // Average values by number of runs
-            means /= m_results.size();
+            // Calculate means
+            means = last_results.colwise().mean();
             m_means.add_time_point(m_results[0].get_time(t), means);
+
+            // Calculate centered values used for calculation of central moments
+            centered_values = last_results.rowwise() - means;
+
+            auto& indices = m_mom_array.get_indices();
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+            // Calculate moments
+            for (auto& idx : indices) {
+                m_mom_array[idx] = calculate_moment(centered_values, idx);
+            }
+            // Get only moments up to the given order
+            auto moment_values   = m_mom_array.get_values();
+            Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
+            m_moments.add_time_point(m_results[0].get_time(t), data);
+            m_t_index += 1;
         }
     }
 
@@ -263,57 +293,22 @@ private:
     * @param[in] indices The indices defining the moment to be calculated.
     */
     double calculate_moment(
-        const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& values,
+        const Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>& centered_vals,
         const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices)
     {
-        Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count)* regions> means = values.colwise().mean();
-        double moment                                                                   = 0.0;
-        for (int i = 0; i < values.rows(); ++i) {
+        double moment = 0.0;
+        for (int i = 0; i < centered_vals.rows(); ++i) {
             double summand = 1.0;
             for (size_t r = 0; r < regions; ++r) {
                 for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
-                    summand *= std::pow(values(i, r * static_cast<size_t>(Status::Count) + s) -
-                                            means(r * static_cast<size_t>(Status::Count) + s),
+                    summand *= std::pow(centered_vals(i, r * static_cast<size_t>(Status::Count) + s),
                                         indices[r * static_cast<size_t>(Status::Count) + s]);
                 }
             }
             moment += summand;
         }
-        moment /= static_cast<double>(values.rows());
+        moment /= static_cast<double>(centered_vals.rows());
         return moment;
-    }
-
-    /**
-     * @brief Calculate moment time series from simulation results.
-     */
-    void update_moments()
-    {
-        const size_t num_elements = static_cast<size_t>(Status::Count) * regions;
-        for (int t = m_t_index; t < m_results[0].get_num_time_points(); ++t) {
-            if (m_moments.get_num_time_points() >= t + 1 && m_moments.get_time(t) == m_results[0].get_time(t)) {
-                log_warning("Moment time series already has time point t={}.", m_moments.get_time(t));
-                continue;
-            }
-            // Copy results to matrix
-            Eigen::Matrix<double, Eigen::Dynamic, num_elements> result =
-                Eigen::Matrix<double, Eigen::Dynamic, num_elements>::Zero(m_results.size(), num_elements);
-            for (size_t run = 0; run < m_results.size(); run++) {
-                for (size_t r = 0; r < regions; ++r) {
-                    for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
-                        result(run, static_cast<size_t>(Status::Count) * r + s) = m_results[run].get_value(
-                            t)[r * static_cast<size_t>(Status::Count) + static_cast<size_t>(Status(s))];
-                    }
-                }
-            }
-            auto& indices = m_mom_array.get_indices();
-            for (auto& idx : indices) {
-                m_mom_array[idx] = calculate_moment(result, idx);
-            }
-            auto moment_values   = m_mom_array.get_values();
-            Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
-            m_moments.add_time_point(m_results[0].get_time(t), data);
-            m_t_index += 1;
-        }
     }
 
     std::vector<Model1> m_model1s; ///< SMM models for all runs.
@@ -328,6 +323,13 @@ private:
     int m_t_index; ///< Current result time point index.
     MomentArray<static_cast<size_t>(Status::Count), regions, MaxMomentOrder>
         m_mom_array{}; // Moment array used to calculate moments and their names.
+
+    Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>
+        last_results; ///< Helper matrix used to calculate moments.
+    Eigen::Matrix<ScalarType, 1, static_cast<size_t>(Status::Count) * regions>
+        means; ///< Helper matrix used to calculate means and moments.
+    Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>
+        centered_values; ///< Helper matrix used to calculate moments.
 };
 
 } //namespace hybrid
