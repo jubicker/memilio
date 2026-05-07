@@ -25,6 +25,7 @@
 #include "memilio/config.h"
 #include "memilio/data/analyze_result.h"
 #include "memilio/timer/basic_timer.h"
+#include "memilio/utils/random_number_generator.h"
 #include "memilio/utils/time_series.h"
 #include "smm/simulation.h"
 #include "smm_moments/simulation.h"
@@ -71,19 +72,18 @@ public:
         , m_sim_time(num_runs, 0.0)
         , m_dt(dt)
         , m_t(t0)
+        , m_t_index(0)
     {
         m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
 
-        u_int32_t seed = 0;
         for (size_t run = 0; run < num_runs; ++run) {
-            m_model1s[run].get_rng().seed({seed});
-            auto sim1 = smm::Simulation<ScalarType, regions, Status>(m_model1s[run], t0, dt);
-            auto sim2 = smm_moments::Simulation<regions, 2>(m_model2s[run], t0, dt);
+            m_model1s[run].get_rng() = mio::RandomNumberGenerator();
+            auto sim1                = smm::Simulation<ScalarType, regions, Status>(m_model1s[run], t0, dt);
+            auto sim2                = smm_moments::Simulation<regions, 2>(m_model2s[run], t0, dt);
             // Set maximum dt of integrator to interpolation time points
             sim2.get_integrator_core().get_dt_max() = dt;
             m_simulations.push_back(
                 Simulation(std::move(sim1), std::move(sim2), result1, result2, true, t0, dt_switch));
-            seed++;
         }
     }
 
@@ -140,17 +140,8 @@ public:
                 }
                 auto merged_ts = interpolated_smm_result;
                 if (ode_res.get_num_time_points() > 0) {
-                    //Remove all values from interpolation tps that are smaller than the first time point of the ode result
-                    double limit               = ode_res.get_time(0);
-                    auto interpolated_runs_tps = interpolation_tps;
-                    interpolated_runs_tps.erase(std::remove_if(interpolated_runs_tps.begin(),
-                                                               interpolated_runs_tps.end(),
-                                                               [limit](double x) {
-                                                                   return x < limit;
-                                                               }),
-                                                interpolated_runs_tps.end());
-                    auto interpolated_ode_result = interpolate_simulation_result(ode_res, interpolated_runs_tps);
-                    merged_ts = merge_time_series(interpolated_smm_result, interpolated_ode_result).value();
+                    merged_ts = merge_time_series(interpolated_smm_result, ode_res, true).value();
+                    merged_ts = interpolate_simulation_result(merged_ts, interpolation_tps);
                 }
 
                 while (merged_ts.get_num_time_points() > 1) {

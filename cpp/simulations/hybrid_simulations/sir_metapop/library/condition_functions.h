@@ -247,6 +247,18 @@ public:
     }
 
     static bool
+    fixed_tp(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+             mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
+             size_t /*region*/)
+    {
+        if (stochastic_used) {
+            if (stochastic_model.get_mean().get_last_time() > 20)
+                return true;
+        }
+        return false;
+    }
+
+    static bool
     pure_ode(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
              mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
              size_t /*region*/)

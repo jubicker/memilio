@@ -65,9 +65,6 @@ enum class ConfigType
     Config4,
     Config5,
     Config6,
-    Config3r1,
-    Config3r2,
-    Config3r3,
     Config2regionsNoExchange,
     Config2regionsNoExchange2,
     Config2regionsk1,
@@ -79,7 +76,8 @@ enum class ConfigType
     Config2regionsasymmExchange,
     Config4regionsk2,
     Config4regionsTransmNoExchange,
-    Config4regionsTransmSymExchange
+    Config4regionsTransmSymExchange,
+    ConfigConference1
 };
 
 Config get_config(ConfigType type);

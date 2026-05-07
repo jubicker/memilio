@@ -27,6 +27,8 @@
 #include "smm/parameters.h"
 #include "memilio/compartments/simulation.h"
 #include <algorithm>
+#include <cstddef>
+#include <map>
 
 namespace mio
 {
@@ -53,13 +55,21 @@ public:
      * @param[in] dt Initial Step size.
      */
     Simulation(Model const& model, FP t0 = 0., FP dt = 1.)
-        : m_dt(dt)
+        : num_transitions(
+              1, Eigen::Matrix<size_t, static_cast<size_t>(Status::Count) * regions,
+                               static_cast<size_t>(Status::Count) * regions>::Zero(static_cast<size_t>(Status::Count) *
+                                                                                       regions,
+                                                                                   static_cast<size_t>(Status::Count) *
+                                                                                       regions))
+        , num_events(t0, Eigen::VectorXd::Zero(1))
+        , m_dt(dt)
         , m_model(std::make_unique<Model>(model))
         , m_result_interpolated(t0, m_model->get_initial_values())
         , m_internal_time(adoption_rates().size() + transition_rates().size(), t0)
         , m_tp_next_event(adoption_rates().size() + transition_rates().size(), t0)
         , m_waiting_times(adoption_rates().size() + transition_rates().size(), 0)
         , m_current_rates(adoption_rates().size() + transition_rates().size(), 0)
+
     {
         assert(dt > 0);
         assert(m_waiting_times.size() > 0);
@@ -76,7 +86,9 @@ public:
     }
 
     Simulation(const Simulation& other)
-        : m_dt(other.m_dt)
+        : num_transitions(other.num_transitions)
+        , num_events(other.num_events)
+        , m_dt(other.m_dt)
         , m_model(std::make_unique<Model>(*other.m_model))
         , m_result_interpolated(other.m_result_interpolated)
         , m_internal_time(other.m_internal_time)
@@ -104,7 +116,19 @@ public:
             current_time += m_waiting_times[next_event];
             // Regularly save current state
             if (current_time > next_result_time) {
+                if (count_transitions) {
+                    if (int(next_result_time) > int(num_transitions.size()) - 1) {
+                        num_transitions.push_back(
+                            Eigen::Matrix<size_t, static_cast<size_t>(Status::Count) * regions,
+                                          static_cast<size_t>(Status::Count) *
+                                              regions>::Zero(static_cast<size_t>(Status::Count) * regions,
+                                                             static_cast<size_t>(Status::Count) * regions));
+                    }
+                }
                 while (current_time > next_result_time) {
+                    if (count_events) {
+                        num_events.add_time_point(next_result_time, Eigen::VectorXd::Zero(1));
+                    }
                     m_result_interpolated.add_time_point(next_result_time);
                     // copy from the previous last value
                     m_result_interpolated.get_last_value() = m_model->populations.get_compartments();
@@ -117,12 +141,25 @@ public:
                 const auto& rate = adoption_rates()[next_event];
                 m_model->populations[{rate.region, rate.from}] -= 1.0;
                 m_model->populations[{rate.region, rate.to}] += 1.0;
+                if (count_events) {
+                    num_events.get_last_value()[0] += 1;
+                }
             }
             else {
                 // perform transition event
                 const auto& rate = transition_rates()[next_event - adoption_rates().size()];
                 m_model->populations[{rate.from, rate.status}] -= 1.0;
                 m_model->populations[{rate.to, rate.status}] += 1.0;
+
+                if (count_transitions) {
+                    num_transitions.back()(static_cast<size_t>(rate.from) * static_cast<size_t>(Status::Count) +
+                                               static_cast<size_t>(rate.status),
+                                           static_cast<size_t>(rate.to) * static_cast<size_t>(Status::Count) +
+                                               static_cast<size_t>(rate.status)) += 1;
+                }
+                if (count_events) {
+                    num_events.get_last_value()[0] += 1;
+                }
             }
             // update internal times
             for (size_t i = 0; i < m_internal_time.size(); i++) {
@@ -175,6 +212,12 @@ public:
     {
         return *m_model;
     }
+
+    std::vector<Eigen::Matrix<size_t, static_cast<size_t>(Status::Count) * regions,
+                              static_cast<size_t>(Status::Count) * regions>>
+        num_transitions; ///< Matrix counting the number of spatial transitions between regions for each infection state per time step.
+    mio::TimeSeries<double>
+        num_events; ///< Time series counting the number of events that happened until the next time series time point.
 
 private:
     /**
@@ -230,6 +273,9 @@ private:
     std::vector<FP> m_tp_next_event; ///< Internal time points of next event i after m_internal[i] (aka P_k).
     std::vector<FP> m_waiting_times; ///< External times between m_internal_time and m_tp_next_event.
     std::vector<FP> m_current_rates; ///< Current values of both types of rates i.e. adoption and transition rates.
+
+    const bool count_transitions = true;
+    const bool count_events      = true;
 };
 
 } //namespace smm

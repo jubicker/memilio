@@ -37,19 +37,20 @@
 
 int main()
 {
-    mio::set_log_level(mio::LogLevel::warn);
+    mio::set_log_level(mio::LogLevel::err);
     const size_t num_runs      = 10000;
     double dt_exchange         = 1.;
     const size_t closure_order = 3;
-    const auto config          = Config::sir::get_config(Config::sir::ConfigType::Config4regionsTransmNoExchange);
-    const size_t num_regions   = 4;
+    const auto config          = Config::sir::get_config(Config::sir::ConfigType::ConfigConference1);
+    const size_t num_regions   = 1;
     double min_step_size       = 0.0001;
 
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::string save_file = Config::SAVE_DIR + "Spatial-Hybrid2/";
+    // INPUT - SIR/SIRS
+    std::string save_file = Config::SAVE_DIR + "conference/Spatial-Hybrid2/";
     save_file += config.name;
 
     auto created_directory = mio::create_directory(save_file);
@@ -58,7 +59,7 @@ int main()
         return -1;
     }
 
-    save_file += "/combined_relation_var_gradient_condition_region";
+    save_file += "/fixed_tp";
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -93,7 +94,7 @@ int main()
 
     mio::timing::BasicTimer timer;
     timer.start();
-    spatial_hybrid_sim.advance(config.tmax, Condition.combined_relation_var_gradient_condition_region, true);
+    spatial_hybrid_sim.advance(config.tmax, Condition.fixed_tp, true);
     timer.stop();
 
     // Save stochastic outputs

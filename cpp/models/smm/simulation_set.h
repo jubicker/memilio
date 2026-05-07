@@ -77,11 +77,9 @@ public:
         , centered_values(Eigen::Matrix<double, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>::Zero(
               num_runs, static_cast<size_t>(Status::Count) * regions))
     {
-        u_int32_t seed = 0;
         for (auto& m : m_models) {
-            m.get_rng().seed({seed}); //mio::RandomNumberGenerator();
+            m.get_rng() = mio::RandomNumberGenerator();
             m_sims.push_back(Simulation(m, t0, dt));
-            seed++;
         }
         m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
 

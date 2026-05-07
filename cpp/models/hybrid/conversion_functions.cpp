@@ -194,27 +194,27 @@ void convert_model(smm::Simulation<double, 1, mio::osir::InfectionState>& curren
     auto& current_result = current_model.get_result();
     auto& target_result  = target_model.get_result();
     if (current_result.get_last_time() < target_result.get_last_time()) {
-        mio::log_error("Conversion from smm to dabm not possible because last dabm time point is bigger than last smm "
+        mio::log_error("Conversion from smm to ode not possible because last ode time point is bigger than last smm "
                        "time point.");
     }
     if (target_result.get_last_time() < current_result.get_last_time()) {
         target_result.add_time_point(current_result.get_last_time());
     }
 
+    // Update model populations
+    for (int i = 0; i < (int)mio::osir::InfectionState::Count; ++i) {
+        target_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] =
+            current_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}];
+        current_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] = 0.;
+    }
+
     // Update result timeseries
     auto smm_values     = current_result.get_last_value();
     auto moments_values = target_result.get_last_value();
     for (auto i = 0; i < smm_values.size(); ++i) {
-        // Set expected values
         moments_values[i] = smm_values[i];
     }
-
-    // Update model populations
-    for (int i = 0; i < (int)mio::osir::InfectionState::Count; ++i) {
-        target_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] =
-            current_result.get_last_value()[target_model.get_model().populations.get_flat_index(
-                {regions::Region(0), mio::osir::InfectionState(i)})];
-    }
+    smm_values.setZero();
 }
 
 template <>
@@ -244,7 +244,10 @@ void convert_model(smm_moments::Simulation<1, 2>& current_model,
         target_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] =
             current_result.get_last_value()[target_model.get_model().populations.get_flat_index(
                 {regions::Region(0), mio::osir::InfectionState(i)})];
+        current_model.get_model().populations[{regions::Region(0), mio::osir::InfectionState(i)}] = 0;
     }
+
+    moments_values.setZero();
 }
 
 template <>

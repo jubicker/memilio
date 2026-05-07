@@ -62,7 +62,7 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
     // Set recovery rate
     model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
     // Set immunity loss rate to zero
-    model.parameters.template get<mio::smm_moments::RecoveryRate>() = 0.0;
+    model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
 
     for (size_t r = 0; r < NumRegions; ++r) {
         // Set transmission rates
