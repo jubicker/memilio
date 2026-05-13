@@ -68,7 +68,7 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
                                   mio::osir::InfectionState::Infected,
                                   mio::regions::Region(r),
                                   config.lambdas[r],
-                                  {{mio::osir::InfectionState::Infected, 1.}}});
+                                  {{mio::osir::InfectionState::Infected, 1., mio::regions::Region(r)}}});
         // Recovery rate gamma is the same for all regions
         adoption_rates.push_back({mio::osir::InfectionState::Infected,
                                   mio::osir::InfectionState::Recovered,
@@ -118,7 +118,7 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
                                   mio::osir::InfectionState::Infected,
                                   mio::regions::Region(r),
                                   config.lambdas[r],
-                                  {{mio::osir::InfectionState::Infected, 1.}}});
+                                  {{mio::osir::InfectionState::Infected, 1., mio::regions::Region(r)}}});
         // Recovery rate gamma is the same for all regions
         adoption_rates.push_back({mio::osir::InfectionState::Infected,
                                   mio::osir::InfectionState::Recovered,

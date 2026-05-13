@@ -61,11 +61,12 @@ int main()
     std::vector<mio::AdoptionRate<ScalarType, InfectionState>> adoption_rates;
     std::vector<mio::smm::TransitionRate<ScalarType, InfectionState>> transition_rates;
     for (size_t r = 0; r < num_regions; ++r) {
-        adoption_rates.push_back({InfectionState::S,
-                                  InfectionState::E,
-                                  mio::regions::Region(r),
-                                  0.1,
-                                  {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+        adoption_rates.push_back(
+            {InfectionState::S,
+             InfectionState::E,
+             mio::regions::Region(r),
+             0.1,
+             {{InfectionState::C, 1, mio::regions::Region(r)}, {InfectionState::I, 0.5, mio::regions::Region(r)}}});
         adoption_rates.push_back({InfectionState::E, InfectionState::C, mio::regions::Region(r), 1.0 / 5., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::R, mio::regions::Region(r), 0.2 / 3., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::I, mio::regions::Region(r), 0.8 / 3., {}});

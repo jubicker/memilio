@@ -62,7 +62,8 @@ int main()
                                   InfectionState::E,
                                   mio::regions::Region(region),
                                   0.1,
-                                  {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+                                  {{InfectionState::C, 1, mio::regions::Region(region)},
+                                   {InfectionState::I, 0.5, mio::regions::Region(region)}}});
         adoption_rates.push_back({InfectionState::E, InfectionState::C, mio::regions::Region(region), 1.0 / 5., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::R, mio::regions::Region(region), 0.2 / 3., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::I, mio::regions::Region(region), 0.8 / 3., {}});

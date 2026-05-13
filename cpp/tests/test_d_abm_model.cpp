@@ -93,13 +93,15 @@ TEST(TestQuadWell, adoptionRate)
                                                 InfectionState::E,
                                                 mio::regions::Region(0),
                                                 0.1,
-                                                {{InfectionState::C, 1}, {InfectionState::I, 0.5}}}});
+                                                {{InfectionState::C, 1, mio::regions::Region(0)},
+                                                 {InfectionState::I, 0.5, mio::regions::Region(0)}}}});
     //Initialize model with all agents
     QuadWell<InfectionState> qw1({a1, a2, a3, a4}, {{InfectionState::S,
                                                      InfectionState::E,
                                                      mio::regions::Region(0),
                                                      0.1,
-                                                     {{InfectionState::C, 1}, {InfectionState::I, 0.5}}}});
+                                                     {{InfectionState::C, 1, mio::regions::Region(0)},
+                                                      {InfectionState::I, 0.5, mio::regions::Region(0)}}}});
     //a1 only has contact to a2 as a3 is in another region
     EXPECT_EQ(qw.adoption_rate(a1, InfectionState::E), 0.025);
     //There is no rate from I to E, hence rate for a2 is 0
@@ -123,19 +125,21 @@ TEST(TestSingleWell, adoptionRate)
     SingleWell<InfectionState>::Agent a2{Eigen::Vector2d{-1.2, 1}, InfectionState::I};
     SingleWell<InfectionState>::Agent a3{Eigen::Vector2d{-1.1, 1}, InfectionState::I};
     //Initialize model without third agent
-    SingleWell<InfectionState> sw({a1, a2},
-                                  {{InfectionState::S,
-                                    InfectionState::E,
-                                    mio::regions::Region(0),
-                                    0.1,
-                                    {{InfectionState::C, 1}, {InfectionState::I, 0.5}}},
-                                   {InfectionState::I, InfectionState::R, mio::regions::Region(0), 0.15, {}}});
+    SingleWell<InfectionState> sw(
+        {a1, a2},
+        {{InfectionState::S,
+          InfectionState::E,
+          mio::regions::Region(0),
+          0.1,
+          {{InfectionState::C, 1, mio::regions::Region(0)}, {InfectionState::I, 0.5, mio::regions::Region(0)}}},
+         {InfectionState::I, InfectionState::R, mio::regions::Region(0), 0.15, {}}});
     //Initialize model with all agents
     SingleWell<InfectionState> sw1({a1, a2, a3}, {{InfectionState::S,
                                                    InfectionState::E,
                                                    mio::regions::Region(0),
                                                    0.1,
-                                                   {{InfectionState::C, 1}, {InfectionState::I, 0.5}}}});
+                                                   {{InfectionState::C, 1, mio::regions::Region(0)},
+                                                    {InfectionState::I, 0.5, mio::regions::Region(0)}}}});
     //a1 has contact to a2
     EXPECT_EQ(sw.adoption_rate(a1, InfectionState::E), 0.025);
     //a2 can recover
@@ -243,7 +247,8 @@ TEST(TestDABMSimulation, advance)
                                   InfectionState::E,
                                   mio::regions::Region(region),
                                   0.1,
-                                  {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+                                  {{InfectionState::C, 1, mio::regions::Region(region)},
+                                   {InfectionState::I, 0.5, mio::regions::Region(region)}}});
         adoption_rates.push_back({InfectionState::E, InfectionState::C, mio::regions::Region(region), 1.0 / 5., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::R, mio::regions::Region(region), 0.2 / 3., {}});
         adoption_rates.push_back({InfectionState::C, InfectionState::I, mio::regions::Region(region), 0.8 / 3., {}});

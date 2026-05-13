@@ -60,11 +60,12 @@ TEST(TestSMM, evaluateAdoptionRate)
     //Set adoption rates
     std::vector<mio::AdoptionRate<double, InfectionState>> adoption_rates;
     //Second-order adoption
-    adoption_rates.push_back({InfectionState::S,
-                              InfectionState::E,
-                              mio::regions::Region(0),
-                              0.1,
-                              {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+    adoption_rates.push_back(
+        {InfectionState::S,
+         InfectionState::E,
+         mio::regions::Region(0),
+         0.1,
+         {{InfectionState::C, 1, mio::regions::Region(0)}, {InfectionState::I, 0.5, mio::regions::Region(0)}}});
     //First-order adoption
     adoption_rates.push_back({InfectionState::E, InfectionState::C, mio::regions::Region(0), 0.2, {}});
 
@@ -136,11 +137,12 @@ TEST(TestSMMSimulation, advance)
     std::vector<mio::smm::TransitionRate<double, InfectionState>> transition_rates;
 
     //Second-order adoption
-    adoption_rates.push_back({InfectionState::S,
-                              InfectionState::E,
-                              mio::regions::Region(0),
-                              0.1,
-                              {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+    adoption_rates.push_back(
+        {InfectionState::S,
+         InfectionState::E,
+         mio::regions::Region(0),
+         0.1,
+         {{InfectionState::C, 1, mio::regions::Region(0)}, {InfectionState::I, 0.5, mio::regions::Region(0)}}});
     //First-order adoptions
     adoption_rates.push_back({InfectionState::E, InfectionState::C, mio::regions::Region(0), 1.0 / 5., {}});
     adoption_rates.push_back({InfectionState::C, InfectionState::R, mio::regions::Region(0), 0.2 / 3., {}});
@@ -203,11 +205,12 @@ TEST(TestSMMSimulation, stopsAtTmax)
     std::vector<mio::AdoptionRate<double, InfectionState>> adoption_rates;
     std::vector<mio::smm::TransitionRate<double, InfectionState>> transition_rates;
 
-    adoption_rates.push_back({InfectionState::S,
-                              InfectionState::E,
-                              mio::regions::Region(0),
-                              0.1,
-                              {{InfectionState::C, 1}, {InfectionState::I, 0.5}}});
+    adoption_rates.push_back(
+        {InfectionState::S,
+         InfectionState::E,
+         mio::regions::Region(0),
+         0.1,
+         {{InfectionState::C, 1, mio::regions::Region(0)}, {InfectionState::I, 0.5, mio::regions::Region(0)}}});
 
     transition_rates.push_back({InfectionState::R, mio::regions::Region(1), mio::regions::Region(0), 0.01});
 

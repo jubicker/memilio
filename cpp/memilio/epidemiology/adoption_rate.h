@@ -36,6 +36,7 @@ template <typename FP, class Status>
 struct Influence {
     Status status;
     FP factor;
+    mio::regions::Region region;
 };
 
 /**

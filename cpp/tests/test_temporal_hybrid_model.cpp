@@ -168,7 +168,8 @@ TEST(TestTemporalHybrid, test_conversion_dabm_smm)
          mio::osecir::InfectionState::Exposed,
          mio::regions::Region(0),
          0.1,
-         {{mio::osecir::InfectionState::InfectedNoSymptoms, 1}, {mio::osecir::InfectionState::InfectedSymptoms, 0.5}}});
+         {{mio::osecir::InfectionState::InfectedNoSymptoms, 1, mio::regions::Region(0)},
+          {mio::osecir::InfectionState::InfectedSymptoms, 0.5, mio::regions::Region(0)}}});
 
     //Parameters for simulation
     double t0 = 0;

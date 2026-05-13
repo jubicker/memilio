@@ -73,8 +73,8 @@ public:
             // accumulate influences
             FP influences = 0.0;
             for (size_t i = 0; i < rate.influences.size(); i++) {
-                influences +=
-                    rate.influences[i].factor * x[pop.get_flat_index({rate.region, rate.influences[i].status})];
+                influences += rate.influences[i].factor *
+                              x[pop.get_flat_index({rate.influences[i].region, rate.influences[i].status})];
             }
             return (N > 0) ? (rate.factor * x[source] * influences) : 0; //Note Julia: Normalisierung mit N rausgenommen
         }

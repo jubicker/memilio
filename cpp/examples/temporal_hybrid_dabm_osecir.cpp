@@ -68,12 +68,12 @@ int main()
     //Initialize ABM adoption rates
     std::vector<mio::AdoptionRate<ScalarType, mio::osecir::InfectionState>> adoption_rates;
     //Second-order adoption rate (S->E)
-    adoption_rates.push_back(
-        {mio::osecir::InfectionState::Susceptible,
-         mio::osecir::InfectionState::Exposed,
-         mio::regions::Region(0),
-         contact_frequency * trans_prob_on_contact,
-         {{mio::osecir::InfectionState::InfectedNoSymptoms, 1}, {mio::osecir::InfectionState::InfectedSymptoms, 1}}});
+    adoption_rates.push_back({mio::osecir::InfectionState::Susceptible,
+                              mio::osecir::InfectionState::Exposed,
+                              mio::regions::Region(0),
+                              contact_frequency * trans_prob_on_contact,
+                              {{mio::osecir::InfectionState::InfectedNoSymptoms, 1, mio::regions::Region(0)},
+                               {mio::osecir::InfectionState::InfectedSymptoms, 1, mio::regions::Region(0)}}});
     //First-order adoption rates
     //E->Ins
     adoption_rates.push_back({mio::osecir::InfectionState::Exposed,
