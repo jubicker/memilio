@@ -163,13 +163,15 @@ int main()
         //run += 1;
     }
     // Save percentiles
+    auto p00      = mio::ensemble_percentile(sim_results, 0.0);
     auto p05      = mio::ensemble_percentile(sim_results, 0.05);
     auto p25      = mio::ensemble_percentile(sim_results, 0.25);
     auto p50      = mio::ensemble_percentile(sim_results, 0.5);
     auto p75      = mio::ensemble_percentile(sim_results, 0.75);
     auto p95      = mio::ensemble_percentile(sim_results, 0.95);
     auto p100     = mio::ensemble_percentile(sim_results, 1.0);
-    auto finished = p05[0].export_csv(save_file + "p05.csv");
+    auto finished = p00[0].export_csv(save_file + "p00.csv");
+    finished      = p05[0].export_csv(save_file + "p05.csv");
     finished      = p25[0].export_csv(save_file + "p25.csv");
     finished      = p50[0].export_csv(save_file + "p50.csv");
     finished      = p75[0].export_csv(save_file + "p75.csv");
@@ -198,35 +200,35 @@ int main()
     total_time.add_time_point(0., time);
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
-    // // TODO - Write number of transitions to csv file
-    // if (true) {
-    //     std::vector<
-    //         std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
-    //                                   static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>
-    //         number_transitions;
-    //     number_transitions.reserve(num_runs);
-    //     for (auto& sim : sim_set.get_simulations()) {
-    //         number_transitions.push_back(sim.num_transitions);
-    //     }
-    //     auto mean = computeMeanMatrices(number_transitions);
-    //     for (size_t t = 0; t < mean.size(); ++t) {
-    //         writeMatrixToCSV(mean[t], save_file + std::to_string(t) + "_transitions.csv");
-    //     }
-    // }
+    // TODO - Write number of transitions to csv file
+    if (false) {
+        std::vector<
+            std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
+                                      static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>
+            number_transitions;
+        number_transitions.reserve(num_runs);
+        for (auto& sim : sim_set.get_simulations()) {
+            number_transitions.push_back(sim.num_transitions);
+        }
+        auto mean = computeMeanMatrices(number_transitions);
+        for (size_t t = 0; t < mean.size(); ++t) {
+            writeMatrixToCSV(mean[t], save_file + std::to_string(t) + "_transitions.csv");
+        }
+    }
 
-    // // TODO - Write number of total events to csv file
-    // // Convert result so they fit structure for ensemble_percentile fct
-    // std::vector<std::vector<mio::TimeSeries<double>>> events;
-    // for (size_t sim = 0; sim < sim_set.get_simulations().size(); ++sim) {
-    //     events.push_back({sim_set.get_simulations()[sim].num_events});
-    // }
-    // // Save percentiles
-    // auto p50_events  = mio::ensemble_percentile(events, 0.5);
-    // auto p00_events  = mio::ensemble_percentile(events, 0.0);
-    // auto p100_events = mio::ensemble_percentile(events, 1.0);
-    // finished         = p50_events[0].export_csv(save_file + "events_median.csv");
-    // finished         = p00_events[0].export_csv(save_file + "events_min.csv");
-    // finished         = p100_events[0].export_csv(save_file + "events_max.csv");
+    // TODO - Write number of total events to csv file
+    // Convert result so they fit structure for ensemble_percentile fct
+    std::vector<std::vector<mio::TimeSeries<double>>> events;
+    for (size_t sim = 0; sim < sim_set.get_simulations().size(); ++sim) {
+        events.push_back({sim_set.get_simulations()[sim].num_events});
+    }
+    // Save percentiles
+    auto p50_events  = mio::ensemble_percentile(events, 0.5);
+    auto p00_events  = mio::ensemble_percentile(events, 0.0);
+    auto p100_events = mio::ensemble_percentile(events, 1.0);
+    finished         = p50_events[0].export_csv(save_file + "events_median.csv");
+    finished         = p00_events[0].export_csv(save_file + "events_min.csv");
+    finished         = p100_events[0].export_csv(save_file + "events_max.csv");
 
     std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 

@@ -463,20 +463,22 @@ private:
                 double std =
                     std::sqrt(moment_results[m_moment_simulation.get_model().populations.get_num_compartments() +
                                              m_moment_simulation.get_model().moments.flatten_index(indices_var)]);
-                if (mean - 3 * std < 0) {
-                    auto new_params = calculate_trunc_normal_params(0., mean, std);
-                    double l_old    = lambda(-mean / std);
-                    double old_m    = mean + std * l_old;
-                    double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
-                    double l_new    = lambda(-new_params.first / new_params.second);
-                    double new_m    = new_params.first + new_params.second * l_new;
-                    double new_s    = new_params.second * new_params.second *
-                                   (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
-                    if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
-                        mean = new_params.first;
-                    }
-                    if (std::abs(std - old_s) > std::abs(std - new_s)) {
-                        std = new_params.second;
+                if (use_trnc_normal) {
+                    if (mean - 3 * std < 0) {
+                        auto new_params = calculate_trunc_normal_params(0., mean, std);
+                        double l_old    = lambda(-mean / std);
+                        double old_m    = mean + std * l_old;
+                        double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
+                        double l_new    = lambda(-new_params.first / new_params.second);
+                        double new_m    = new_params.first + new_params.second * l_new;
+                        double new_s    = new_params.second * new_params.second *
+                                       (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                        if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
+                            mean = new_params.first;
+                        }
+                        if (std::abs(std - old_s) > std::abs(std - new_s)) {
+                            std = new_params.second;
+                        }
                     }
                 }
                 double rounding_err = 0.;
@@ -486,14 +488,19 @@ private:
                 for (size_t sim = 0; sim < stochastic_sims.size(); ++sim) {
                     auto& sim_result = stochastic_sims[sim].get_result();
                     auto& sim_pop    = stochastic_sims[sim].get_model().populations;
+                    double sim_value;
 
-                    // Sample number of agents for stochastic trajectory normally distributed
-                    double sim_value =
-                        sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                    while (sim_value < 0) {
+                    if (use_trnc_normal) {
+                        // Sample number of agents for stochastic trajectory normally distributed
                         sim_value = sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                        // sim_value = mio::NormalDistribution<double>::get_instance()(
-                        //     stochastic_sims[sim].get_model().get_rng(), mean, std);
+                        while (sim_value < 0) {
+                            sim_value =
+                                sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                        }
+                    }
+                    else {
+                        sim_value = mio::NormalDistribution<double>::get_instance()(
+                            stochastic_sims[sim].get_model().get_rng(), mean, std);
                     }
                     if (correct_for_rounding_error && rounding_err != 0.) {
                         sim_value += rounding_err;
@@ -651,20 +658,22 @@ private:
                         moment_results
                             .get_last_value()[m_moment_simulation.get_model().populations.get_num_compartments() +
                                               m_moment_simulation.get_model().moments.flatten_index(indices_var)]);
-                    if (mean - 3 * std < 0) {
-                        auto new_params = calculate_trunc_normal_params(0., mean, std);
-                        double l_old    = lambda(-mean / std);
-                        double old_m    = mean + std * l_old;
-                        double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
-                        double l_new    = lambda(-new_params.first / new_params.second);
-                        double new_m    = new_params.first + new_params.second * l_new;
-                        double new_s    = new_params.second * new_params.second *
-                                       (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
-                        if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
-                            mean = new_params.first;
-                        }
-                        if (std::abs(std - old_s) > std::abs(std - new_s)) {
-                            std = new_params.second;
+                    if (use_trnc_normal) {
+                        if (mean - 3 * std < 0) {
+                            auto new_params = calculate_trunc_normal_params(0., mean, std);
+                            double l_old    = lambda(-mean / std);
+                            double old_m    = mean + std * l_old;
+                            double old_s    = std * std * (1 + (-mean / std) * l_old - l_old * l_old);
+                            double l_new    = lambda(-new_params.first / new_params.second);
+                            double new_m    = new_params.first + new_params.second * l_new;
+                            double new_s    = new_params.second * new_params.second *
+                                           (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                            if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
+                                mean = new_params.first;
+                            }
+                            if (std::abs(std - old_s) > std::abs(std - new_s)) {
+                                std = new_params.second;
+                            }
                         }
                     }
                     double rounding_err = 0.;
@@ -675,12 +684,20 @@ private:
                         auto& sim_result = stochastic_sims[sim].get_result();
                         auto& sim_pop    = stochastic_sims[sim].get_model().populations;
 
-                        // Sample number of incoming agents for simulation
-                        double sim_value =
-                            sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                        while (sim_value < 0) {
+                        double sim_value = 0.;
+
+                        if (use_trnc_normal) {
+                            // Sample number of incoming agents for simulation
                             sim_value =
                                 sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                            while (sim_value < 0) {
+                                sim_value =
+                                    sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                            }
+                        }
+                        else {
+                            sim_value = mio::NormalDistribution<double>::get_instance()(
+                                stochastic_sims[sim].get_model().get_rng(), mean, std);
                         }
                         if (correct_for_rounding_error && rounding_err != 0.) {
                             sim_value += rounding_err;
@@ -972,6 +989,7 @@ private:
         m_model_used; ///< Time series which indicates which model is used for each region at each time step (0: stochastic, 1: moment).
 
     const bool correct_for_rounding_error = true;
+    const bool use_trnc_normal            = true;
 };
 
 } // namespace hybrid
