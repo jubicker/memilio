@@ -26,6 +26,7 @@
 #include "memilio/compartments/compartmental_model.h"
 #include "memilio/epidemiology/populations.h"
 #include "memilio/geography/regions.h"
+#include <cstddef>
 
 namespace mio
 {
@@ -47,7 +48,13 @@ class Model : public mio::CompartmentalModel<FP, Status, mio::Populations<FP, mi
 public:
     Model()
         : Base(typename Base::Populations({static_cast<mio::regions::Region>(regions), Status::Count}, 0.0),
-               typename Base::ParameterSet())
+               typename Base::ParameterSet(0))
+    {
+    }
+
+    Model(size_t num_seasons)
+        : Base(typename Base::Populations({static_cast<mio::regions::Region>(regions), Status::Count}, 0.0),
+               typename Base::ParameterSet(num_seasons))
     {
     }
 
@@ -55,9 +62,10 @@ public:
      * @brief Calculate the current rate of the given adoption.
      * @param[in] rate An adoption rate from this model.
      * @param[in] x The current state of the model.
+     * @param[in] seasonality_factor The current seasonality factor. Only used for second-order adoptions.
      * @return Current value of the adoption rate.
      */
-    FP evaluate(const AdoptionRate<FP, Status>& rate, const Eigen::VectorX<FP>& x) const
+    FP evaluate(const AdoptionRate<FP, Status>& rate, const Eigen::VectorX<FP>& x, double seasonality_factor) const
     {
         const auto& pop   = this->populations;
         const auto source = pop.get_flat_index({rate.region, rate.from});
@@ -76,7 +84,8 @@ public:
                 influences += rate.influences[i].factor *
                               x[pop.get_flat_index({rate.influences[i].region, rate.influences[i].status})];
             }
-            return (N > 0) ? (rate.factor * x[source] * influences) : 0; //Note Julia: Normalisierung mit N rausgenommen
+            return (N > 0) ? (seasonality_factor * rate.factor * x[source] * influences)
+                           : 0; //Note Julia: Normalisierung mit N rausgenommen
         }
     }
 

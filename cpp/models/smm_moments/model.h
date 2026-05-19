@@ -68,9 +68,13 @@ public:
      * @param[in] y Current state of the expected values (first entries) and the moments (following entries).
      * @param[in] dydt Reference to the calculated output.
      */
-    void get_derivatives(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType /*t*/,
+    void get_derivatives(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarType t,
                          Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
     {
+        double seasonality_factor = 1.0;
+        if (parameters.template get<SeasonalityRho>().size() > 0) {
+            seasonality_factor = calculate_seasonality_factor(t);
+        }
         std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> indices;
         for (size_t l = 0; l < NumRegions; ++l) {
             indices.fill(0);
@@ -85,9 +89,11 @@ public:
             assert(ClosureOrder >= 2);
             double M_1SlIl =
                 ClosureOrder > 2 ? y[moments.flatten_index(indices) + populations.get_num_compartments()] : 0;
-            dydt[Sl] = -parameters.template get<TransmissionRate>()[Region(l)] * (y[Sl] * y[Il] + M_1SlIl) +
+            dydt[Sl] = -seasonality_factor * parameters.template get<TransmissionRate>()[Region(l)] *
+                           (y[Sl] * y[Il] + M_1SlIl) +
                        parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
-            dydt[Il] = parameters.template get<TransmissionRate>()[Region(l)] * (y[Sl] * y[Il] + M_1SlIl) -
+            dydt[Il] = seasonality_factor * parameters.template get<TransmissionRate>()[Region(l)] *
+                           (y[Sl] * y[Il] + M_1SlIl) -
                        parameters.template get<RecoveryRate>()[Region(l)] * y[Il];
             dydt[Rl] = parameters.template get<RecoveryRate>()[Region(l)] * y[Il] -
                        parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
@@ -126,7 +132,8 @@ public:
                 size_t order = moments.order(flat);
                 if (order < 2 || order >= ClosureOrder)
                     continue;
-                get_rhs_for_moment(flat + populations.get_num_compartments(), multi_indices[flat], order, y, dydt);
+                get_rhs_for_moment(flat + populations.get_num_compartments(), multi_indices[flat], order, y, dydt,
+                                   seasonality_factor);
             }
         }
     }
@@ -184,13 +191,13 @@ private:
     get_rhs_for_moment(size_t flat_index,
                        const std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions>& multi_idx,
                        size_t order, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-                       Eigen::Ref<Eigen::VectorX<ScalarType>> dydt) const
+                       Eigen::Ref<Eigen::VectorX<ScalarType>> dydt, double seasonality_factor) const
     {
         // Helper multi-index
         std::array<int, static_cast<size_t>(InfectionState::Count)* NumRegions> indices = multi_idx;
         dydt[flat_index]                                                                = 0.;
         for (size_t l = 0; l < NumRegions; ++l) {
-            const double lambda_l = parameters.template get<TransmissionRate>()[Region(l)];
+            const double lambda_l = seasonality_factor * parameters.template get<TransmissionRate>()[Region(l)];
             const double gamma_l  = parameters.template get<RecoveryRate>()[Region(l)];
             const double nu_l     = parameters.template get<ImmunityLossRate>()[Region(l)];
             // Indices for S, I, R in region l
@@ -770,6 +777,36 @@ private:
             indices[l * static_cast<size_t>(InfectionState::Count) + static_cast<size_t>(InfectionState::Recovered)] =
                 i_R_l;
         } // l
+    }
+
+    double gaussian(double t, double t_peak_season, int season) const
+    {
+        double sigma = parameters.template get<SeasonalitySigma>()[season];
+        return 1. / (sigma * sigma * std::sqrt(2 * M_PI)) * std::exp(-0.5 * std::pow((t - t_peak_season) / sigma, 2));
+    }
+
+    double zeta(double t, int season) const
+    {
+        double tau_minus =
+            parameters.template get<FirstSeasonStartDay>() - parameters.template get<StartDay>() + season * 365.;
+        double tau_plus = tau_minus + 365. - 1;
+        if (t <= tau_minus + 30) {
+            return (t - tau_minus + 30.) / 60.;
+        }
+        else if (t >= tau_plus - 30. && t <= tau_plus) {
+            return (-t + tau_plus + 30.) / 60.;
+        }
+        return 1;
+    }
+
+    double calculate_seasonality_factor(double t) const
+    {
+        int season =
+            int((t + parameters.template get<StartDay>() - parameters.template get<FirstSeasonStartDay>()) / 365.);
+        double t_peak_season =
+            season * 365. + parameters.template get<SeasonalityPeak>()[season] - parameters.template get<StartDay>();
+        double rho = parameters.template get<SeasonalityRho>()[season];
+        return rho + (1 - rho) * gaussian(t, t_peak_season, season) / gaussian(0, 0, season) * zeta(t, season);
     }
 
     ClosureFunctionType m_closure_function; ///< Moment closure approximation function

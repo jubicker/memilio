@@ -243,7 +243,11 @@ private:
     {
         size_t i = 0; // shared index for iterating both rates
         for (const auto& rate : adoption_rates()) {
-            m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments());
+            double seasonality_factor = 1.0;
+            if (m_model->parameters.template get<SeasonalityRho>().size() >= 1) {
+                seasonality_factor = calculate_seasonality_factor(m_result_interpolated.get_last_time());
+            }
+            m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments(), seasonality_factor);
             m_waiting_times[i] = (m_current_rates[i] > 0)
                                      ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
                                      : std::numeric_limits<FP>::max();
@@ -264,6 +268,37 @@ private:
     inline size_t determine_next_event()
     {
         return std::distance(m_waiting_times.begin(), std::min_element(m_waiting_times.begin(), m_waiting_times.end()));
+    }
+
+    double gaussian(double t, double t_peak_season, int season)
+    {
+        double sigma = m_model->parameters.template get<SeasonalitySigma>()[season];
+        return 1. / (sigma * sigma * std::sqrt(2 * M_PI)) * std::exp(-0.5 * std::pow((t - t_peak_season) / sigma, 2));
+    }
+
+    double zeta(double t, int season)
+    {
+        double tau_minus = m_model->parameters.template get<FirstSeasonStartDay>() -
+                           m_model->parameters.template get<StartDay>() + season * 365.;
+        double tau_plus = tau_minus + 365. - 1;
+        if (t <= tau_minus + 30) {
+            return (t - tau_minus + 30.) / 60.;
+        }
+        else if (t >= tau_plus - 30. && t <= tau_plus) {
+            return (-t + tau_plus + 30.) / 60.;
+        }
+        return 1;
+    }
+
+    double calculate_seasonality_factor(double t)
+    {
+        int season           = int((t + m_model->parameters.template get<StartDay>() -
+                          m_model->parameters.template get<FirstSeasonStartDay>()) /
+                         365.);
+        double t_peak_season = season * 365. + m_model->parameters.template get<SeasonalityPeak>()[season] -
+                               m_model->parameters.template get<StartDay>();
+        double rho = m_model->parameters.template get<SeasonalityRho>()[season];
+        return rho + (1 - rho) * gaussian(t, t_peak_season, season) / gaussian(0, 0, season) * zeta(t, season);
     }
 
     FP m_dt; ///< Initial step size

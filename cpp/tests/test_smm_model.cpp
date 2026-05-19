@@ -77,8 +77,8 @@ TEST(TestSMM, evaluateAdoptionRate)
     model.populations[{mio::regions::Region(0), InfectionState::R}] = 0;
     model.populations[{mio::regions::Region(0), InfectionState::D}] = 0;
 
-    EXPECT_EQ(model.evaluate(adoption_rates[0], model.populations.get_compartments()), 5. / 13.);
-    EXPECT_EQ(model.evaluate(adoption_rates[1], model.populations.get_compartments()), 2.);
+    EXPECT_EQ(model.evaluate(adoption_rates[0], model.populations.get_compartments(), 1.0), 5. / 13.);
+    EXPECT_EQ(model.evaluate(adoption_rates[1], model.populations.get_compartments(), 1.0), 2.);
 }
 
 TEST(TestSMM, evaluateTransitionRate)
