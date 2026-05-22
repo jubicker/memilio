@@ -116,6 +116,41 @@ enum class ConfigType
 Config get_config(ConfigType type);
 } // namespace sirs
 
+struct ConfigSeasonal {
+    // Config name
+    std::string name;
+    size_t num_regions;
+    double t0, tmax, dt;
+    // Lambdas (S->E) for every region
+    std::vector<double> lambdas;
+    // Recovery rate (I->R) is the same for all regions
+    double gamma;
+    // Immunity loss rate (R->S) is the same for all regions
+    double nu;
+    // Number of initially infected for given regions. If a region id is not present in the vector, the number of initially infected in that region is 0.
+    std::vector<std::pair<int, double>> I0s;
+    // Total population for every region
+    std::vector<double> total_populations;
+    // Transition rates
+    std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
+    // Seasonality parameters
+    // Start day of the first season given in days from 1st January in the first season, e.g. 0 for 1st January, -185 for 1st July (in the year before 1st January of that season), etc.
+    int first_season_start_day;
+    // Time points of peak transmission rate for each season given in days from 1st January in the first season, e.g. 0 for 1st January, 10 for 11th January, etc.
+    std::vector<int> season_peaks;
+    // Variation factor for each season
+    std::vector<double> seasonality_rhos;
+    // Standard deviation for the Gaussian function for each season
+    std::vector<double> seasonality_sigmas;
+};
+
+enum class SeasonalConfigType
+{
+    Config1
+};
+
+ConfigSeasonal get_config(SeasonalConfigType type);
+
 } // namespace Config
 
 #endif // CONFIG_H

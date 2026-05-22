@@ -338,12 +338,12 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigConference1:
-        config.name        = "R0_4.9_I0_10";
+        config.name        = "R0_1.5_I0_10";
         config.num_regions = 1;
         config.t0          = 0;
-        config.tmax        = 100;
+        config.tmax        = 200;
         config.dt          = 0.1;
-        config.lambdas     = {0.00000007}; // 2 - 0.0000000286, 1.5 - 0.0000000215, 1 - 0.0000000143, 4.9 - 0.00000007
+        config.lambdas     = {0.0000000215}; // 2 - 0.0000000286, 1.5 - 0.0000000215, 1 - 0.0000000143, 4.9 - 0.00000007
         config.gamma       = 1. / 7.;
         config.nu          = 1. / 20.;
         config.I0s         = {{0, 10}}; // Tuple of (region_id, initial infected)
@@ -413,6 +413,31 @@ Config get_config(ConfigType type)
         config.I0s               = {{0, 10}, {1, 10}, {2, 10}, {3, 10}};
         config.total_populations = {10000, 10000, 10000, 100000};
 
+        return config;
+        break;
+    }
+    return config;
+}
+
+ConfigSeasonal get_config(SeasonalConfigType type)
+{
+    ConfigSeasonal config;
+    switch (type) {
+    case SeasonalConfigType::Config1:
+        config.name                   = "seasonal_config1";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 365 * 3;
+        config.dt                     = 0.1;
+        config.lambdas                = {0.00007};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1. / 20.;
+        config.I0s                    = {{0, 10}}; // Tuple of (region_id, initial infected)
+        config.total_populations      = {10000};
+        config.first_season_start_day = -180; // First season starts at 1st July of the previous year
+        config.season_peaks           = {24, 24, 24}; // Peak transmission rate at day January 24th of each season
+        config.seasonality_rhos       = {1., 1., 1.}; // Variation factor for each season
+        config.seasonality_sigmas     = {30, 30, 30}; // Standard deviation for the Gaussian function for each season
         return config;
         break;
     }
