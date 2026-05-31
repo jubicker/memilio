@@ -97,7 +97,7 @@ struct TransitionRate {
  */
 struct SeasonalitySigma {
     using Type = std::vector<double>;
-    static Type get_default()
+    static Type get_default(mio::regions::Region)
     {
         return Type(0, 50.0);
     }
@@ -113,7 +113,7 @@ struct SeasonalitySigma {
  */
 struct FirstSeasonStartDay {
     using Type = int;
-    static Type get_default()
+    static Type get_default(mio::regions::Region)
     {
         return Type(0);
     }
@@ -130,7 +130,7 @@ struct FirstSeasonStartDay {
  */
 struct StartDay {
     using Type = int;
-    static Type get_default()
+    static Type get_default(mio::regions::Region)
     {
         return Type(0);
     }
@@ -146,7 +146,7 @@ struct StartDay {
  */
 struct SeasonalityPeak {
     using Type = std::vector<int>;
-    static Type get_default()
+    static Type get_default(mio::regions::Region)
     {
         return Type(0, 0.);
     }
@@ -162,7 +162,7 @@ struct SeasonalityPeak {
  */
 struct SeasonalityRho {
     using Type = std::vector<double>;
-    static Type get_default()
+    static Type get_default(mio::regions::Region)
     {
         return Type(0, 1.0);
     }

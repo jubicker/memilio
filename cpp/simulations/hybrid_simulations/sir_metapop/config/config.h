@@ -114,7 +114,6 @@ enum class ConfigType
 };
 
 Config get_config(ConfigType type);
-} // namespace sirs
 
 struct ConfigSeasonal {
     // Config name
@@ -151,6 +150,7 @@ enum class SeasonalConfigType
 
 ConfigSeasonal get_config(SeasonalConfigType type);
 
+} // namespace sirs
 } // namespace Config
 
 #endif // CONFIG_H

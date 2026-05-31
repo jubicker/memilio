@@ -73,7 +73,7 @@ struct TransitionRates {
  */
 struct FirstSeasonStartDay {
     using Type = int;
-    static Type get_default()
+    static Type get_default(size_t)
     {
         return Type(0);
     }
@@ -90,7 +90,7 @@ struct FirstSeasonStartDay {
  */
 struct StartDay {
     using Type = int;
-    static Type get_default()
+    static Type get_default(size_t)
     {
         return Type(0);
     }

@@ -2,6 +2,10 @@ add_executable(smm_config sir_metapop/applications/simulation_metapop.cpp)
 target_link_libraries(smm_config PRIVATE memilio ode_sir smm moments)
 target_compile_options(smm_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
 
+add_executable(smm_config_seasonal sir_metapop/applications/simulation_metapop_seasonal.cpp)
+target_link_libraries(smm_config_seasonal PRIVATE memilio ode_sir smm moments)
+target_compile_options(smm_config_seasonal PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
 add_executable(hybrid1_config sir_metapop/applications/simulation_hybrid_smm_ode.cpp)
 target_link_libraries(hybrid1_config PRIVATE memilio ode_sir smm moments hybrid)
 target_compile_options(hybrid1_config PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
