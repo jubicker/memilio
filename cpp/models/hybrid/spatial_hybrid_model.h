@@ -397,7 +397,8 @@ private:
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] =
                 m_config->gamma;
-            if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+            if (typeid(*m_config) == typeid(Config::sirs::Config) ||
+                typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
                 // Set immunity loss rate for sirs
                 m_moment_simulation.get_model()
                     .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] =
@@ -553,7 +554,8 @@ private:
                         if (rate.from == mio::osir::InfectionState::Infected) {
                             rate.factor = m_config->gamma;
                         }
-                        if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+                        if (typeid(*m_config) == typeid(Config::sirs::Config) ||
+                            typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
                             if (rate.from == mio::osir::InfectionState::Recovered) {
                                 rate.factor = m_config->nu;
                             }
@@ -618,7 +620,8 @@ private:
                 .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] = 0.0;
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] = 0.0;
-            if (typeid(*m_config) == typeid(Config::sirs::Config)) {
+            if (typeid(*m_config) == typeid(Config::sirs::Config) ||
+                typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
                 // Set immunity loss rate for sirs
                 m_moment_simulation.get_model()
                     .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] = 0.;
@@ -875,6 +878,20 @@ private:
         model.parameters.template get<mio::smm_moments::TransmissionRate>() = 0.0;
         model.parameters.template get<mio::smm_moments::RecoveryRate>()     = 0.0;
         model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
+
+        if (typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
+            // Set seasonality parameters
+            for (size_t season = 0; season < m_config->seasonality_rhos.size(); ++season) {
+                model.parameters.template get<mio::smm_moments::SeasonalityRho>().push_back(
+                    m_config->seasonality_rhos[season]);
+                model.parameters.template get<mio::smm_moments::SeasonalitySigma>().push_back(
+                    m_config->seasonality_sigmas[season]);
+                model.parameters.template get<mio::smm_moments::SeasonalityPeak>().push_back(
+                    m_config->season_peaks[season]);
+            }
+            model.parameters.template get<mio::smm_moments::StartDay>()            = m_config->first_season_start_day;
+            model.parameters.template get<mio::smm_moments::FirstSeasonStartDay>() = m_config->first_season_start_day;
+        }
 
         MomentSim sim(model, m_config->t0, m_config->dt);
         if (min_step_size > 0) {

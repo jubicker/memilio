@@ -194,7 +194,7 @@ initialize_model(const Config::sirs::ConfigSeasonal& config)
     model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
         config.transition_rates;
 
-    //TODO seasonality parameters
+    // Seasonality parameters
     model.parameters.template get<mio::smm::SeasonalityRho>()      = config.seasonality_rhos;
     model.parameters.template get<mio::smm::SeasonalitySigma>()    = config.seasonality_sigmas;
     model.parameters.template get<mio::smm::SeasonalityPeak>()     = config.season_peaks;

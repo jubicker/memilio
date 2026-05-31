@@ -789,7 +789,7 @@ private:
     {
         double tau_minus =
             parameters.template get<FirstSeasonStartDay>() - parameters.template get<StartDay>() + season * 365.;
-        double tau_plus = tau_minus + 365. - 1;
+        double tau_plus = tau_minus + 365.;
         if (t <= tau_minus + 30) {
             return (t - tau_minus + 30.) / 60.;
         }

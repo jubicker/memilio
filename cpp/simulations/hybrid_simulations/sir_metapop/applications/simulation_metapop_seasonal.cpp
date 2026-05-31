@@ -87,7 +87,7 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
 
 int main()
 {
-    const size_t num_runs    = 10000;
+    const size_t num_runs    = 50000;
     const size_t max_order   = 2;
     const auto config        = Config::sirs::get_config(Config::sirs::SeasonalConfigType::Config1);
     const size_t num_regions = 1;

@@ -55,6 +55,11 @@ struct Config {
     std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
     // not used
     double nu = 0;
+    // Seasonality parameters - UNUSED
+    int first_season_start_day;
+    std::vector<int> season_peaks;
+    std::vector<double> seasonality_rhos;
+    std::vector<double> seasonality_sigmas;
 };
 
 enum class ConfigType
@@ -103,6 +108,11 @@ struct Config {
     std::vector<double> total_populations;
     // Transition rates
     std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
+    // Seasonality parameters - UNUSED
+    int first_season_start_day;
+    std::vector<int> season_peaks;
+    std::vector<double> seasonality_rhos;
+    std::vector<double> seasonality_sigmas;
 };
 
 enum class ConfigType

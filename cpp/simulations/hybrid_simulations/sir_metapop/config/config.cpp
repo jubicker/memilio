@@ -424,19 +424,19 @@ ConfigSeasonal get_config(SeasonalConfigType type)
     ConfigSeasonal config;
     switch (type) {
     case SeasonalConfigType::Config1:
-        config.name                   = "seasonal_config1";
+        config.name                   = "config1_1r_I0_10";
         config.num_regions            = 1;
         config.t0                     = 0;
         config.tmax                   = 365 * 3;
         config.dt                     = 0.1;
-        config.lambdas                = {0.00007};
+        config.lambdas                = {0.0000572}; //R0~4
         config.gamma                  = 1. / 7.;
         config.nu                     = 1. / 20.;
         config.I0s                    = {{0, 10}}; // Tuple of (region_id, initial infected)
         config.total_populations      = {10000};
         config.first_season_start_day = -180; // First season starts at 1st July of the previous year
         config.season_peaks           = {24, 24, 24}; // Peak transmission rate at day January 24th of each season
-        config.seasonality_rhos       = {1., 1., 1.}; // Variation factor for each season
+        config.seasonality_rhos       = {0.4, 0.4, 0.4}; // Variation factor for each season
         config.seasonality_sigmas     = {30, 30, 30}; // Standard deviation for the Gaussian function for each season
         return config;
         break;

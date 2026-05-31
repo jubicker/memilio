@@ -280,7 +280,7 @@ private:
     {
         double tau_minus = m_model->parameters.template get<FirstSeasonStartDay>() -
                            m_model->parameters.template get<StartDay>() + season * 365.;
-        double tau_plus = tau_minus + 365. - 1;
+        double tau_plus = tau_minus + 365.;
         if (t <= tau_minus + 30) {
             return (t - tau_minus + 30.) / 60.;
         }

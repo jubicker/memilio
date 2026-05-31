@@ -41,11 +41,11 @@ namespace moment_helper
  * @param[in] moment_init Initial moment values.
  * @param[in] config Configuration
  */
-template <size_t NumRegions, size_t ClosureOrder>
+template <size_t NumRegions, size_t ClosureOrder, typename t_Config>
 mio::smm_moments::Model<NumRegions, ClosureOrder>
-initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sir::Config& config,
-                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
+initialize_model_impl(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
+                      Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const t_Config& config,
+                      typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
 {
     mio::smm_moments::Model<NumRegions, ClosureOrder> model(closure_func);
     // Check whether initial expected values and moments have the correct size
@@ -61,8 +61,6 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
 
     // Set recovery rate
     model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
-    // Set immunity loss rate to zero
-    model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
 
     for (size_t r = 0; r < NumRegions; ++r) {
         // Set transmission rates
@@ -86,6 +84,25 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
 }
 
 /**
+ * @brief Initialize moment model for S-I-R model.
+ * @tparam NumRegions Number of regions.
+ * @tparam ClosureOrder Order used for zero cumulant closure.
+ * @param[in] expected_values_init Initial expected values.
+ * @param[in] moment_init Initial moment values.
+ * @param[in] config Configuration
+ */
+template <size_t NumRegions, size_t ClosureOrder>
+mio::smm_moments::Model<NumRegions, ClosureOrder>
+initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
+                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sir::Config& config,
+                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
+{
+    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sir::Config>(
+        expected_values_init, moments_init, config, closure_func);
+    return model;
+}
+
+/**
  * @brief Initialize moment model for S-I-R-S model.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order used for zero cumulant closure.
@@ -99,41 +116,40 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
                  Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sirs::Config& config,
                  typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
 {
-    mio::smm_moments::Model<NumRegions, ClosureOrder> model(closure_func);
-    // Check whether initial expected values and moments have the correct size
-    assert(expected_values_init.rows() == NumRegions * static_cast<size_t>(mio::osir::InfectionState::Count) &&
-           "Initial expected values do not have correct size");
-    assert(moments_init.rows() == model.moments.moments().rows() && "Initial moments do not have correct size");
-
-    // Set spatial transition rates
-    for (auto& rate : config.transition_rates) {
-        model.parameters.template get<mio::smm_moments::TransitionRate>()[{rate.status, rate.from, rate.to}] =
-            rate.factor;
-    }
-
-    // Set recovery rate
-    model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
+    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sirs::Config>(
+        expected_values_init, moments_init, config, closure_func);
     // Set immunity loss rate
     model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = config.nu;
+    return model;
+}
 
-    for (size_t r = 0; r < NumRegions; ++r) {
-        // Set transmission rates
-        model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(r)] =
-            config.lambdas[r];
-
-        // Set initial expected values
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
-            expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                 static_cast<size_t>(mio::osir::InfectionState::Susceptible)];
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Infected}] =
-            expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                 static_cast<size_t>(mio::osir::InfectionState::Infected)];
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Recovered}] =
-            expected_values_init[r * static_cast<size_t>(mio::osir::InfectionState::Count) +
-                                 static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+/**
+ * @brief Initialize moment model for seasonal S-I-R-S model.
+ * @tparam NumRegions Number of regions.
+ * @tparam ClosureOrder Order used for zero cumulant closure.
+ * @param[in] expected_values_init Initial expected values.
+ * @param[in] moment_init Initial moment values.
+ * @param[in] config Configuration
+ */
+template <size_t NumRegions, size_t ClosureOrder>
+mio::smm_moments::Model<NumRegions, ClosureOrder>
+initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
+                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sirs::ConfigSeasonal& config,
+                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
+{
+    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sirs::ConfigSeasonal>(
+        expected_values_init, moments_init, config, closure_func);
+    // Set immunity loss rate
+    model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = config.nu;
+    // Set seasonality parameters
+    for (size_t season = 0; season < config.seasonality_rhos.size(); ++season) {
+        model.parameters.template get<mio::smm_moments::SeasonalityRho>().push_back(config.seasonality_rhos[season]);
+        model.parameters.template get<mio::smm_moments::SeasonalitySigma>().push_back(
+            config.seasonality_sigmas[season]);
+        model.parameters.template get<mio::smm_moments::SeasonalityPeak>().push_back(config.season_peaks[season]);
     }
-    // Set initial moments
-    model.moments.moments() = moments_init;
+    model.parameters.template get<mio::smm_moments::StartDay>()            = config.first_season_start_day;
+    model.parameters.template get<mio::smm_moments::FirstSeasonStartDay>() = config.first_season_start_day;
     return model;
 }
 
