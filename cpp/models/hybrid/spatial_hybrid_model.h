@@ -54,7 +54,7 @@ namespace mio
 namespace hybrid
 {
 
-template <size_t num_regions, size_t closure_order, typename ConfigType>
+template <size_t num_regions, size_t closure_order>
 class SpatialHybridSimulation
 {
 
@@ -67,9 +67,9 @@ public:
                            bool stochastic_used, size_t region)>;
 
     SpatialHybridSimulation(
-        const ConfigType& config, size_t num_runs, double min_step_size, double dt,
+        const Config::Config& config, size_t num_runs, double min_step_size, double dt,
         ClosureFunctionType closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>)
-        : m_config(std::make_shared<ConfigType>(config))
+        : m_config(std::make_shared<Config::Config>(config))
         , m_stochastic_simulation(initialize_stochastic_model(num_runs))
         , m_moment_simulation(initialize_deterministic_model(closure_func, min_step_size))
         , m_stochastic_regions(num_regions)
@@ -397,8 +397,7 @@ private:
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] =
                 m_config->gamma;
-            if (typeid(*m_config) == typeid(Config::sirs::Config) ||
-                typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
+            if (m_config->nu > 0) {
                 // Set immunity loss rate for sirs
                 m_moment_simulation.get_model()
                     .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] =
@@ -554,8 +553,7 @@ private:
                         if (rate.from == mio::osir::InfectionState::Infected) {
                             rate.factor = m_config->gamma;
                         }
-                        if (typeid(*m_config) == typeid(Config::sirs::Config) ||
-                            typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
+                        if (m_config->nu > 0) {
                             if (rate.from == mio::osir::InfectionState::Recovered) {
                                 rate.factor = m_config->nu;
                             }
@@ -620,8 +618,7 @@ private:
                 .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] = 0.0;
             m_moment_simulation.get_model()
                 .parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(region)] = 0.0;
-            if (typeid(*m_config) == typeid(Config::sirs::Config) ||
-                typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
+            if (m_config->nu > 0) {
                 // Set immunity loss rate for sirs
                 m_moment_simulation.get_model()
                     .parameters.template get<mio::smm_moments::ImmunityLossRate>()[mio::regions::Region(region)] = 0.;
@@ -879,7 +876,7 @@ private:
         model.parameters.template get<mio::smm_moments::RecoveryRate>()     = 0.0;
         model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
 
-        if (typeid(*m_config) == typeid(Config::sirs::ConfigSeasonal)) {
+        if (m_config->seasonality_rhos.size() > 0) {
             // Set seasonality parameters
             for (size_t season = 0; season < m_config->seasonality_rhos.size(); ++season) {
                 model.parameters.template get<mio::smm_moments::SeasonalityRho>().push_back(
@@ -995,7 +992,7 @@ private:
         return mu0 + sigma0 * z;
     }
 
-    std::shared_ptr<ConfigType> m_config; ///< Config of the simulation.
+    std::shared_ptr<Config::Config> m_config; ///< Config of the simulation.
     SMMSetSim m_stochastic_simulation; ///< SMM simulation containing stochastically modeled regions.
     MomentSim m_moment_simulation; ///< Moment simulation containing deterministically modeled regions.
     std::vector<size_t> m_stochastic_regions; ///< Regions which are currently modeled stochastically.
@@ -1005,7 +1002,7 @@ private:
     TimeSeries<int>
         m_model_used; ///< Time series which indicates which model is used for each region at each time step (0: stochastic, 1: moment).
 
-    const bool correct_for_rounding_error = true;
+    const bool correct_for_rounding_error = false;
     const bool use_trnc_normal            = true;
 };
 

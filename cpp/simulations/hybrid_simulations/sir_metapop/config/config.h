@@ -35,97 +35,8 @@ const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
 const std::vector<std::string> closure_string          = {"truncation", "pair_approx", "lognorm", "lognorm_zero_infl"};
 const std::vector<std::string> switch_condition_string = {"mean_threshold_rel", "var_gradient", "mean_threshold_abs",
                                                           "mean_stddev_relation"};
-namespace sir
-{
 
 struct Config {
-    // Config name
-    std::string name;
-    size_t num_regions;
-    double t0, tmax, dt;
-    // Lambdas (S->E) for every region
-    std::vector<double> lambdas;
-    // Recovery rate (I->R) is the same for all regions
-    double gamma;
-    // Number of initially infected for given regions. If a region id is not present in the vector, the number of initially infected in that region is 0.
-    std::vector<std::pair<int, double>> I0s;
-    // Total population for every region
-    std::vector<double> total_populations;
-    // Transition rates
-    std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
-    // not used
-    double nu = 0;
-    // Seasonality parameters - UNUSED
-    int first_season_start_day;
-    std::vector<int> season_peaks;
-    std::vector<double> seasonality_rhos;
-    std::vector<double> seasonality_sigmas;
-};
-
-enum class ConfigType
-{
-    Config1,
-    Config2,
-    Config3,
-    Config4,
-    Config5,
-    Config6,
-    Config2regionsNoExchange,
-    Config2regionsNoExchange2,
-    Config2regionsk1,
-    Config2regionsk2,
-    ConfigDiseaseImport1k1,
-    ConfigDiseaseImport1k2,
-    ConfigDiseaseImport2k1,
-    ConfigDiseaseImport2k2,
-    Config2regionsasymmExchange,
-    Config4regionsk2,
-    Config4regionsTransmNoExchange,
-    Config4regionsTransmSymExchange,
-    ConfigConference1
-};
-
-Config get_config(ConfigType type);
-} // namespace sir
-
-namespace sirs
-{
-
-struct Config {
-    // Config name
-    std::string name;
-    size_t num_regions;
-    double t0, tmax, dt;
-    // Lambdas (S->E) for every region
-    std::vector<double> lambdas;
-    // Recovery rate (I->R) is the same for all regions
-    double gamma;
-    // Immunity loss rate (R->S) is the same for all regions
-    double nu;
-    // Number of initially infected for given regions. If a region id is not present in the vector, the number of initially infected in that region is 0.
-    std::vector<std::pair<int, double>> I0s;
-    // Total population for every region
-    std::vector<double> total_populations;
-    // Transition rates
-    std::vector<mio::smm::TransitionRate<ScalarType, mio::osir::InfectionState>> transition_rates;
-    // Seasonality parameters - UNUSED
-    int first_season_start_day;
-    std::vector<int> season_peaks;
-    std::vector<double> seasonality_rhos;
-    std::vector<double> seasonality_sigmas;
-};
-
-enum class ConfigType
-{
-    Config1,
-    Config3,
-    Config4,
-    Config4regionsTransmNoExchange
-};
-
-Config get_config(ConfigType type);
-
-struct ConfigSeasonal {
     // Config name
     std::string name;
     size_t num_regions;
@@ -153,14 +64,24 @@ struct ConfigSeasonal {
     std::vector<double> seasonality_sigmas;
 };
 
-enum class SeasonalConfigType
+enum class ConfigType
 {
-    Config1
+    ConfigSIRVaryI0NoExchange,
+    ConfigSIRVaryI0Exchange,
+    ConfigSIRVaryR0NoExchange,
+    ConfigSIRVaryR0Exchange,
+    ConfigSIRSVaryI0NoExchange,
+    ConfigSIRSVaryI0Exchange,
+    ConfigSIRSVaryR0NoExchange,
+    ConfigSIRSVaryR0Exchange,
+    ConfigSIRSVaryI0NoExchange_Seasonal,
+    ConfigSIRSVaryI0Exchange_Seasonal,
+    ConfigSIRSVaryR0NoExchange_Seasonal,
+    ConfigSIRSVaryR0Exchange_Seasonal
 };
 
-ConfigSeasonal get_config(SeasonalConfigType type);
+Config get_config(ConfigType type);
 
-} // namespace sirs
 } // namespace Config
 
 #endif // CONFIG_H

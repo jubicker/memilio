@@ -34,18 +34,18 @@ namespace moment_helper
 {
 
 /**
- * @brief Initialize moment model for S-I-R model.
+ * @brief Initialize moment model for given config.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order used for zero cumulant closure.
  * @param[in] expected_values_init Initial expected values.
  * @param[in] moment_init Initial moment values.
  * @param[in] config Configuration
  */
-template <size_t NumRegions, size_t ClosureOrder, typename t_Config>
+template <size_t NumRegions, size_t ClosureOrder>
 mio::smm_moments::Model<NumRegions, ClosureOrder>
-initialize_model_impl(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                      Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const t_Config& config,
-                      typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
+initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
+                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::Config& config,
+                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
 {
     mio::smm_moments::Model<NumRegions, ClosureOrder> model(closure_func);
     // Check whether initial expected values and moments have the correct size
@@ -61,6 +61,24 @@ initialize_model_impl(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_i
 
     // Set recovery rate
     model.parameters.template get<mio::smm_moments::RecoveryRate>() = config.gamma;
+
+    // Set immunity loss rate if > 0
+    if (config.nu > 0) {
+        model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = config.nu;
+    }
+
+    // Set seasonality parameters if there are any
+    if (config.season_peaks.size() > 0) {
+        for (size_t season = 0; season < config.seasonality_rhos.size(); ++season) {
+            model.parameters.template get<mio::smm_moments::SeasonalityRho>().push_back(
+                config.seasonality_rhos[season]);
+            model.parameters.template get<mio::smm_moments::SeasonalitySigma>().push_back(
+                config.seasonality_sigmas[season]);
+            model.parameters.template get<mio::smm_moments::SeasonalityPeak>().push_back(config.season_peaks[season]);
+        }
+        model.parameters.template get<mio::smm_moments::StartDay>()            = config.first_season_start_day;
+        model.parameters.template get<mio::smm_moments::FirstSeasonStartDay>() = config.first_season_start_day;
+    }
 
     for (size_t r = 0; r < NumRegions; ++r) {
         // Set transmission rates
@@ -80,76 +98,6 @@ initialize_model_impl(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_i
     }
     // Set initial moments
     model.moments.moments() = moments_init;
-    return model;
-}
-
-/**
- * @brief Initialize moment model for S-I-R model.
- * @tparam NumRegions Number of regions.
- * @tparam ClosureOrder Order used for zero cumulant closure.
- * @param[in] expected_values_init Initial expected values.
- * @param[in] moment_init Initial moment values.
- * @param[in] config Configuration
- */
-template <size_t NumRegions, size_t ClosureOrder>
-mio::smm_moments::Model<NumRegions, ClosureOrder>
-initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sir::Config& config,
-                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
-{
-    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sir::Config>(
-        expected_values_init, moments_init, config, closure_func);
-    return model;
-}
-
-/**
- * @brief Initialize moment model for S-I-R-S model.
- * @tparam NumRegions Number of regions.
- * @tparam ClosureOrder Order used for zero cumulant closure.
- * @param[in] expected_values_init Initial expected values.
- * @param[in] moment_init Initial moment values.
- * @param[in] config Configuration
- */
-template <size_t NumRegions, size_t ClosureOrder>
-mio::smm_moments::Model<NumRegions, ClosureOrder>
-initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sirs::Config& config,
-                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
-{
-    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sirs::Config>(
-        expected_values_init, moments_init, config, closure_func);
-    // Set immunity loss rate
-    model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = config.nu;
-    return model;
-}
-
-/**
- * @brief Initialize moment model for seasonal S-I-R-S model.
- * @tparam NumRegions Number of regions.
- * @tparam ClosureOrder Order used for zero cumulant closure.
- * @param[in] expected_values_init Initial expected values.
- * @param[in] moment_init Initial moment values.
- * @param[in] config Configuration
- */
-template <size_t NumRegions, size_t ClosureOrder>
-mio::smm_moments::Model<NumRegions, ClosureOrder>
-initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
-                 Eigen::Array<double, Eigen::Dynamic, 1>& moments_init, const Config::sirs::ConfigSeasonal& config,
-                 typename mio::smm_moments::Model<NumRegions, ClosureOrder>::ClosureFunctionType closure_func)
-{
-    auto model = initialize_model_impl<NumRegions, ClosureOrder, Config::sirs::ConfigSeasonal>(
-        expected_values_init, moments_init, config, closure_func);
-    // Set immunity loss rate
-    model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = config.nu;
-    // Set seasonality parameters
-    for (size_t season = 0; season < config.seasonality_rhos.size(); ++season) {
-        model.parameters.template get<mio::smm_moments::SeasonalityRho>().push_back(config.seasonality_rhos[season]);
-        model.parameters.template get<mio::smm_moments::SeasonalitySigma>().push_back(
-            config.seasonality_sigmas[season]);
-        model.parameters.template get<mio::smm_moments::SeasonalityPeak>().push_back(config.season_peaks[season]);
-    }
-    model.parameters.template get<mio::smm_moments::StartDay>()            = config.first_season_start_day;
-    model.parameters.template get<mio::smm_moments::FirstSeasonStartDay>() = config.first_season_start_day;
     return model;
 }
 

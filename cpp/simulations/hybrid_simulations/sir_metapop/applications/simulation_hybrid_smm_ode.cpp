@@ -45,7 +45,7 @@ int main()
     const size_t num_runs         = 10000;
     double dt_switch              = 1.;
     const size_t max_order        = 3;
-    const auto config             = Config::sir::get_config(Config::sir::ConfigType::ConfigConference1);
+    const auto config             = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
     const size_t num_regions      = 1;
     const double rel_switch_value = 0.01;
     if (num_regions != config.num_regions) {
@@ -61,7 +61,8 @@ int main()
         return -1;
     }
 
-    save_file += "/fixed_tp"; //"/switch_value_" + std::to_string(rel_switch_value); //"/fixed_tp";
+    save_file += "/switch_value_" +
+                 std::to_string(rel_switch_value); //"/switch_value_" + std::to_string(rel_switch_value); //"/fixed_tp";
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -149,7 +150,7 @@ int main()
     mio::timing::BasicTimer timer;
     timer.start();
     // Advance simulation set
-    sim_set.advance(config.tmax, condition_tp);
+    sim_set.advance(config.tmax, condition);
     timer.stop();
 
     // Convert result so they fit structure for ensemble_percentile fct

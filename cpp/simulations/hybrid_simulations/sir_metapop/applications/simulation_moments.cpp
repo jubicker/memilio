@@ -32,9 +32,9 @@
 
 int main()
 {
-    auto config                = Config::sir::get_config(Config::sir::ConfigType::ConfigConference1);
-    const size_t closure_order = 2;
-    const size_t num_regions   = 1;
+    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    const size_t closure_order = 3;
+    const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
     double init_time           = 0.0;
     size_t closure             = 0;
@@ -60,7 +60,7 @@ int main()
     }
 
     // INPUT - SIR/SIRS
-    std::string save_file = Config::SAVE_DIR + "conference/ODE/";
+    std::string save_file = Config::SAVE_DIR + "Moments/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
@@ -91,7 +91,7 @@ int main()
     config.t0 += init_time;
 
     // INPUT - SIR/SIRS
-    std::string init_dir = Config::SAVE_DIR + "conference/SMM/" + config.name + "/";
+    std::string init_dir = Config::SAVE_DIR + "SMM/" + config.name + "/";
 
     std::string file_expected_values = init_dir + "means.csv";
     std::string file_moment_values   = init_dir + "moments.csv";

@@ -35,14 +35,15 @@ namespace smm_helper
 {
 
 /**
-* @brief Initializes an S-I-R SMM with the given config.
+* @brief Initializes an SMM with the given config.
 * @param[in] config The configuration containing the model parameters (adoption and transition rates), initial populations and initially infected per region.
 */
 template <size_t NumRegions>
-mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_model(const Config::sir::Config& config)
+mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_model(const Config::Config& config)
 {
+    size_t num_seasons = config.season_peaks.size();
     assert(config.num_regions == NumRegions);
-    mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> model;
+    mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> model(num_seasons);
 
     // Initialize populations
     for (size_t r = 0; r < config.num_regions; ++r) {
@@ -76,130 +77,32 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
                                   mio::regions::Region(r),
                                   config.gamma,
                                   {}});
+        // Immunity loss rate is also the same for all regions - is only initilized if > 0
+        if (config.nu > 0) {
+            adoption_rates.push_back({mio::osir::InfectionState::Recovered,
+                                      mio::osir::InfectionState::Susceptible,
+                                      mio::regions::Region(r),
+                                      config.nu,
+                                      {}});
+        }
     }
     model.parameters.template get<mio::smm::AdoptionRates<ScalarType, mio::osir::InfectionState>>() = adoption_rates;
-    model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
-        config.transition_rates;
 
-    return model;
-}
-
-/**
-* @brief Initializes an S-I-R-S SMM with the given config.
-* @param[in] config The configuration containing the model parameters (adoption and transition rates), initial populations and initially infected per region.
-*/
-template <size_t NumRegions>
-mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_model(const Config::sirs::Config& config)
-{
-    assert(config.num_regions == NumRegions);
-    mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> model;
-
-    // Initialize populations
-    for (size_t r = 0; r < config.num_regions; ++r) {
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
-            config.total_populations[r];
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Infected}]  = 0;
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Recovered}] = 0;
-    }
-    // Set initially infected
-    for (size_t i = 0; i < config.I0s.size(); ++i) {
-        int region_id = config.I0s[i].first;
-        double I0     = config.I0s[i].second;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = I0;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Susceptible}] =
-            config.total_populations[region_id] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}];
+    // Initialize transition rates only if there is exchange between regions
+    if (config.transition_rates.size() > 0) {
+        model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
+            config.transition_rates;
     }
 
-    std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;
-    for (size_t r = 0; r < config.num_regions; ++r) {
-        // Second-order adoption rate lambda is region dependent
-        adoption_rates.push_back({mio::osir::InfectionState::Susceptible,
-                                  mio::osir::InfectionState::Infected,
-                                  mio::regions::Region(r),
-                                  config.lambdas[r],
-                                  {{mio::osir::InfectionState::Infected, 1., mio::regions::Region(r)}}});
-        // Recovery rate gamma is the same for all regions
-        adoption_rates.push_back({mio::osir::InfectionState::Infected,
-                                  mio::osir::InfectionState::Recovered,
-                                  mio::regions::Region(r),
-                                  config.gamma,
-                                  {}});
-        // Immunity loss rate is also the same for all regions
-        adoption_rates.push_back({mio::osir::InfectionState::Recovered,
-                                  mio::osir::InfectionState::Susceptible,
-                                  mio::regions::Region(r),
-                                  config.nu,
-                                  {}});
-    }
-    model.parameters.template get<mio::smm::AdoptionRates<ScalarType, mio::osir::InfectionState>>() = adoption_rates;
-    model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
-        config.transition_rates;
-
-    return model;
-}
-
-/**
-* @brief Initializes an seasonal S-I-R-S SMM with the given seasonal config.
-* @param[in] config The configuration containing the model parameters (adoption and transition rates), initial populations and initially infected per region.
-*/
-template <size_t NumRegions>
-mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState>
-initialize_model(const Config::sirs::ConfigSeasonal& config)
-{
-    assert(config.num_regions == NumRegions);
-    mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> model(config.season_peaks.size());
-
-    // Initialize populations
-    for (size_t r = 0; r < config.num_regions; ++r) {
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =
-            config.total_populations[r];
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Infected}]  = 0;
-        model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Recovered}] = 0;
-    }
-    // Set initially infected
-    for (size_t i = 0; i < config.I0s.size(); ++i) {
-        int region_id = config.I0s[i].first;
-        double I0     = config.I0s[i].second;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = I0;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Susceptible}] =
-            config.total_populations[region_id] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}];
+    // Initialize seasonality parameters if there are any
+    if (config.season_peaks.size() > 0) {
+        model.parameters.template get<mio::smm::SeasonalityRho>()      = config.seasonality_rhos;
+        model.parameters.template get<mio::smm::SeasonalitySigma>()    = config.seasonality_sigmas;
+        model.parameters.template get<mio::smm::SeasonalityPeak>()     = config.season_peaks;
+        model.parameters.template get<mio::smm::StartDay>()            = config.first_season_start_day;
+        model.parameters.template get<mio::smm::FirstSeasonStartDay>() = config.first_season_start_day;
     }
 
-    std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;
-    for (size_t r = 0; r < config.num_regions; ++r) {
-        // Second-order adoption rate lambda is region dependent
-        adoption_rates.push_back({mio::osir::InfectionState::Susceptible,
-                                  mio::osir::InfectionState::Infected,
-                                  mio::regions::Region(r),
-                                  config.lambdas[r],
-                                  {{mio::osir::InfectionState::Infected, 1., mio::regions::Region(r)}}});
-        // Recovery rate gamma is the same for all regions
-        adoption_rates.push_back({mio::osir::InfectionState::Infected,
-                                  mio::osir::InfectionState::Recovered,
-                                  mio::regions::Region(r),
-                                  config.gamma,
-                                  {}});
-        // Immunity loss rate is also the same for all regions
-        adoption_rates.push_back({mio::osir::InfectionState::Recovered,
-                                  mio::osir::InfectionState::Susceptible,
-                                  mio::regions::Region(r),
-                                  config.nu,
-                                  {}});
-    }
-    model.parameters.template get<mio::smm::AdoptionRates<ScalarType, mio::osir::InfectionState>>() = adoption_rates;
-    model.parameters.template get<mio::smm::TransitionRates<ScalarType, mio::osir::InfectionState>>() =
-        config.transition_rates;
-
-    // Seasonality parameters
-    model.parameters.template get<mio::smm::SeasonalityRho>()      = config.seasonality_rhos;
-    model.parameters.template get<mio::smm::SeasonalitySigma>()    = config.seasonality_sigmas;
-    model.parameters.template get<mio::smm::SeasonalityPeak>()     = config.season_peaks;
-    model.parameters.template get<mio::smm::StartDay>()            = config.first_season_start_day;
-    model.parameters.template get<mio::smm::FirstSeasonStartDay>() = config.first_season_start_day;
     return model;
 }
 

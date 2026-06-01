@@ -30,44 +30,6 @@
 #include <vector>
 #include <omp.h>
 
-/**
- * @brief Run one simulation of the smm. The comps.csv is saved as result.
- * @tparam NumRegions Number of regions.
- * @param[in] sim_num Simulation number used as seed for the simulation.
- * @param[in] save_file File the output time series is saved to.
- * @param[in] config Config used for the simulation i.e. parameters and initial populations.
- * @param[in, out] timer_init Timer used to time initialization.
- * @param[in, out] timer_sim Timer used to time simulation.
- */
-template <int NumRegions>
-mio::TimeSeries<double> run_smm_sim(int sim_num, std::string save_file, const Config::sir::Config& config,
-                                    mio::timing::BasicTimer& timer_init, mio::timing::BasicTimer& timer_sim)
-{
-    timer_init.start();
-    // Initialize model
-    auto model = smm_helper::initialize_model<NumRegions>(config);
-    // Create simulation
-    auto sim = mio::smm::Simulation(model, config.t0, config.dt);
-    timer_init.stop();
-    timer_sim.start();
-    // Advance simulation until tmax
-    sim.advance(config.tmax);
-    timer_sim.stop();
-
-    std::string output_file = save_file + std::to_string(sim_num) + "_comps.csv";
-
-    // Output is interpolated to time steps of size dt
-    int num_steps = static_cast<int>(config.tmax / config.dt) + 1;
-    std::vector<double> interpolation_tps(num_steps);
-
-    for (int i = 0; i < num_steps; ++i) {
-        interpolation_tps[i] = i * config.dt;
-    }
-    auto result = mio::interpolate_simulation_result(sim.get_result(), interpolation_tps);
-    auto done   = result.export_csv(output_file);
-    return result;
-}
-
 template <int n>
 void writeMatrixToCSV(const Eigen::Matrix<double, n, n>& mat, const std::string& filename)
 {
@@ -125,15 +87,15 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
 
 int main()
 {
-    const size_t num_runs    = 10000;
+    const size_t num_runs    = 50000;
     const size_t max_order   = 2;
-    const auto config        = Config::sir::get_config(Config::sir::ConfigType::ConfigConference1);
-    const size_t num_regions = 1;
+    const auto config        = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    const size_t num_regions = 4;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::string save_file = Config::SAVE_DIR + "conference/SMM/";
+    std::string save_file = Config::SAVE_DIR + "SMM/";
     save_file += config.name;
     auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
@@ -201,7 +163,7 @@ int main()
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
     // TODO - Write number of transitions to csv file
-    if (false) {
+    if (true) {
         std::vector<
             std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
                                       static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>
