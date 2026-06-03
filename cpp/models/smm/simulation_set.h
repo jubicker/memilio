@@ -22,7 +22,9 @@
 #define MIO_SMM_SIMULATION_SET_H
 
 #include "memilio/config.h"
+#include "memilio/timer/auto_timer.h"
 #include "memilio/timer/basic_timer.h"
+#include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/logging.h"
 #include "memilio/utils/random_number_generator.h"
 #include "memilio/utils/time_series.h"
@@ -31,7 +33,9 @@
 #include "smm/simulation.h"
 #include "simulations/hybrid_simulations/sir_metapop/library/moment_array.h"
 #include "memilio/data/analyze_result.h"
+#include <Eigen/src/Core/Matrix.h>
 #include <cstddef>
+#include <limits>
 #include <numeric>
 #include <sys/types.h>
 #include <vector>
@@ -50,6 +54,8 @@ namespace smm
 template <size_t regions, class Status, size_t MaxMomentOrder>
 class SimulationSet
 {
+    using MatrixType = Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>;
+
 public:
     using Simulation = smm::Simulation<ScalarType, regions, Status>;
     using Model      = Simulation::Model;
@@ -82,18 +88,7 @@ public:
             m_sims.push_back(Simulation(m, t0, dt));
         }
         m_moments = TimeSeries<double>(m_mom_array.get_indices().size());
-
-        // Add initial values to results
-        auto& sim_ts = m_sims[0].get_result();
-#ifdef MEMILIO_ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-        for (size_t run = 0; run < m_sims.size(); ++run) {
-            if (m_results[run].get_num_time_points() == 0) {
-                m_results[run].add_time_point(sim_ts.get_time(0), sim_ts.get_value(0));
-            }
-        }
-        update_means_and_moments();
+        calculate_outputs();
     }
 
     /**
@@ -109,11 +104,7 @@ public:
 #pragma omp parallel for
 #endif
         for (size_t run = 0; run < m_sims.size(); ++run) {
-            timing::BasicTimer timer;
-            timer.start();
             m_sims[run].advance(tmax);
-            timer.stop();
-            m_sim_time[run] += mio::timing::time_in_seconds(timer.get_elapsed_time());
         }
 
         m_t = tmax;
@@ -122,40 +113,175 @@ public:
     }
 
     /**
-     * @brief Calculate interpolated results, mean and moment time series.
+     * @brief Calculate interpolated results, mean and moment time series. Only new time points since last call are processed, so this can be called multiple times during a simulation to get intermediate results without reprocessing old time points.
      */
     void calculate_outputs()
     {
-        double t = 0;
-        if (m_means.get_num_time_points() > 0) {
-            t = m_means.get_last_time();
-        }
-        // Time steps for interpolation
-        int num_steps = static_cast<int>((m_t - t) / m_dt);
-        if (num_steps > 0) {
-
-// Interpolate results
+        // Struct has time and compartment values of one simulation for the time point
+        struct TPValues {
+            double time;
+            Eigen::VectorXd value;
+        };
+        // For each run: Vector with new TPValues since last calculate_outputs() call (i.e. since last interpolation)
+        std::vector<std::vector<TPValues>> new_points(m_sims.size());
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
-            for (size_t run = 0; run < m_sims.size(); ++run) {
-                auto& sim_ts         = m_sims[run].get_result();
-                auto interpolated_ts = sim_ts;
-                // Remove individual simulation result time series
-                sim_ts = mio::TimeSeries<double>(interpolated_ts.get_num_elements());
-                while (interpolated_ts.get_num_time_points() > 1) {
-                    if (m_results[run].get_num_time_points() == 0 ||
-                        m_results[run].get_last_time() < interpolated_ts.get_time(0)) {
-                        m_results[run].add_time_point(interpolated_ts.get_time(0), interpolated_ts.get_value(0));
-                    }
-                    interpolated_ts.remove_time_point(0);
-                }
-                m_results[run].add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
-                sim_ts.add_time_point(interpolated_ts.get_last_time(), interpolated_ts.get_last_value());
+        for (size_t run = 0; run < m_sims.size(); ++run) {
+            auto& sim_ts          = m_sims[run].get_result();
+            const size_t n_points = sim_ts.get_num_time_points();
+            if (n_points == 0) {
+                continue;
             }
+            new_points[run].reserve(n_points);
+            // Copy simulation time points to small vector
+            for (size_t i = 0; i < n_points; ++i) {
+                double time_i = sim_ts.get_time(i);
+                auto v        = sim_ts.get_value(i);
+                if (m_results[run].get_num_time_points() != 0 &&
+                    m_results[run].get_last_time() >=
+                        time_i) { // Only add new time points since last calculate_outputs() call, so we don't have to recalculate means and moments for old time points
+                    continue;
+                }
+                new_points[run].push_back({time_i, Eigen::VectorXd::Map(v.data(), v.size())});
+            }
+            // append all new points to m_results[run]
+            for (const auto& tp_value : new_points[run]) {
+                if (m_results[run].get_num_time_points() == 0 || m_results[run].get_last_time() < tp_value.time) {
+                    m_results[run].add_time_point(tp_value.time, tp_value.value);
+                }
+            }
+            // keep only last point in sim_ts to avoid reprocessing
+            const auto& lastp = new_points[run].back();
+            sim_ts            = mio::TimeSeries<double>(sim_ts.get_num_elements());
+            sim_ts.add_time_point(lastp.time, lastp.value);
+        }
 
-            // Fill moment and means time series
-            update_means_and_moments();
+        // Prepare sizes
+        const int n_runs = static_cast<int>(m_sims.size());
+        const int n_cols = last_results.cols();
+
+        // Get moment indices and initialize vector with moments that do not have to be recalculated
+        auto& moment_indices = m_mom_array.get_indices();
+        std::vector<char> skip_moment(moment_indices.size(), 0);
+
+        // Iterate over all new time points
+        for (size_t tp_index = 0; tp_index < new_points[0].size(); ++tp_index) {
+            double time_k = new_points[0][tp_index].time;
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel
+#endif
+            { // One parallel region per time step
+#ifdef MEMILIO_ENABLE_OPENMP
+                const int tid      = omp_get_thread_num();
+                const int nthreads = omp_get_num_threads();
+#else
+                const int tid      = 0;
+                const int nthreads = 1;
+#endif
+
+                // Each thread updates distinct rows (runs) of last_results.
+                for (int run = tid; run < n_runs; run += nthreads) {
+                    // copy values into last_results row
+                    for (int c = 0; c < n_cols; ++c) {
+                        last_results(run, c) = new_points[run][tp_index].value[c];
+                    }
+                }
+                // compute means and centered_values once
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp barrier
+#pragma omp single
+#endif
+                {
+                    means = last_results.colwise().mean();
+                    if (m_means.get_num_time_points() == 0 || m_means.get_last_time() < time_k) {
+                        m_means.add_time_point(time_k, means);
+                    }
+                    else {
+                        m_means.get_last_value() = means;
+                    }
+                    // compute centered values
+                    centered_values = last_results.rowwise() - means;
+
+                    // detect active columns (any non-zero across runs) to skip empty regions
+                    Eigen::RowVectorXd maxabs = last_results.cwiseAbs().colwise().maxCoeff();
+                    std::vector<char> active_col(static_cast<size_t>(maxabs.size()));
+                    for (int c = 0; c < static_cast<int>(maxabs.size()); ++c) {
+                        active_col[static_cast<size_t>(c)] =
+                            (maxabs[c] >
+                             0.0); // if column is all zero, we can skip it in moment calculations and mark moments that only reference this column as zero
+                    }
+                    // Rescale cached powers for centered values only if shape/order changed
+                    const size_t max_order = MaxMomentOrder;
+                    if (m_col_pows.size() != (max_order + 1) || m_col_pows[0].rows() != centered_values.rows() ||
+                        m_col_pows[0].cols() != centered_values.cols()) {
+                        m_col_pows.assign(static_cast<size_t>(max_order) + 1,
+                                          MatrixType::Zero(centered_values.rows(), centered_values.cols()));
+                    }
+                    // compute integer powers into preallocated matrices (no alloc)
+                    m_col_pows[0].setOnes(); // Power 0 is always 1
+                    if (max_order >= 1) {
+                        m_col_pows[1] = centered_values;
+                    }
+                    for (size_t p = 2; p <= max_order; ++p) {
+                        m_col_pows[p].noalias() = m_col_pows[p - 1].cwiseProduct(centered_values);
+                    }
+                    // set inactive columns in all powers to zero
+                    const int cols = static_cast<int>(m_col_pows[0].cols());
+                    for (size_t p = 0; p < m_col_pows.size(); ++p) {
+                        for (int c = 0; c < cols; ++c) {
+                            if (!active_col[static_cast<size_t>(c)]) {
+                                m_col_pows[p].col(c).setZero();
+                            }
+                        }
+                    }
+
+                    // Determine which moments are trivially zero because they reference only inactive columns
+                    for (size_t mi = 0; mi < moment_indices.size(); ++mi) {
+                        const auto& idx_arr = moment_indices[mi];
+                        bool active         = true;
+                        for (int c = 0; c < static_cast<int>(idx_arr.size()); ++c) {
+                            if (idx_arr[static_cast<size_t>(c)] > 0 && !active_col[static_cast<size_t>(c)]) {
+                                active = false;
+                                break;
+                            }
+                        }
+                        skip_moment[mi] = !active;
+                    }
+                }
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp barrier
+#endif
+
+                // Calculate moments in parallel across indices using precomputed powers + skip trivial zeros
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp for schedule(static)
+#endif
+                for (int i = 0; i < static_cast<int>(moment_indices.size()); ++i) {
+                    if (skip_moment[static_cast<size_t>(i)]) {
+                        m_mom_array[moment_indices[static_cast<size_t>(i)]] = 0.0;
+                        continue;
+                    }
+                    auto& idx_arr        = moment_indices[static_cast<size_t>(i)];
+                    m_mom_array[idx_arr] = calculate_moment_from_pows(m_col_pows, idx_arr);
+                }
+
+                // single thread writes m_moments
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp barrier
+#pragma omp single
+#endif
+                {
+                    auto moment_values   = m_mom_array.get_values();
+                    Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
+                    if (m_moments.get_num_time_points() == 0 || m_moments.get_last_time() < time_k) {
+                        m_moments.add_time_point(time_k, data);
+                    }
+                    else {
+                        m_moments.get_last_value() = data;
+                    }
+                }
+            }
         }
     }
 
@@ -223,19 +349,21 @@ public:
     std::vector<double> get_last_vars()
     {
         std::vector<double> vars(static_cast<size_t>(osir::InfectionState::Count) * regions);
-        auto& names = m_mom_array.get_names();
+        auto& moment_indices = m_mom_array.get_indices();
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
-        for (size_t i = 0; i < names.size(); ++i) {
-            bool is_var = std::count(names[i].begin(), names[i].end(), '2') == 1 &&
-                          std::count(names[i].begin(), names[i].end(), '0') ==
+        for (size_t i = 0; i < moment_indices.size(); ++i) {
+            bool is_var = std::count(moment_indices[i].begin(), moment_indices[i].end(), 2) == 1 &&
+                          std::count(moment_indices[i].begin(), moment_indices[i].end(), 0) ==
                               static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
             if (!is_var) {
                 continue;
             }
-            size_t index = std::distance(names[i].begin(), std::find(names[i].begin(), names[i].end(), '2')) - 1;
-            vars[index]  = m_moments.get_last_value()[i];
+            size_t index = std::distance(moment_indices[i].begin(),
+                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2)) -
+                           1;
+            vars[index] = m_moments.get_last_value()[i];
         }
         return vars;
     }
@@ -246,18 +374,20 @@ public:
     std::vector<double> get_last_var_gradients()
     {
         std::vector<double> vars_gradient(static_cast<size_t>(osir::InfectionState::Count) * regions);
-        auto& names = m_mom_array.get_names();
+        auto& moment_indices = m_mom_array.get_indices();
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp parallel for
 #endif
-        for (size_t i = 0; i < names.size(); ++i) {
-            bool is_var = std::count(names[i].begin(), names[i].end(), '2') == 1 &&
-                          std::count(names[i].begin(), names[i].end(), '0') ==
+        for (size_t i = 0; i < moment_indices.size(); ++i) {
+            bool is_var = std::count(moment_indices[i].begin(), moment_indices[i].end(), 2) == 1 &&
+                          std::count(moment_indices[i].begin(), moment_indices[i].end(), 0) ==
                               static_cast<size_t>(osir::InfectionState::Count) * regions - 1;
             if (!is_var) {
                 continue;
             }
-            size_t index = std::distance(names[i].begin(), std::find(names[i].begin(), names[i].end(), '2')) - 1;
+            size_t index = std::distance(moment_indices[i].begin(),
+                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2)) -
+                           1;
             auto last_tp = m_moments.get_last_time();
             if (m_moments.get_num_time_points() > 1) {
                 auto second_last_tp_index = m_moments.get_num_time_points() - 2;
@@ -267,7 +397,8 @@ public:
                 vars_gradient[index]      = (y_last[i] - y_second_last[i]) / (last_tp - second_last_tp);
             }
             else {
-                vars_gradient[index] = 0.;
+                vars_gradient[index] = std::numeric_limits<double>::
+                    max(); // If there is only one time point, the gradient is set to max double value to ensure that it is above any reasonable threshold for switching conditions
             }
         }
         return vars_gradient;
@@ -430,54 +561,6 @@ public:
 
 private:
     /**
-     * @brief Calculate mean and moment time series from simulation results.
-     */
-    void update_means_and_moments()
-    {
-        for (auto t = m_t_index; t < m_results[0].get_num_time_points(); ++t) {
-            means.setZero();
-            last_results.setZero();
-            centered_values.setZero();
-            if (m_means.get_num_time_points() >= t + 1 && m_means.get_time(t) == m_results[0].get_time(t)) {
-                log_warning("Mean time series already has time point t={}.", m_means.get_time(t));
-                continue;
-            }
-#ifdef MEMILIO_ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-            // Copy simulation values to matrix
-            for (size_t run = 0; run < m_results.size(); run++) {
-                for (size_t r = 0; r < regions; ++r) {
-                    for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
-                        last_results(run, static_cast<size_t>(Status::Count) * r + s) = m_results[run].get_value(
-                            t)[r * static_cast<size_t>(Status::Count) + static_cast<size_t>(Status(s))];
-                    }
-                }
-            }
-            // Calculate means
-            means = last_results.colwise().mean();
-            m_means.add_time_point(m_results[0].get_time(t), means);
-
-            // Calculate centered values used for calculation of central moments
-            centered_values = last_results.rowwise() - means;
-
-            auto& indices = m_mom_array.get_indices();
-#ifdef MEMILIO_ENABLE_OPENMP
-#pragma omp parallel for
-#endif
-            // Calculate moments
-            for (auto& idx : indices) {
-                m_mom_array[idx] = calculate_moment(centered_values, idx);
-            }
-            // Get only moments up to the given order
-            auto moment_values   = m_mom_array.get_values();
-            Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
-            m_moments.add_time_point(m_results[0].get_time(t), data);
-            m_t_index += 1;
-        }
-    }
-
-    /**
     * @brief Calculates moment defined by indices for the given realizations of a stochastic variable.
     * @param[in] values The realizations of the stochastic variable (i.e. S, I, R for each region).
     * @param[in] indices The indices defining the moment to be calculated.
@@ -501,6 +584,31 @@ private:
         return moment;
     }
 
+    /**
+     * @brief Calculates moment defined by indices for the given realizations of a stochastic variable using precomputed powers to avoid repeated pow calls and allocations.
+     * @param[in] pows The precomputed column-wise integer powers of the centered values (mean - realization)
+     * @param[in] indices The indices defining the moment to be calculated.
+     */
+    double
+    calculate_moment_from_pows(const std::vector<MatrixType>& pows,
+                               const std::array<int, static_cast<size_t>(Status::Count) * regions>& indices) const
+    {
+        const int rows = static_cast<int>(pows[0].rows());
+        const int cols = static_cast<int>(pows[0].cols());
+        double moment  = 0.0;
+        for (int i = 0; i < rows; ++i) {
+            double prod = 1.0;
+            for (int c = 0; c < cols; ++c) {
+                const int p = indices[static_cast<size_t>(c)];
+                if (p != 0) {
+                    prod *= pows[static_cast<size_t>(p)](i, c);
+                }
+            }
+            moment += prod;
+        }
+        return moment / static_cast<double>(rows);
+    }
+
     std::vector<Model> m_models; ///< Models used for simulation.
     std::vector<Simulation> m_sims; ///< SMM simulations.
     TimeSeries<double> m_means; ///< Time series of means.
@@ -519,6 +627,8 @@ private:
         means; ///< Helper matrix used to calculate means and moments.
     Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(Status::Count) * regions>
         centered_values; ///< Helper matrix used to calculate moments.
+    std::vector<MatrixType>
+        m_col_pows; ///< Cached column powers of centered values used for moment calculation to avoid repeated pow calls and allocations.
 };
 
 } // namespace smm

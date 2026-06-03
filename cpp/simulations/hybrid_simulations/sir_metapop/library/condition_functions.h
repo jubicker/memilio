@@ -232,7 +232,7 @@ public:
             auto relations     = current_smm_relations(stochastic_model, 0.);
             auto var_gradients = current_smm_var_gradients(stochastic_model, 0.);
             if ((var_gradients[region * (int)mio::osir::InfectionState::Count +
-                               (int)mio::osir::InfectionState::Infected] < m_var_gradient_threshold) &&
+                               (int)mio::osir::InfectionState::Infected] <= m_var_gradient_threshold) &&
                 (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
                  m_mean_stddev_relation)) {
                 return true;

@@ -32,7 +32,7 @@
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0Exchange);
     const size_t closure_order = 3;
     const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
