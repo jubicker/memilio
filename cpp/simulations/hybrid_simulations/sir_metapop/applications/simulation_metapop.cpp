@@ -62,7 +62,8 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
     size_t m = data[0].size();
     for (const auto& vec : data) {
         if (vec.size() != m)
-            throw std::runtime_error("Vectors have different sizes");
+            throw std::runtime_error("Vectors have different sizes. Expected: " + std::to_string(m) +
+                                     ", got: " + std::to_string(vec.size()));
     }
 
     size_t numVectors = data.size();
@@ -89,7 +90,7 @@ int main()
 {
     const size_t num_runs    = 50000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    const auto config        = Config::get_config(Config::ConfigType::ConfigSIRVaryI0Exchange);
     const size_t num_regions = 4;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
@@ -163,7 +164,7 @@ int main()
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
     // TODO - Write number of transitions to csv file
-    if (true) {
+    if (false) {
         std::vector<
             std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
                                       static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>

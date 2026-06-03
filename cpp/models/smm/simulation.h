@@ -178,6 +178,15 @@ public:
                     1e-10)) { // add time points until tmax is reached, with a small tolerance to avoid numerical issues
                 m_result_interpolated.add_time_point(std::min(next_result_time, tmax));
                 m_result_interpolated.get_last_value() = m_model->populations.get_compartments();
+                if (count_transitions) {
+                    if (int(next_result_time) > int(num_transitions.size()) - 1) {
+                        num_transitions.push_back(
+                            Eigen::Matrix<size_t, static_cast<size_t>(Status::Count) * regions,
+                                          static_cast<size_t>(Status::Count) *
+                                              regions>::Zero(static_cast<size_t>(Status::Count) * regions,
+                                                             static_cast<size_t>(Status::Count) * regions));
+                    }
+                }
                 next_result_time += m_dt;
             }
             // update internal times

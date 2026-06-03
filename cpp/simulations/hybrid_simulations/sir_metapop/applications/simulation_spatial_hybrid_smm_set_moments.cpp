@@ -59,7 +59,7 @@ int main()
         return -1;
     }
 
-    save_file += "/combined_relation_var_gradient_condition_region";
+    save_file += "/abs_threshold_condition_region";
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -90,13 +90,13 @@ int main()
     mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
     Condition.set_config(config);
     Condition.set_mean_stddev_relation(0.3);
-    Condition.set_var_gradient_threshold(0.);
+    Condition.set_var_gradient_threshold(1e-10);
     Condition.set_timepoint_threshold(0.3 * config.tmax);
     Condition.set_absolute_switch_threshold(1000.);
 
     mio::timing::BasicTimer timer;
     timer.start();
-    spatial_hybrid_sim.advance(config.tmax, Condition.combined_relation_var_gradient_condition_region, true);
+    spatial_hybrid_sim.advance(config.tmax, Condition.abs_threshold_condition_region, true);
     timer.stop();
 
     // Save stochastic outputs
