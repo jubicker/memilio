@@ -361,9 +361,8 @@ public:
                 continue;
             }
             size_t index = std::distance(moment_indices[i].begin(),
-                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2)) -
-                           1;
-            vars[index] = m_moments.get_last_value()[i];
+                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2));
+            vars[index]  = m_moments.get_last_value()[i];
         }
         return vars;
     }
@@ -386,8 +385,7 @@ public:
                 continue;
             }
             size_t index = std::distance(moment_indices[i].begin(),
-                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2)) -
-                           1;
+                                         std::find(moment_indices[i].begin(), moment_indices[i].end(), 2));
             auto last_tp = m_moments.get_last_time();
             if (m_moments.get_num_time_points() > 1) {
                 auto second_last_tp_index = m_moments.get_num_time_points() - 2;

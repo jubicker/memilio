@@ -91,6 +91,7 @@ public:
     void advance(double tmax, Condition&& condition, bool log_model_used = false)
     {
         while (m_t < tmax) {
+            //std::cout << "t= " << m_t << std::endl;
             // Evaluate switching conditions for all stochastic regions
             std::unordered_set<size_t> regions_to_switch_to_deterministic;
             for (size_t region : m_stochastic_regions) {
@@ -493,10 +494,14 @@ private:
                     if (use_trnc_normal) {
                         // Sample number of agents for stochastic trajectory normally distributed
                         sim_value = sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                        while (sim_value < 0) {
-                            sim_value =
-                                sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                        }
+                        // size_t i  = 0;
+                        // while (
+                        //     sim_value < 0 && std::abs(sim_value) > 1e-5 &&
+                        //     i < 10) { // If sampled value is negative, but close to zero, we set it to zero. Otherwise we resample at maximum 10 timesuntil we get a non-negative value.
+                        //     sim_value =
+                        //         sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                        //     ++i;
+                        // }
                     }
                     else {
                         sim_value = mio::NormalDistribution<double>::get_instance()(
@@ -690,10 +695,14 @@ private:
                             // Sample number of incoming agents for simulation
                             sim_value =
                                 sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                            while (sim_value < 0) {
-                                sim_value =
-                                    sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
-                            }
+                            // size_t i = 0;
+                            // while (
+                            //     sim_value < 0 && std::abs(sim_value) > 1e-5 &&
+                            //     i < 10) { // If sampled value is negative, but close to zero, we set it to zero. Otherwise we resample at maximum 10 times until we get a non-negative value.
+                            //     sim_value =
+                            //         sample_truncated_normal(stochastic_sims[sim].get_model().get_rng(), mean, std, 0.);
+                            //     ++i;
+                            // }
                         }
                         else {
                             sim_value = mio::NormalDistribution<double>::get_instance()(

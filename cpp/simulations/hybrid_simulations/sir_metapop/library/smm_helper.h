@@ -57,10 +57,21 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
         int region_id = config.I0s[i].first;
         double I0     = config.I0s[i].second;
         model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = I0;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Susceptible}] =
-            config.total_populations[region_id] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] -
-            model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}];
+    }
+
+    // Set initially recovered
+    for (size_t i = 0; i < config.R0s.size(); ++i) {
+        int region_id = config.R0s[i].first;
+        double R0     = config.R0s[i].second;
+        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}] = R0;
+    }
+
+    // Adapt initially susceptile
+    for (size_t i = 0; i < config.num_regions; ++i) {
+        model.populations[{mio::regions::Region(i), mio::osir::InfectionState::Susceptible}] =
+            config.total_populations[i] -
+            model.populations[{mio::regions::Region(i), mio::osir::InfectionState::Infected}] -
+            model.populations[{mio::regions::Region(i), mio::osir::InfectionState::Recovered}];
     }
 
     std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;

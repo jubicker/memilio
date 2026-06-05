@@ -49,6 +49,8 @@ struct Config {
     double nu;
     // Number of initially infected for given regions. If a region id is not present in the vector, the number of initially infected in that region is 0.
     std::vector<std::pair<int, double>> I0s;
+    // Number of initially recovered for given regions. If a region id is not present in the vector, the number of initially recovered in that region is 0.
+    std::vector<std::pair<int, double>> R0s;
     // Total population for every region
     std::vector<double> total_populations;
     // Transition rates
@@ -77,7 +79,8 @@ enum class ConfigType
     ConfigSIRSVaryI0NoExchange_Seasonal,
     ConfigSIRSVaryI0Exchange_Seasonal,
     ConfigSIRSVaryR0NoExchange_Seasonal,
-    ConfigSIRSVaryR0Exchange_Seasonal
+    ConfigSIRSVaryR0Exchange_Seasonal,
+    ConfigTestExchange
 };
 
 Config get_config(ConfigType type);
