@@ -250,8 +250,8 @@ def print_max_stddev_mean_relation(dir, configs, comp_index, tmax, num_regions):
 if __name__ == "__main__":
     figsize1 = (4., 2.9)
     figsize2 =(4., 3.2)
-    dir = "V:/bick_ju/TemporalHybrid"
-    save_dir = "H:/Documents/TemporalHybridModel"
+    dir = "V:/bick_ju/TemporalHybrid/SMM/SIRS"
+    save_dir = "H:/Documents/TemporalHybridModel/SMM/SIRS"
     model2 = "SMM"
     model1 = "Moments"
     model2_name = "Stochastic"
@@ -262,8 +262,8 @@ if __name__ == "__main__":
     closure_method = "truncation"
     closure_order = "closure_order_3"
     init_time = "0.000000"
-    configs = ["config1_1r_I0_2", "config1_1r_I0_5", "config1_1r_I0_10", "config1_1r_I0_100"]
-    config_labels = [r"$I_0=2$", r"$I_0=5$", r"$I_0=10$", r"$I_0=100$"]
+    configs = ["config1_1r_I0_1", "config1_1r_I0_10", "config1_1r_I0_100"]
+    config_labels = [r"$I_0=1$", r"$I_0=10$", r"$I_0=100$"]
     num_regions = 1
     tmax = 300
     
@@ -274,17 +274,17 @@ if __name__ == "__main__":
     save_dir = f"{save_dir}"
     os.makedirs(save_dir, exist_ok=True)
     
-    plot_variance_and_std_two_models(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, model1_name, model2_name, save_dir, 1, figsize2, tmax, num_regions, model1_colors, model2_colors)
-    plot_means_two_models(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, model1_name, model2_name, save_dir, 1, figsize2, tmax, num_regions, model1_colors, model2_colors)
-    plot_mean_errors(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, save_dir, 1, figsize1)
-    plot_variance_errors(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, save_dir, 1, figsize1)
+    # plot_variance_and_std_two_models(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, model1_name, model2_name, save_dir, 1, figsize2, tmax, num_regions, model1_colors, model2_colors)
+    # plot_means_two_models(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, model1_name, model2_name, save_dir, 1, figsize2, tmax, num_regions, model1_colors, model2_colors)
+    # plot_mean_errors(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, save_dir, 1, figsize1)
+    # plot_variance_errors(dir_model1, dir_model2, condition, closure_method, closure_order, init_time, configs, config_labels, save_dir, 1, figsize1)
     
     # print_max_comp_mean(dir, configs, 1, tmax)
     # print_max_comp_variance(dir, configs, 1, tmax, num_regions)
     
     # print_max_stddev_mean_relation(dir, configs, 1, tmax, num_regions)
     
-    # for r in range(num_regions):
-    #     for comp_index in range(1, 2):
-    #         plot_means(dir, configs, config_labels, save_dir, comp_index + r * len(compartment_names), figsize, tmax, num_regions)
-    #         plot_variance_and_std(dir, configs, config_labels, save_dir, comp_index + r * len(compartment_names), figsize, tmax, num_regions)
+    for r in range(num_regions):
+        for comp_index in range(1, 2):
+            plot_means(dir, configs, config_labels, save_dir, comp_index + r * len(compartment_names), figsize1, tmax, num_regions)
+            plot_variance_and_std(dir, configs, config_labels, save_dir, comp_index + r * len(compartment_names), figsize1, tmax, num_regions)

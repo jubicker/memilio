@@ -6,6 +6,31 @@ import numpy as np
 from matplotlib.patches import Patch
 from settings import *
 
+def plot_mean_stddev_relation(dir, save_dir, comp_index, num_regions, figsize, tmax):
+    comp = list(compartment_colors.keys())[comp_index]
+    for r in range(num_regions):
+        mean = pd.read_csv(dir + f"/means.csv")
+        mean = mean[mean['Time'] <= tmax]
+        mean = mean[mean['Time'] >= tmin]
+        moment_index = [0 for _ in range(len(compartment_names)*num_regions)]
+        moment_index[comp_index + r * len(compartment_names)] = 2
+        col_name = f"M"
+        for m in moment_index:
+            col_name += f"{m}"
+              
+        var = pd.read_csv(dir + f"/moments.csv")
+        var = var[var['Time'] <= tmax]
+        
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(var.Time, np.sqrt(var[col_name].iloc[:]) / mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color="blue")
+        ax.set_xlabel("Time [days]")
+        ax.set_ylabel(r"$\frac{\sigma_I}{\mu_I}$")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(f"{save_dir}/relation_{compartment_names[comp]}_r{r}.png", dpi=dpi)
+        plt.close(fig)
+        
+
 def plot_mean_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, dir_smm="", color_smm=""):
     comp = list(compartment_colors.keys())[comp_index]
     
@@ -14,24 +39,51 @@ def plot_mean_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, di
         
         if(dir_smm) != "":
             mean = pd.read_csv(dir_smm + f"/means.csv")
+            print("Time SMM: ", mean.Time)
+            mean.Time.to_csv("smm_time.csv", index=False)
+            print("Mean SMM: ", mean.iloc[:, 1 + comp_index + r * len(compartment_names)])
+            mean.iloc[:, 1 + comp_index + r * len(compartment_names)].to_csv("smm_mean.csv", index=False)
             mean = mean[mean['Time'] <= tmax]
             mean = mean[mean['Time'] >= tmin]
             ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=color_smm, label = r"SMM")
         
         # Plot time frame modeled with SMM
-        mean = pd.read_csv(dir + f"/means_smm.csv")
+        mean = pd.read_csv(dir + f"/means.csv")
         mean = mean[mean['Time'] <= tmax]
         mean = mean[mean['Time'] >= tmin]
+        print("Time hybrid SMM: ", mean.Time)
+        mean.Time.to_csv("hybrid_smm_time.csv", index=False)
+        print("Mean hybrid SMM: ", mean.iloc[:, 1 + comp_index + r * len(compartment_names)])
+        mean.iloc[:, 1 + comp_index + r * len(compartment_names)].to_csv("hybrid_smm_mean.csv", index=False)
         ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=compartment_colors[comp][0], label = r"THMM")
         
         mean = pd.read_csv(dir + f"/expected_values_moments.csv")
         mean = mean[mean['Time'] <= tmax]
         mean = mean[mean['Time'] >= tmin]
-        ax.plot(mean.Time.iloc[1:], mean.iloc[1:, 1 + comp_index + r * len(compartment_names)], color=compartment_colors[comp][0])
+        print("Time hybrid moments: ", mean.Time)
+        mean.Time.to_csv("hybrid_moments_time.csv", index=False)
+        print("Mean hybrid moments: ", mean.iloc[:, 1 + comp_index + r * len(compartment_names)])
+        mean.iloc[:, 1 + comp_index + r * len(compartment_names)].to_csv("hybrid_moments_mean.csv", index=False)
+        #ax.plot(mean.Time.iloc[1:], mean.iloc[1:, 1 + comp_index + r * len(compartment_names)], color=compartment_colors[comp][0])
         # Add line at swithcing tp
         if(len(mean.Time) > 1):
-            switch_tp = mean.Time.iloc[1]
-            ax.axvline(x=switch_tp, color="black", linestyle="--")
+            times = mean.Time.values
+            # Track continuous segments
+            segments = []
+            start = times[0]
+
+            for i in range(1, len(times)):
+                if abs(times[i] - times[i-1]) > 0.11:
+                    # End current segment
+                    segments.append((start, times[i-1]))
+                    start = times[i]  # Start new segment
+
+            # Add last segment
+            segments.append((start, times[-1]))
+
+            # Shade continuous regions (grey)
+            for start, end in segments:
+                ax.axvspan(start, end, color="grey", alpha=0.3)
             
         ax.set_xlabel("Time [days]")
         ax.set_ylabel(r"$\mu_I$")
@@ -49,8 +101,8 @@ def plot_mean_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, di
     region_colors_smm = [colors["dark blue"], colors["dark green"]]
     for r in range(num_regions):
         
-        # Plot time frame modeled with SMM
-        mean = pd.read_csv(dir + f"/means_smm.csv")
+        # Plot whole time course of hybrid model
+        mean = pd.read_csv(dir + f"/means.csv")
         mean = mean[mean['Time'] <= tmax]
         mean = mean[mean['Time'] >= tmin]
         ax.plot(mean.Time, mean.iloc[:, 1 + comp_index + r * len(compartment_names)], color=region_colors_hybrid[r], label = r"Temporal-hybrid model, region " + str(r+1), linewidth=2)
@@ -58,12 +110,25 @@ def plot_mean_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, di
         mean = pd.read_csv(dir + f"/expected_values_moments.csv")
         mean = mean[mean['Time'] <= tmax]
         mean = mean[mean['Time'] >= tmin]
-        ax.plot(mean.Time.iloc[1:], mean.iloc[1:, 1 + comp_index + r * len(compartment_names)], color=region_colors_hybrid[r])
-        
         # Add line at swithcing tp
         if(len(mean.Time) > 1):
-            switch_tp = mean.Time.iloc[1]
-            ax.axvline(x=switch_tp, color="black", linestyle="--")
+            times = mean.Time.values
+            # Track continuous segments
+            segments = []
+            start = times[0]
+
+            for i in range(1, len(times)):
+                if abs(times[i] - times[i-1]) > 0.11:
+                    # End current segment
+                    segments.append((start, times[i-1]))
+                    start = times[i]  # Start new segment
+
+            # Add last segment
+            segments.append((start, times[-1]))
+
+            # Shade continuous regions (grey)
+            for start, end in segments:
+                ax.axvspan(start, end, color="grey", alpha=0.3)
             
         if(dir_smm) != "":
             mean = pd.read_csv(dir_smm + f"/means.csv")
@@ -99,21 +164,43 @@ def plot_var_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, dir_smm="
         if(dir_smm) != "":
             var = pd.read_csv(dir_smm + f"/moments.csv")
             var = var[var['Time'] <= tmax]
+            var.Time.to_csv("smm_var_time.csv", index=False)
+            var[col_name].to_csv("smm_var.csv", index=False)
             ax.plot(var.Time, var[col_name].iloc[:], color=color_smm, label = r"SMM")
         
-        # Plot SMM variance
-        var = pd.read_csv(dir + f"/moments_smm.csv")
+        # Plot variance
+        var = pd.read_csv(dir + f"/moments.csv")
         var = var[var['Time'] <= tmax]
+        var.Time.to_csv("hybrid_smm_var_time.csv", index=False)
+        var[col_name].to_csv("hybrid_smm_var.csv", index=False)
         ax.plot(var.Time, var[col_name].iloc[:], color = compartment_colors[comp][0], label = r"THMM")
         
-        # Plot moment variance
+        # Moment variance
         var = pd.read_csv(dir + f"/moments_moments.csv")
         var = var[var['Time'] <= tmax]
-        ax.plot(var.Time.iloc[1:], var[col_name].iloc[1:], color = compartment_colors[comp][0])
+        var.Time.to_csv("hybrid_moments_var_time.csv", index=False)
+        var[col_name].to_csv("hybrid_moments_var.csv", index=False)
+        print(f"Moment var at {var.Time.iloc[-2]}: ", var[col_name].iloc[-2])
+        #ax.plot(var.Time.iloc[1:], var[col_name].iloc[1:], color = compartment_colors[comp][0])
         # Add line at swithcing tp
         if(len(var.Time) > 1):
-            switch_tp = var.Time.iloc[1]
-            ax.axvline(x=switch_tp, color="black", linestyle="--")
+            times = var.Time.values
+            # Track continuous segments
+            segments = []
+            start = times[0]
+
+            for i in range(1, len(times)):
+                if abs(times[i] - times[i-1]) > 0.11:
+                    # End current segment
+                    segments.append((start, times[i-1]))
+                    start = times[i]  # Start new segment
+
+            # Add last segment
+            segments.append((start, times[-1]))
+
+            # Shade continuous regions (grey)
+            for start, end in segments:
+                ax.axvspan(start, end, color="grey", alpha=0.3)
             
         ax.set_xlabel("Time [days]")
         ax.set_ylabel(r"$\sigma^2_I$")
@@ -137,19 +224,35 @@ def plot_var_ts(dir, save_dir, comp_index, num_regions, figsize, tmax, dir_smm="
         for m in moment_index:
             col_name += f"{m}"
         
-        # Plot SMM variance
-        var = pd.read_csv(dir + f"/moments_smm.csv")
+        # Plot variance
+        var = pd.read_csv(dir + f"/moments.csv")
         var = var[var['Time'] <= tmax]
         ax.plot(var.Time, var[col_name].iloc[:], color = region_colors_hybrid[r], label = r"THMM, region " + str(r+1), linewidth=2)
         
-        # Plot moment variance
+        # Moment variance
         var = pd.read_csv(dir + f"/moments_moments.csv")
         var = var[var['Time'] <= tmax]
-        ax.plot(var.Time.iloc[1:], var[col_name].iloc[1:], color = region_colors_hybrid[r], linewidth=2)
+        #ax.plot(var.Time.iloc[1:], var[col_name].iloc[1:], color = region_colors_hybrid[r], linewidth=2)
         # Add line at swithcing tp
         if(len(var.Time) > 1):
-            switch_tp = var.Time.iloc[1]
-            ax.axvline(x=switch_tp, color="black", linestyle="--")
+            times = var.Time.values
+            # Track continuous segments
+            segments = []
+            start = times[0]
+
+            for i in range(1, len(times)):
+                if abs(times[i] - times[i-1]) > 0.11:
+                    # End current segment
+                    segments.append((start, times[i-1]))
+                    start = times[i]  # Start new segment
+
+            # Add last segment
+            segments.append((start, times[-1]))
+
+            # Shade continuous regions (grey)
+            for start, end in segments:
+                ax.axvspan(start, end, color="grey", alpha=0.3)
+
             
         ax.set_xlabel("Time [days]")
         ax.set_ylabel(r"$\sigma^2_I$")
@@ -328,13 +431,13 @@ def plot_switch_tp_vs_runtime(dir, dir_smm, ode_dir, conditions, closure_order, 
     plt.close()
 
 if __name__ == "__main__":
-    figsize = (5, 3)
+    figsize = (4, 3)
     dir = "V:/bick_ju/TemporalHybrid"
     save_dir = "H:/Documents/TemporalHybridModel"
     hybrid_model = "Hybrid2"
-    config = "config1_1r_I0_10"
+    config = "config1_1r_I0_1000"
     num_regions = 1
-    condition = "var_gradient"
+    condition = "mean_stddev_relation"
     conditions = ["mean_threshold/0.001000", "mean_threshold/0.010000/", "mean_threshold/0.100000", "mean_threshold/0.300000", "var_gradient"]
     condition_names = [r"$\tau_{\mu_I}=$" +"\n" + r"$0.1$%", r"$\tau_{\mu_I}=$" +"\n" + r"$1$%", r"$\tau_{\mu_I}=$" + "\n" + r"$10$%", r"$\tau_{\mu_I}=$" + "\n" + r"$30$%", r"$\nabla \sigma_I^2$"]
     closure_method = "truncation"
@@ -350,10 +453,11 @@ if __name__ == "__main__":
     os.makedirs(save_dir, exist_ok=True)
     
     comp_index = 1
-    # plot_mean_ts(hybrid_dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, smm_dir, color_smm)
-    # plot_var_ts(hybrid_dir, save_dir, comp_index, num_regions, figsize, tmax=tmax, dir_smm=smm_dir, color_smm=color_smm)
+    plot_mean_ts(hybrid_dir, save_dir, comp_index, num_regions, figsize, tmax, tmin, smm_dir, color_smm)
+    plot_var_ts(hybrid_dir, save_dir, comp_index, num_regions, figsize, tmax=tmax, dir_smm=smm_dir, color_smm=color_smm)
+    plot_mean_stddev_relation(hybrid_dir, save_dir, comp_index, num_regions, figsize, tmax)
     #plot_mean_error(hybrid_dir, smm_dir, figsize, save_dir, num_regions, comp_index, tmax)
     
-    plot_switch_tp_vs_error_mean(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
-    plot_switch_tp_vs_error_var(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
-    plot_switch_tp_vs_runtime(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
+    # plot_switch_tp_vs_error_mean(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
+    # plot_switch_tp_vs_error_var(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
+    # plot_switch_tp_vs_runtime(f"{dir}/{hybrid_model}/{config}", smm_dir, ode_dir=f"{dir}/Moments/{config}", conditions=conditions, closure_order=closure_order, closure_method=closure_method, figsize=figsize, save_dir="H:/Documents/TemporalHybridModel" + f"/{hybrid_model}/{config}", num_regions=num_regions, comp_index=comp_index, condition_names=condition_names)
