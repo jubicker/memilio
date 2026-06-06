@@ -291,6 +291,39 @@ public:
         return false;
     }
 
+    static bool R0_relation_condition_region(
+        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+        mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
+        size_t region)
+    {
+        if (stochastic_used) {
+            auto relations     = current_smm_relations(stochastic_model, 0.);
+            auto current_means = current_smm_means(stochastic_model, 0.);
+            double R0          = m_config->lambdas[region] / m_config->gamma *
+                        current_means[region * (int)mio::osir::InfectionState::Count +
+                                      (int)mio::osir::InfectionState::Susceptible];
+            if ((R0 < 1.0 || R0 > 3.0) &&
+                (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
+                 m_mean_stddev_relation)) {
+                return true;
+            }
+            return false;
+        }
+        else {
+            auto relations     = current_moment_relations(deterministic_model, 0.);
+            auto current_means = current_moment_means(deterministic_model, 0.);
+            double R0          = m_config->lambdas[region] / m_config->gamma *
+                        current_means[region * (int)mio::osir::InfectionState::Count +
+                                      (int)mio::osir::InfectionState::Susceptible];
+            if ((R0 >= 1.0 && R0 <= 3.0) &&
+                relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                    1.1 * m_mean_stddev_relation) {
+                return true;
+            }
+            return false;
+        }
+    }
+
     static bool
     pure_ode(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& /*stochastic_model*/,
              mio::smm_moments::Simulation<num_regions, closure_order>& /*deterministic_model*/, bool stochastic_used,
