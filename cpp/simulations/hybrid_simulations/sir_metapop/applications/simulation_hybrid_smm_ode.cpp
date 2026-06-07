@@ -36,7 +36,7 @@
 #include "models/hybrid/conversion_functions.cpp"
 #include <cstddef>
 #include <cstdint>
-#include <omp.h>
+//#include <omp.h>
 #include <vector>
 
 int main()

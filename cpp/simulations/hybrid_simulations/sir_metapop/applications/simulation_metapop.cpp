@@ -28,7 +28,6 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include <omp.h>
 
 template <int n>
 void writeMatrixToCSV(const Eigen::Matrix<double, n, n>& mat, const std::string& filename)

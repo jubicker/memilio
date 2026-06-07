@@ -853,8 +853,9 @@ IOResult<Container> deserialize_internal(IOContext& io, Tag<Container> /*tag*/)
 template <class IOContext, class T>
 void serialize(IOContext& io, const T& t)
 {
+    mio::unused(io, t);
     using mio::serialize_internal;
-    serialize_internal(io, t);
+    //serialize_internal(io, t);
 }
 
 /**

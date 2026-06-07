@@ -1,7 +1,7 @@
 # Versions of the bundled libraries
 # If you like to upgrade, just change the number
 set(MEMILIO_EIGEN_VERSION "3.4.0")
-set(MEMILIO_SPDLOG_VERSION "1.15.0")
+set(MEMILIO_SPDLOG_VERSION "1.17.0")
 set(MEMILIO_BOOST_VERSION "1.84.0")
 set(MEMILIO_MINIMAL_BOOST_VERSION "1.76.0")
 set(MEMILIO_JSONCPP_VERSION "1.9.6")

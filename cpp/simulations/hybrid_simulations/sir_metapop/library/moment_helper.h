@@ -141,7 +141,7 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& 
     // File pointer
     std::fstream fin_f;
     // Open file
-    fin_f.open(f, std::ios::in);
+    fin_f.open(file_path, std::ios::in);
     std::string line_f;
     // Read the titles from file
     std::getline(fin_f, line_f);
@@ -183,7 +183,7 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_pat
     // File pointer
     std::fstream fin_f;
     // Open file
-    fin_f.open(f, std::ios::in);
+    fin_f.open(file_path, std::ios::in);
     std::string line_f;
     // Read the titles from file
     std::getline(fin_f, line_f);
