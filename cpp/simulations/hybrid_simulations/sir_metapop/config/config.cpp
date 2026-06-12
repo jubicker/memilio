@@ -368,6 +368,25 @@ Config get_config(ConfigType type)
 
         return config;
         break;
+    case ConfigType::ConfigTest2ndOutbreak:
+        config.name                   = "config_SIR_test_2nd_outbreak";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 200;
+        config.dt                     = 0.1;
+        config.lambdas                = {0.00000572}; //R0~4
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 0; // unused for SIR
+        config.I0s                    = {{0, 1}}; // Tuple of (region_id, initial infected)
+        config.R0s                    = {}; // Tuple of (region_id, initial recovered)
+        config.total_populations      = {100000};
+        config.first_season_start_day = 0; // unused for SIR
+        config.season_peaks           = {}; // unused for SIR
+        config.seasonality_rhos       = {}; // unused for SIR
+        config.seasonality_sigmas     = {}; // unused for SIR
+
+        return config;
+        break;
     }
     return config;
 }

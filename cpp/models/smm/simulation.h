@@ -22,12 +22,14 @@
 #define MIO_SMM_SIMULATION_H
 
 #include "memilio/config.h"
+#include "memilio/epidemiology/adoption_rate.h"
 #include "memilio/utils/time_series.h"
 #include "smm/model.h"
 #include "smm/parameters.h"
 #include "memilio/compartments/simulation.h"
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <map>
 
 namespace mio
@@ -168,7 +170,13 @@ public:
             // draw new "next event" time for the occured event
             m_tp_next_event[next_event] += mio::ExponentialDistribution<FP>::get_instance()(m_model->get_rng(), 1.0);
             // precalculate next event
-            update_current_rates_and_waiting_times();
+            if (next_event < adoption_rates().size()) {
+                update_current_rates_and_waiting_times(adoption_rates()[next_event]);
+            }
+            else {
+                update_current_rates_and_waiting_times(transition_rates()[next_event - adoption_rates().size()]);
+            }
+            //update_current_rates_and_waiting_times();
             next_event = determine_next_event();
         }
         // copy last result, if no event occurs between last_result_time and tmax
@@ -250,12 +258,12 @@ private:
      */
     inline void update_current_rates_and_waiting_times()
     {
-        size_t i = 0; // shared index for iterating both rates
+        size_t i                  = 0; // shared index for iterating both rates
+        double seasonality_factor = 1.0;
+        if (m_model->parameters.template get<SeasonalityRho>().size() >= 1) {
+            seasonality_factor = calculate_seasonality_factor(m_result_interpolated.get_last_time());
+        }
         for (const auto& rate : adoption_rates()) {
-            double seasonality_factor = 1.0;
-            if (m_model->parameters.template get<SeasonalityRho>().size() >= 1) {
-                seasonality_factor = calculate_seasonality_factor(m_result_interpolated.get_last_time());
-            }
             m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments(), seasonality_factor);
             m_waiting_times[i] = (m_current_rates[i] > 0)
                                      ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
@@ -264,6 +272,115 @@ private:
         }
         for (const auto& rate : transition_rates()) {
             m_current_rates[i] = m_model->evaluate(rate, m_model->populations.get_compartments());
+            m_waiting_times[i] = (m_current_rates[i] > 0)
+                                     ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
+                                     : std::numeric_limits<FP>::max();
+            i++;
+        }
+    }
+
+    inline void update_adoption_rate(double seasonality_factor, const AdoptionRate<FP, Status>& rate, size_t rate_index)
+    {
+        m_current_rates[rate_index] =
+            m_model->evaluate(rate, m_model->populations.get_compartments(), seasonality_factor);
+    }
+
+    inline void update_transition_rate(const TransitionRate<FP, Status>& rate, size_t rate_index)
+    {
+        m_current_rates[rate_index] = m_model->evaluate(rate, m_model->populations.get_compartments());
+    }
+
+    /**
+     * @brief Update current values for m_current_rates and m_waiting_times given the last adoption event.
+     */
+    inline void update_current_rates_and_waiting_times(const AdoptionRate<FP, Status>& last_event_rate)
+    {
+        double seasonality_factor = 1.0;
+        if (m_model->parameters.template get<SeasonalityRho>().size() >= 1) {
+            seasonality_factor = calculate_seasonality_factor(m_result_interpolated.get_last_time());
+        }
+        size_t i = 0; // shared index for iterating both rates
+        for (const auto& rate : adoption_rates()) {
+            if (rate.influences.size() == 0) { // First-order adoptions
+                if (rate.region ==
+                    last_event_rate.region) // First-order adoption rates only change populations in within one region
+                {
+                    if (rate.from == last_event_rate.from || rate.from == last_event_rate.to) {
+                        update_adoption_rate(seasonality_factor, rate, i);
+                    }
+                }
+            }
+            else { // Second-order adoption rates also have to be recalculated if one of their influences has changed
+                if ((rate.region == last_event_rate.region &&
+                     (rate.from == last_event_rate.from || rate.from == last_event_rate.to)) ||
+                    (std::find_if(rate.influences.begin(), rate.influences.end(),
+                                  [last_event_rate](const Influence<FP, Status>& influence) {
+                                      return (influence.status == last_event_rate.from ||
+                                              influence.status == last_event_rate.to) &&
+                                             (influence.region == last_event_rate.region);
+                                  }) != rate.influences.end())) {
+                    update_adoption_rate(seasonality_factor, rate, i);
+                }
+            }
+            m_waiting_times[i] = (m_current_rates[i] > 0)
+                                     ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
+                                     : std::numeric_limits<FP>::max();
+            i++;
+        }
+        for (const auto& rate : transition_rates()) {
+            if ((rate.status == last_event_rate.from || rate.status == last_event_rate.to) &&
+                (rate.from == last_event_rate.region)) {
+                update_transition_rate(rate, i);
+            }
+            m_waiting_times[i] = (m_current_rates[i] > 0)
+                                     ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
+                                     : std::numeric_limits<FP>::max();
+            i++;
+        }
+    }
+
+    /**
+     * @brief Update current values for m_current_rates and m_waiting_times given the last transition event.
+     */
+    inline void update_current_rates_and_waiting_times(const TransitionRate<FP, Status>& last_event_rate)
+    {
+        double seasonality_factor = 1.0;
+        if (m_model->parameters.template get<SeasonalityRho>().size() >= 1) {
+            seasonality_factor = calculate_seasonality_factor(m_result_interpolated.get_last_time());
+        }
+        size_t i = 0; // shared index for iterating both rates
+        for (const auto& rate : adoption_rates()) {
+            if (rate.influences.size() == 0) { // First-order adoptions
+                if (rate.region == last_event_rate.from ||
+                    rate.region == last_event_rate.to) // Check if first-order adoption lies within midoefies region
+                {
+                    if (rate.from == last_event_rate.status) {
+                        update_adoption_rate(seasonality_factor, rate, i);
+                    }
+                }
+            }
+            else { // Second-order adoption rates also have to be recalculated if one of their influences has changed
+                if ((rate.from == last_event_rate.status &&
+                     (rate.region == last_event_rate.from || rate.region == last_event_rate.to)) ||
+                    (std::find_if(rate.influences.begin(), rate.influences.end(),
+                                  [last_event_rate](const Influence<FP, Status>& influence) {
+                                      return (influence.region == last_event_rate.from ||
+                                              influence.region == last_event_rate.to) &&
+                                             (influence.status == last_event_rate.status);
+                                  }) != rate.influences.end())) {
+                    update_adoption_rate(seasonality_factor, rate, i);
+                }
+            }
+            m_waiting_times[i] = (m_current_rates[i] > 0)
+                                     ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
+                                     : std::numeric_limits<FP>::max();
+            i++;
+        }
+        for (const auto& rate : transition_rates()) {
+            if ((rate.status == last_event_rate.status) &&
+                (rate.from == last_event_rate.from || rate.from == last_event_rate.to)) {
+                update_transition_rate(rate, i);
+            }
             m_waiting_times[i] = (m_current_rates[i] > 0)
                                      ? (m_tp_next_event[i] - m_internal_time[i]) / m_current_rates[i]
                                      : std::numeric_limits<FP>::max();
