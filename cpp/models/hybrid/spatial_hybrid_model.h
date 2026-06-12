@@ -1011,8 +1011,8 @@ private:
     TimeSeries<int>
         m_model_used; ///< Time series which indicates which model is used for each region at each time step (0: stochastic, 1: moment).
 
-    const bool correct_for_rounding_error = false;
-    const bool use_trnc_normal            = true;
+    const bool correct_for_rounding_error = true;
+    const bool use_trnc_normal            = false;
 };
 
 } // namespace hybrid

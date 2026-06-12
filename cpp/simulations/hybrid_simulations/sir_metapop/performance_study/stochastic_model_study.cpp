@@ -28,77 +28,23 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-
-template <int n>
-void writeMatrixToCSV(const Eigen::Matrix<double, n, n>& mat, const std::string& filename)
-{
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open matrix file\n";
-        return;
-    }
-
-    for (size_t i = 0; i < n; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-            file << mat(i, j);
-            if (j < n - 1)
-                file << ",";
-        }
-        file << "\n";
-    }
-
-    file.close();
-}
-
-template <int n>
-std::vector<Eigen::Matrix<double, n, n>>
-computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
-{
-    if (data.empty())
-        throw std::runtime_error("No data");
-
-    // Check all vectors have same size
-    size_t m = data[0].size();
-    for (const auto& vec : data) {
-        if (vec.size() != m)
-            throw std::runtime_error("Vectors have different sizes. Expected: " + std::to_string(m) +
-                                     ", got: " + std::to_string(vec.size()));
-    }
-
-    size_t numVectors = data.size();
-
-    // Result: one mean matrix per position
-    std::vector<Eigen::Matrix<double, n, n>> mean(m, Eigen::Matrix<double, n, n>::Zero());
-
-    // Accumulate
-    for (const auto& vec : data) {
-        for (size_t k = 0; k < m; ++k) {
-            mean[k] += vec[k].template cast<double>();
-        }
-    }
-
-    // Divide by number of vectors
-    for (auto& mat : mean) {
-        mat /= static_cast<double>(numVectors);
-    }
-
-    return mean;
-}
+#include <omp.h>
 
 int main()
 {
     const size_t num_runs    = 50000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::ConfigSIRVaryR0Exchange);
-    const size_t num_regions = 4;
+    const auto config        = Config::get_config(Config::ConfigType::ConfigTest2ndOutbreak);
+    const size_t num_regions = 1;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::string save_file  = Config::SAVE_DIR + "SMM/test/";
-    auto created_directory = mio::create_directory(save_file);
+    config.name = "";
+
+    std::string save_file = Config::SAVE_DIR + "SMM/";
     save_file += config.name;
-    created_directory = mio::create_directory(save_file);
+    auto created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
@@ -164,7 +110,7 @@ int main()
     finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
     // TODO - Write number of transitions to csv file
-    if (false) {
+    if (true) {
         std::vector<
             std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
                                       static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>

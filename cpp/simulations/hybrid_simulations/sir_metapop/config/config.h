@@ -80,7 +80,8 @@ enum class ConfigType
     ConfigSIRSVaryI0Exchange_Seasonal,
     ConfigSIRSVaryR0NoExchange_Seasonal,
     ConfigSIRSVaryR0Exchange_Seasonal,
-    ConfigTestExchange
+    ConfigTestExchange,
+    ConfigTest2ndOutbreak
 };
 
 Config get_config(ConfigType type);
