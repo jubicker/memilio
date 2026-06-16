@@ -387,6 +387,63 @@ Config get_config(ConfigType type)
 
         return config;
         break;
+    case ConfigType::ConfigPerformanceStudySIR:
+        config.name                   = "performance_study_SIR";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 200;
+        config.dt                     = 0.1;
+        config.lambdas                = {0};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 0; // unused for SIR
+        config.I0s                    = {{0, 0}}; // Tuple of (region_id, initial infected)
+        config.R0s                    = {{0, 0}}; // Tuple of (region_id, initial recovered)
+        config.total_populations      = {100000};
+        config.first_season_start_day = 0; // unused for SIR
+        config.season_peaks           = {}; // unused for SIR
+        config.seasonality_rhos       = {}; // unused for SIR
+        config.seasonality_sigmas     = {}; // unused for SIR
+
+        return config;
+        break;
+    case ConfigType::ConfigPerformanceStudySIRS:
+        config.name                   = "performance_study_SIRS";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 200;
+        config.dt                     = 0.1;
+        config.lambdas                = {0};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1 / 20.;;
+        config.I0s                    = {{0, 0}}; // Tuple of (region_id, initial infected)
+        config.R0s                    = {{0, 0}}; // Tuple of (region_id, initial recovered)
+        config.total_populations      = {100000};
+        config.first_season_start_day = 0; // unused for SIRS
+        config.season_peaks           = {}; // unused for SIRS
+        config.seasonality_rhos       = {}; // unused for SIRS
+        config.seasonality_sigmas     = {}; // unused for SIRS
+
+        return config;
+        break;
+    case ConfigType::ConfigPerformanceStudySIRS_seasonal:
+        config.name                   = "performance_study_SIRS_seasonal";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 200;
+        config.dt                     = 0.1;
+        config.lambdas                = {0};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1 / 20.;;
+        config.I0s                    = {{0, 0}}; // Tuple of (region_id, initial infected)
+        config.R0s                    = {{0, 0}}; // Tuple of (region_id, initial recovered)
+        config.total_populations      = {100000};
+        config.first_season_start_day = -180; // First season starts at 1st July of the previous year
+        config.season_peaks           = {24, 24, 24}; // Peak transmission rate at day January 24th of each season
+        config.seasonality_rhos       = {0.4, 0.4, 0.4}; // Variation factor for each season
+        config.seasonality_sigmas     = {50, 50, 50}; // Standard deviation for the Gaussian function for each season
+
+        return config;
+        break;
     }
     return config;
 }

@@ -30,7 +30,7 @@
 
 namespace Config
 {
-const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
+const std::string SAVE_DIR = "/Users/julia/repos/fork/memilio/output/";//"/hpc_data/bick_ju/TemporalHybrid/";
 
 const std::vector<std::string> closure_string          = {"truncation", "pair_approx", "lognorm", "lognorm_zero_infl"};
 const std::vector<std::string> switch_condition_string = {"mean_threshold_rel", "var_gradient", "mean_threshold_abs",
@@ -81,7 +81,10 @@ enum class ConfigType
     ConfigSIRSVaryR0NoExchange_Seasonal,
     ConfigSIRSVaryR0Exchange_Seasonal,
     ConfigTestExchange,
-    ConfigTest2ndOutbreak
+    ConfigTest2ndOutbreak,
+    ConfigPerformanceStudySIR,
+    ConfigPerformanceStudySIRS,
+    ConfigPerformanceStudySIRS_seasonal,
 };
 
 Config get_config(ConfigType type);

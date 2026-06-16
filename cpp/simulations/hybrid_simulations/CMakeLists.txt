@@ -25,3 +25,7 @@ target_compile_options(test_moments PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_E
 add_executable(test_moment_closures sir_metapop/tests/test_moment_closures.cpp)
 target_link_libraries(test_moment_closures PRIVATE memilio ode_sir moments)
 target_compile_options(test_moment_closures PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
+add_executable(stochastic_study sir_metapop/performance_study/stochastic_model_study.cpp)
+target_link_libraries(stochastic_study PRIVATE memilio ode_sir moments)
+target_compile_options(stochastic_study PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})

@@ -27,119 +27,100 @@
 #include "smm/simulation_set.h"
 #include <cstddef>
 #include <string>
+#include <fstream>
 #include <vector>
 #include <omp.h>
+
+void write_parameter_csv(double I0, double R0, double lambda, std::string filename)
+{
+    std::ofstream file(filename);
+
+    if (!file.is_open())
+        return;
+
+    // Header
+    file << "I0,R0,lambda\n";
+
+    // Data row
+    file << I0 << "," << R0 << "," << lambda << "\n";
+
+    file.close();
+}
 
 int main()
 {
     const size_t num_runs    = 50000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::ConfigTest2ndOutbreak);
+    auto config              = Config::get_config(Config::ConfigType::ConfigPerformanceStudySIR);
     const size_t num_regions = 1;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    config.name = "";
+    size_t I0_boundaries[]     = {0, static_cast<size_t>(0.01 * config.total_populations[0])};
+    size_t R0_boundaries[]     = {0, static_cast<size_t>(0.7 * config.total_populations[0])};
+    double lambda_boundaries[] = {0.0000014, 0.000006};
 
-    std::string save_file = Config::SAVE_DIR + "SMM/";
-    save_file += config.name;
+    size_t num_samples     = 2;
+    std::string save_file  = Config::SAVE_DIR + "SMM/";
     auto created_directory = mio::create_directory(save_file);
+    save_file += config.name;
+    created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
     save_file += "/";
 
-    // Initialize model
-    auto model = smm_helper::initialize_model<num_regions>(config);
-    // Create simulation set
-    auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(num_runs, model,
-                                                                                              config.t0, config.dt);
-    mio::timing::BasicTimer timer;
-    timer.start();
-    // Advance simulation set
-    sim_set.advance(config.tmax);
-    timer.stop();
-
-    // Convert result so they fit structure for ensemble_percentile fct
-    std::vector<std::vector<mio::TimeSeries<double>>> sim_results;
-    auto& all_results = sim_set.get_result();
-    //size_t run        = 0;
-    for (auto& res : all_results) {
-        //(void)res.export_csv(save_file + std::to_string(run) + "_comps.csv");
-        sim_results.push_back({res});
-        //run += 1;
-    }
-    // Save percentiles
-    auto p00      = mio::ensemble_percentile(sim_results, 0.0);
-    auto p05      = mio::ensemble_percentile(sim_results, 0.05);
-    auto p25      = mio::ensemble_percentile(sim_results, 0.25);
-    auto p50      = mio::ensemble_percentile(sim_results, 0.5);
-    auto p75      = mio::ensemble_percentile(sim_results, 0.75);
-    auto p95      = mio::ensemble_percentile(sim_results, 0.95);
-    auto p100     = mio::ensemble_percentile(sim_results, 1.0);
-    auto finished = p00[0].export_csv(save_file + "p00.csv");
-    finished      = p05[0].export_csv(save_file + "p05.csv");
-    finished      = p25[0].export_csv(save_file + "p25.csv");
-    finished      = p50[0].export_csv(save_file + "p50.csv");
-    finished      = p75[0].export_csv(save_file + "p75.csv");
-    finished      = p95[0].export_csv(save_file + "p95.csv");
-    finished      = p100[0].export_csv(save_file + "p100.csv");
-
-    // Save first 100 simulations
-    for (size_t sim = 0; sim < 100; ++sim) {
-        finished = sim_set.get_result()[sim].export_csv(save_file + std::to_string(sim) + "_result.csv");
-    }
-
-    // Save means and moments
-    finished = sim_set.get_mean().export_csv(save_file + "means.csv");
-    finished = sim_set.get_moments().export_csv(save_file + "moments.csv", sim_set.get_moment_names());
-    // Save times
-    mio::TimeSeries<double> time_ts(1);
-    auto& all_times = sim_set.get_sim_times();
-    for (size_t i = 0; i < all_times.size(); i++) {
-        Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
-        time[0]              = all_times[i];
-        time_ts.add_time_point(i, time);
-    }
-    auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
-    mio::TimeSeries<double> total_time(1);
-    Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
-    total_time.add_time_point(0., time);
-    finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
-
-    // TODO - Write number of transitions to csv file
-    if (true) {
-        std::vector<
-            std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
-                                      static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>
-            number_transitions;
-        number_transitions.reserve(num_runs);
-        for (auto& sim : sim_set.get_simulations()) {
-            number_transitions.push_back(sim.num_transitions);
+    for (size_t sample = 0; sample < num_samples; ++sample) {
+        // Create sample directory
+        std::string save_file_sample = save_file + "sample_" + std::to_string(sample);
+        created_directory            = mio::create_directory(save_file_sample);
+        if (!created_directory) {
+            printf("%s\n", created_directory.error().formatted_message().c_str());
+            return -1;
         }
-        auto mean = computeMeanMatrices(number_transitions);
-        for (size_t t = 0; t < mean.size(); ++t) {
-            writeMatrixToCSV(mean[t], save_file + std::to_string(t) + "_transitions.csv");
+        save_file_sample += "/";
+
+        // Ssample I0, R0 and lambda
+        config.I0s[0].second = mio::UniformIntDistribution<size_t>::get_instance()(mio::thread_local_rng(),
+                                                                                   I0_boundaries[0], I0_boundaries[1]);
+        config.R0s[0].second = mio::UniformIntDistribution<size_t>::get_instance()(mio::thread_local_rng(),
+                                                                                   R0_boundaries[0], R0_boundaries[1]);
+        config.lambdas[0]    = mio::UniformDistribution<ScalarType>::get_instance()(
+            mio::thread_local_rng(), lambda_boundaries[0], lambda_boundaries[1]);
+
+        write_parameter_csv(config.I0s[0].second, config.R0s[0].second, config.lambdas[0],
+                            save_file_sample + "parameters.csv");
+
+        // Initialize model
+        auto model = smm_helper::initialize_model<num_regions>(config);
+        // Create simulation set
+        auto sim_set = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, max_order>(num_runs, model,
+                                                                                                  config.t0, config.dt);
+        mio::timing::BasicTimer timer;
+        timer.start();
+        // Advance simulation set
+        sim_set.advance(config.tmax);
+        timer.stop();
+
+        // Save means and moments
+        auto finished = sim_set.get_mean().export_csv(save_file_sample + "means.csv");
+        finished      = sim_set.get_moments().export_csv(save_file_sample + "moments.csv", sim_set.get_moment_names());
+        // Save times
+        mio::TimeSeries<double> time_ts(1);
+        auto& all_times = sim_set.get_sim_times();
+        for (size_t i = 0; i < all_times.size(); i++) {
+            Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
+            time[0]              = all_times[i];
+            time_ts.add_time_point(i, time);
         }
+        auto finished_time = time_ts.export_csv(save_file_sample + "runtimes.csv", {"Runtime"});
+        mio::TimeSeries<double> total_time(1);
+        Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
+        total_time.add_time_point(0., time);
+        finished_time = total_time.export_csv(save_file_sample + "total_time.csv", {"Runtime"});
     }
-
-    // TODO - Write number of total events to csv file
-    // Convert result so they fit structure for ensemble_percentile fct
-    std::vector<std::vector<mio::TimeSeries<double>>> events;
-    for (size_t sim = 0; sim < sim_set.get_simulations().size(); ++sim) {
-        events.push_back({sim_set.get_simulations()[sim].num_events});
-    }
-    // Save percentiles
-    auto p50_events  = mio::ensemble_percentile(events, 0.5);
-    auto p00_events  = mio::ensemble_percentile(events, 0.0);
-    auto p100_events = mio::ensemble_percentile(events, 1.0);
-    finished         = p50_events[0].export_csv(save_file + "events_median.csv");
-    finished         = p00_events[0].export_csv(save_file + "events_min.csv");
-    finished         = p100_events[0].export_csv(save_file + "events_max.csv");
-
-    std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
     return 0;
 }
