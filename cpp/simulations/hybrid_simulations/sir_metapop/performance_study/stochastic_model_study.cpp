@@ -47,21 +47,37 @@ void write_parameter_csv(double I0, double R0, double lambda, std::string filena
     file.close();
 }
 
+void write_time_csv(double time, std::string filename)
+{
+    std::ofstream file(filename);
+
+    if (!file.is_open())
+        return;
+
+    // Header
+    file << "Time,Runtime\n";
+
+    // Data row
+    file << "0.0," << time << "\n";
+
+    file.close();
+}
+
 int main()
 {
-    const size_t num_runs    = 50000;
     const size_t max_order   = 2;
+    const size_t num_runs    = 50000;
     auto config              = Config::get_config(Config::ConfigType::ConfigPerformanceStudySIR);
     const size_t num_regions = 1;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    size_t I0_boundaries[]     = {0, static_cast<size_t>(0.01 * config.total_populations[0])};
-    size_t R0_boundaries[]     = {0, static_cast<size_t>(0.7 * config.total_populations[0])};
-    double lambda_boundaries[] = {0.0000014, 0.000006};
+    std::vector<size_t> I0_boundaries     = {0, static_cast<size_t>(0.01 * config.total_populations[0])};
+    std::vector<size_t> R0_boundaries     = {0, static_cast<size_t>(0.7 * config.total_populations[0])};
+    std::vector<double> lambda_boundaries = {0.0000014, 0.000006};
 
-    size_t num_samples     = 2;
+    size_t num_samples     = 1000;
     std::string save_file  = Config::SAVE_DIR + "SMM/";
     auto created_directory = mio::create_directory(save_file);
     save_file += config.name;
@@ -82,7 +98,7 @@ int main()
         }
         save_file_sample += "/";
 
-        // Ssample I0, R0 and lambda
+        // Sample I0, R0 and lambda
         config.I0s[0].second = mio::UniformIntDistribution<size_t>::get_instance()(mio::thread_local_rng(),
                                                                                    I0_boundaries[0], I0_boundaries[1]);
         config.R0s[0].second = mio::UniformIntDistribution<size_t>::get_instance()(mio::thread_local_rng(),
@@ -107,19 +123,8 @@ int main()
         // Save means and moments
         auto finished = sim_set.get_mean().export_csv(save_file_sample + "means.csv");
         finished      = sim_set.get_moments().export_csv(save_file_sample + "moments.csv", sim_set.get_moment_names());
-        // Save times
-        mio::TimeSeries<double> time_ts(1);
-        auto& all_times = sim_set.get_sim_times();
-        for (size_t i = 0; i < all_times.size(); i++) {
-            Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
-            time[0]              = all_times[i];
-            time_ts.add_time_point(i, time);
-        }
-        auto finished_time = time_ts.export_csv(save_file_sample + "runtimes.csv", {"Runtime"});
-        mio::TimeSeries<double> total_time(1);
-        Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
-        total_time.add_time_point(0., time);
-        finished_time = total_time.export_csv(save_file_sample + "total_time.csv", {"Runtime"});
+        // Save time
+        write_time_csv(mio::timing::time_in_seconds(timer.get_elapsed_time()), save_file_sample + "total_time.csv");
     }
 
     return 0;
