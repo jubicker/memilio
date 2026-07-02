@@ -3,6 +3,8 @@ from matplotlib.colors import LogNorm, SymLogNorm
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import FuncFormatter
 
 
 def plot_MSE_3D(df, col, param1="I_init", param2="R_init", param3="lambda"):
@@ -113,60 +115,266 @@ def plot_MSE_2D(df, col, param1="I_init", param2="R_init"):
                 "_" + param2 + "_" + ".png")
 
 
-def plot_err_2D_v2(df, col, param1, param2):
-    # Pivot to create heatmap grid
-    heatmap_data = df.pivot_table(
-        index=param1,
-        columns=param2,
-        values=col
+def plot_err_2D_bins(df, col, param1, param2, bins1, bins2, bin1_labels, bin2_labels):
+    df[param1 + "_bin"] = pd.cut(
+    df[param1],
+    bins=bins1,
+    labels=bin1_labels,
+    right=False
     )
 
-    # Mask NaNs for heatmap coloring
-    mask = heatmap_data.isna()
+    df[param2 + "_bin"] = pd.cut(
+        df[param2],
+        bins=bins2,
+        labels=bin2_labels,
+        right=False
+    )
+    # -------------------------
+    # Heatmap 1: Mean Err
+    # -------------------------
 
-    plt.figure(figsize=(10, 8))
+    valid_df = df.dropna(subset=[col])
 
-    # Heatmap
-    ax = sns.heatmap(
-        heatmap_data,
-        mask=mask,
-        cmap='viridis',
-        cbar_kws={'label': col}
+    mean_err = (
+        valid_df
+        .groupby([param2 + "_bin", param1 + "_bin"], observed=False)[col]
+        .mean()
+        .unstack()
     )
 
-    # --- Overlay NaN points as red dots ---
-    nan_df = df[df[col].isna() | df[param1].isna() | df[param2].isna()]
+    # -------------------------
+    # Heatmap 2: Number of NaNs
+    # -------------------------
 
-    # IMPORTANT: heatmap uses categorical grid positions, so we map values to indices
-    a_order = heatmap_data.index.tolist()
-    b_order = heatmap_data.columns.tolist()
-
-    a_to_i = {v: i + 2 for i, v in enumerate(a_order)}
-    b_to_j = {v: j + 2 for j, v in enumerate(b_order)}
-
-    x = nan_df[param2].map(b_to_j)
-    y = nan_df[param1].map(a_to_i)
-
-    ax.scatter(x, y, color='red', s=50, label='NaN (invalid)')
-
-    plt.xlabel(param1)
-    plt.ylabel(param2)
-    plt.legend()
-
-    plt.savefig(dir + col + "_" + param1 +
-                "_" + param2 + "_v2" + ".png")
+    nan_counts = (
+        df.assign(is_nan=df[col].isna())
+        .groupby([param2 + "_bin", param1 + "_bin"], observed=False)["is_nan"]
+        .sum()
+        .unstack()
+    )
 
 
-dir = "/Users/julia/sim_outputs/output/MSE/SIR/"
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.heatmap(
+        mean_err,
+        annot=True,
+        fmt=".3f",
+        cmap="viridis",
+        ax=ax
+    )
+
+    ax.set_xlabel(param1)
+    ax.set_ylabel(param2)
+    ax.set_title("Average " + col + " by parameter bins")
+    plt.savefig(dir + col + "_" + param1 + "_" + param2 + "_bins_mean_err.png")
+    plt.close(fig)
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    sns.heatmap(
+        nan_counts,
+        annot=True,
+        fmt=".3f",
+        cmap="viridis",
+        ax=ax
+    )
+
+    ax.set_xlabel(param1)
+    ax.set_ylabel(param2)
+    ax.set_title("Number of NaNs in " + col + " by parameter bins")
+    plt.savefig(dir + col + "_" + param1 + "_" + param2 + "_bins_nan_counts.png")
+    plt.close(fig)
+
+
+def plot_err_3D_bins(df, col, param1, param2, param3, bins1, bins2, bins3, bin1_labels, bin2_labels, bin3_labels, z_coordinate_scientific):
+    
+    df[param1 + "_bin"] = pd.cut(
+    df[param1],
+    bins=bins1,
+    labels=bin1_labels,
+    right=False
+    )
+
+    df[param2 + "_bin"] = pd.cut(
+        df[param2],
+        bins=bins2,
+        labels=bin2_labels,
+        right=False
+    )
+    
+    df[param3 + "_bin"] = pd.cut(
+        df[param3],
+        bins=bins3,
+        labels=bin3_labels,
+        right=False
+    )
+
+    grouped = (
+        df.dropna(subset=[col])
+        .groupby(
+            [param1 + "_bin", param2 + "_bin", param3 + "_bin"],
+            observed=False
+        )[col]
+        .mean()
+        .reset_index()
+    )
+
+    x = grouped[param1 + "_bin"].cat.codes
+    y = grouped[param2 + "_bin"].cat.codes
+    z = grouped[param3 + "_bin"].cat.codes
+
+    err = grouped[col]
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    dx = dy = dz = 0.5
+    
+
+    norm = plt.Normalize(err.min(), err.max())
+    colors = plt.cm.viridis(norm(err))
+
+    ax.bar3d(x, y, z, dx, dy, dz, color=colors)
+
+    mappable = plt.cm.ScalarMappable(norm=norm, cmap="viridis")
+    plt.colorbar(mappable, ax=ax, label="Average " + col)
+
+    ax.set_xlabel(param1, labelpad=10)
+    ax.set_ylabel(param2)
+    ax.set_zlabel(param3)
+    
+    ax.set_xticks(range(len(bin1_labels)))
+    ax.set_xticklabels(bin1_labels, rotation=45, ha="right")
+    
+    ax.set_yticklabels([])
+    for i, label in enumerate(bin2_labels):
+        ax.text(
+            6.25, i - 0.3, 0,
+            str(label),
+            zdir=None,
+        )
+    ax.set_zticks(range(len(bin3_labels)))
+    ax.set_zticklabels(bin3_labels)
+    if z_coordinate_scientific:
+        ax.text(6.25, 6.25, 7, r"$\times 10^{-6}$", zdir=None)
+
+    plt.savefig(dir + col + "_" + param1 + "_" + param2 + "_" + param3 + "_bins_3D.png")
+    plt.close(fig)
+    
+    # Nan counts for 3D bins    
+    grouped = (
+        df.assign(is_nan=df[col].isna())
+        .groupby(
+            [param1 + "_bin", param2 + "_bin", param3 + "_bin"],
+            observed=False
+        )["is_nan"]
+        .sum()
+        .reset_index()
+    )
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    
+    for c in [param1 + "_bin", param2 + "_bin", param3 + "_bin"]:
+        grouped[c] = pd.Categorical(grouped[c], ordered=True)
+
+    # Select only bins with non-zero counts for plotting
+    plot_df = grouped
+
+    x_plot = plot_df[param1 + "_bin"].cat.codes.values
+    y_plot = plot_df[param2 + "_bin"].cat.codes.values
+    z_plot = plot_df[param3 + "_bin"].cat.codes.values
+
+    counts_plot = plot_df["is_nan"].values
+    
+    norm = plt.Normalize(counts_plot.min(), counts_plot.max())
+    colors = plt.cm.viridis(norm(counts_plot))
+    # make zeros fully transparent
+    alpha = np.where(counts_plot == 0, 0.0, 1.0)
+
+    colors = np.concatenate([colors[:, :3], alpha[:, None]], axis=1)
+
+    ax.bar3d(x_plot, y_plot, z_plot, dx, dy, dz, color=colors)
+
+    mappable = plt.cm.ScalarMappable(norm=norm, cmap="viridis")
+    plt.colorbar(mappable, ax=ax, label="NaN counts " + col)
+
+    ax.set_xlabel(param1, labelpad=10)
+    ax.set_ylabel(param2)
+    ax.set_zlabel(param3)
+
+    ax.set_xticks(range(len(bin1_labels)))
+    ax.set_xticklabels(bin1_labels, rotation=45, ha="right")
+
+    ax.set_yticklabels([])
+    for i, label in enumerate(bin2_labels):
+        ax.text(
+            6.25, i - 0.3, 0,
+            str(label),
+            zdir=None,
+        )
+    ax.set_zticks(range(len(bin3_labels)))
+    ax.set_zticklabels(bin3_labels)
+    if z_coordinate_scientific:
+        ax.text(6.25, 6.25, 7, r"$\times 10^{-6}$", zdir=None)
+
+    fig.savefig(dir + col + "_" + param1 + "_" + param2 + "_" + param3 + "_bins_nan_3D.png")
+    plt.close(fig)
+
+dir = "/hpc_data/bick_ju/TemporalHybrid/MSE/SIR/"
 
 mean_or_var = "var"
 col = "sMAPE_" + mean_or_var
 
 df = pd.read_csv(dir + "MSEs.csv")
 
-plot_MSE_3D(df, col)
-plot_MSE_3D(df, col, "max_relation", "max_mean", "R_0")
+# plot_MSE_3D(df, col)
+# plot_MSE_3D(df, col, "max_relation", "relation_at_max_mu", "R_0")
+# plot_MSE_3D(df, col, "relation_at_max_mu", "max_mean", "R_0")
+# plot_MSE_3D(df, col, "max_relation", "max_mean", "R_0")
 
-plot_MSE_2D(df, col, "max_relation_adapted", "R_0")
+# plot_MSE_2D(df, col, "relation_at_max_mu", "R_0")
+# plot_MSE_2D(df, col, "relation_at_max_mu", "max_relation")
 
-plot_err_2D_v2(df, col, "max_relation", "R_0")
+parameters = ["I_init", "R_init", "lambda", "R_0"]
+parameter_bins = {
+    "I_init": [0, 10, 20, 30, 40, 50, np.inf],
+    "R_init": [0, 0.01*100000, 0.1*100000, 0.2*100000, 0.3*100000, 0.4*100000, 0.5*100000, np.inf],
+    "lambda": np.linspace(0.0000014, 0.000006, 7).tolist() + [np.inf],
+    "R_0": [0, 1, 2, 3, 4, np.inf],
+    "max_mean": [0, 0.01*100000, 0.1*100000, 0.2*100000, 0.3*100000, np.inf],
+    "max_std": [0, 10, 100, 500, 1000, 3000],
+    "max_std_normalized": [0, 0.1, 0.2, 0.3, 0.4, 0.5, np.inf],
+}
+
+bin_labels = {
+    "I_init": [parameter_bins["I_init"][i] for i in range(len(parameter_bins["I_init"]) - 1)],
+    "R_init": [int(parameter_bins["R_init"][i]/1) for i in range(len(parameter_bins["R_init"]) - 1)],
+    "lambda": [np.round(parameter_bins["lambda"][i]*1e6, 1) for i in range(len(parameter_bins["lambda"]) - 1)],
+    "R_0": [parameter_bins["R_0"][i] for i in range(len(parameter_bins["R_0"]) - 1)],
+    "max_mean": [int(parameter_bins["max_mean"][i]/1) for i in range(len(parameter_bins["max_mean"]) - 1)],
+    "max_std": [parameter_bins["max_std"][i] for i in range(len(parameter_bins["max_std"]) - 1)],
+    "max_std_normalized": [parameter_bins["max_std_normalized"][i] for i in range(len(parameter_bins["max_std_normalized"]) - 1)]
+}
+
+
+plot_err_3D_bins(df, col, "I_init", "R_init", "lambda",
+                parameter_bins["I_init"], parameter_bins["R_init"], parameter_bins["lambda"],
+                bin_labels["I_init"], bin_labels["R_init"], bin_labels["lambda"], True)
+plot_err_3D_bins(df, col, "I_init", "R_init", "R_0",
+                parameter_bins["I_init"], parameter_bins["R_init"], parameter_bins["R_0"],
+                bin_labels["I_init"], bin_labels["R_init"], bin_labels["R_0"], False)
+plot_err_3D_bins(df, col, "I_init", "max_std", "max_std_normalized",
+                parameter_bins["I_init"], parameter_bins["max_std"], parameter_bins["max_std_normalized"],
+                bin_labels["I_init"], bin_labels["max_std"], bin_labels["max_std_normalized"], False)
+plot_err_3D_bins(df, col, "max_mean", "max_std", "max_std_normalized",
+                parameter_bins["max_mean"], parameter_bins["max_std"], parameter_bins["max_std_normalized"],
+                bin_labels["max_mean"], bin_labels["max_std"], bin_labels["max_std_normalized"], False)
+
+# plot_MSE_3D(df, col, "max_mean", "max_std", "R_0")
+# plot_MSE_3D(df, col, "max_mean", "max_std_normalized", "R_0")
+
+# for param1 in parameters:
+#     for param2 in parameters:
+#         if param1 != param2:
+#             bins1 = parameter_bins[param1]
+#             bins2 = parameter_bins[param2]
+#             plot_err_2D_bins(df, col, param1, param2, bins1, bins2, bins1[1:], bins2[1:])

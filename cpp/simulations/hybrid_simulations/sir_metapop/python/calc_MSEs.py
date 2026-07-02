@@ -14,12 +14,13 @@ tau_infectious = 7
 sample_start = 0
 sample_end = 999
 
-data = {"Sample": [], "I_init": [], "R_init": [], "lambda": [], "max_relation": [], "max_relation_adapted": [], "max_mean": [], "R_0": [], "MSE_mean": [
+data = {"Sample": [], "I_init": [], "R_init": [], "lambda": [], "max_relation": [], "max_relation_adapted": [], "max_mean": [], "R_0": [], "relation_at_max_mu": [], "max_std": [], "max_std_normalized": [], "MSE_mean": [
 ], "MSE_var": [], "MAPE_mean": [], "MAPE_var": [], "sMAPE_mean": [], "sMAPE_var": [], "corr_mean": [], "corr_var": []}
 
-smm_folder = "/Users/julia/sim_outputs/output/SMM/performance_study_SIR/"
-moment_folder = "/Users/julia/sim_outputs/output/Moments/performance_study_SIR/"
-save_folder = "/Users/julia/sim_outputs/output/MSE/SIR/"
+base_folder = "/hpc_data/bick_ju/TemporalHybrid/"
+smm_folder = base_folder + "SMM/performance_study_SIR/"
+moment_folder = base_folder + "Moments/performance_study_SIR/"
+save_folder = base_folder + "MSE/SIR/"
 
 for s in range(sample_start, sample_end + 1):
     # Add sample number to data
@@ -51,6 +52,13 @@ for s in range(sample_start, sample_end + 1):
     # Add R0 to data: R0 = S(0) * tau_infectious * lambda
     data["R_0"].append(SMM_mean["C1"].iloc[0] *
                        tau_infectious * parameters["lambda"].iloc[0])
+    idx_max_mean = SMM_mean["C2"].idxmax()
+    data["relation_at_max_mu"].append(np.sqrt(SMM_moments["M020"].iloc[idx_max_mean]) /
+                                      SMM_mean["C2"].iloc[idx_max_mean])
+    # Add max standard deviation to data
+    data["max_std"].append(np.sqrt(SMM_moments["M020"]).max())
+    # Add max normalized standard deviation to data
+    data["max_std_normalized"].append(np.sqrt(SMM_moments["M020"].max()) / SMM_mean["C2"].max())
     # If ODE model doesn't have last SMM timepoint, skip this time point
     last_timestep = ODE_mean.Time.iloc[-1]
     # Calculate and add mean and variance MSE
