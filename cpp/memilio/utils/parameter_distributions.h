@@ -105,9 +105,9 @@ public:
     template <class RNG>
     ScalarType get_sample(RNG& rng)
     {
-        if (m_predefined_samples.size() > 0) {
-            ScalarType rnumb = m_predefined_samples[0];
-            m_predefined_samples.erase(m_predefined_samples.begin());
+        if (!m_predefined_samples.empty()) {
+            ScalarType rnumb = m_predefined_samples.back();
+            m_predefined_samples.pop_back();
             return rnumb;
         }
         else {

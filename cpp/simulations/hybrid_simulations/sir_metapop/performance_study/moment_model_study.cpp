@@ -107,10 +107,6 @@ int main()
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::vector<size_t> I0_boundaries     = {0, static_cast<size_t>(0.01 * config.total_populations[0])};
-    std::vector<size_t> R0_boundaries     = {0, static_cast<size_t>(0.7 * config.total_populations[0])};
-    std::vector<double> lambda_boundaries = {0.0000014, 0.000006};
-
     size_t num_samples     = 1000;
     std::string save_file  = Config::SAVE_DIR + "Moments/";
     auto created_directory = mio::create_directory(save_file);
