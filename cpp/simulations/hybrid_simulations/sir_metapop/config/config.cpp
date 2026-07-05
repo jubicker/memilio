@@ -407,14 +407,15 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigPerformanceStudySIRS:
-        config.name                   = "performance_study_SIRS";
-        config.num_regions            = 1;
-        config.t0                     = 0;
-        config.tmax                   = 200;
-        config.dt                     = 0.1;
-        config.lambdas                = {0};
-        config.gamma                  = 1. / 7.;
-        config.nu                     = 1 / 20.;;
+        config.name        = "performance_study_SIRS";
+        config.num_regions = 1;
+        config.t0          = 0;
+        config.tmax        = 200;
+        config.dt          = 0.1;
+        config.lambdas     = {0};
+        config.gamma       = 1. / 7.;
+        config.nu          = 1 / 20.;
+        ;
         config.I0s                    = {{0, 0}}; // Tuple of (region_id, initial infected)
         config.R0s                    = {{0, 0}}; // Tuple of (region_id, initial recovered)
         config.total_populations      = {100000};
@@ -426,14 +427,15 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigPerformanceStudySIRS_seasonal:
-        config.name                   = "performance_study_SIRS_seasonal";
-        config.num_regions            = 1;
-        config.t0                     = 0;
-        config.tmax                   = 200;
-        config.dt                     = 0.1;
-        config.lambdas                = {0};
-        config.gamma                  = 1. / 7.;
-        config.nu                     = 1 / 20.;;
+        config.name        = "performance_study_SIRS_seasonal";
+        config.num_regions = 1;
+        config.t0          = 0;
+        config.tmax        = 200;
+        config.dt          = 0.1;
+        config.lambdas     = {0};
+        config.gamma       = 1. / 7.;
+        config.nu          = 1 / 20.;
+        ;
         config.I0s                    = {{0, 0}}; // Tuple of (region_id, initial infected)
         config.R0s                    = {{0, 0}}; // Tuple of (region_id, initial recovered)
         config.total_populations      = {100000};
@@ -442,6 +444,24 @@ Config get_config(ConfigType type)
         config.seasonality_rhos       = {0.4, 0.4, 0.4}; // Variation factor for each season
         config.seasonality_sigmas     = {50, 50, 50}; // Standard deviation for the Gaussian function for each season
 
+        return config;
+        break;
+    case ConfigType::ConfigInfluenzaGermany:
+        config.name                   = "config_influenza_germany";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 3 * 365; // From 1st August 2016 to 1st August 2019
+        config.dt                     = 0.1;
+        config.lambdas                = {0.00000572}; // TODO
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1 / 20.;
+        config.I0s                    = {{0, 100}}; // TODO
+        config.R0s                    = {{0, 0}}; // TODO
+        config.total_populations      = {100000};
+        config.first_season_start_day = -153; // First season starts at 1st August of the previous year
+        config.season_peaks           = {23, 22, 33}; // Peak transmission rate at day January 24th of each season
+        config.seasonality_rhos       = {0.27, 0.24, 0.15}; // Variation factor for each season
+        config.seasonality_sigmas     = {25, 25, 60}; // Standard deviation for the Gaussian function for each season
         return config;
         break;
     }

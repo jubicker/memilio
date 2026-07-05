@@ -30,8 +30,8 @@
 
 namespace Config
 {
-const std::string SAVE_DIR =
-    "/p/project1/loki/bicker1/memilio/output/"; //"/Users/julia/repos/fork/memilio/output/";//"/hpc_data/bick_ju/TemporalHybrid/";
+const std::string SAVE_DIR = "/Users/julia/repos/fork/memilio/output/";
+//"/p/project1/loki/bicker1/memilio/output/"; //"/Users/julia/repos/fork/memilio/output/";//"/hpc_data/bick_ju/TemporalHybrid/";
 
 const std::vector<std::string> closure_string          = {"truncation", "pair_approx", "lognorm", "lognorm_zero_infl"};
 const std::vector<std::string> switch_condition_string = {"mean_threshold_rel", "var_gradient", "mean_threshold_abs",
@@ -86,6 +86,7 @@ enum class ConfigType
     ConfigPerformanceStudySIR,
     ConfigPerformanceStudySIRS,
     ConfigPerformanceStudySIRS_seasonal,
+    ConfigInfluenzaGermany
 };
 
 Config get_config(ConfigType type);
