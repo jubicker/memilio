@@ -452,11 +452,11 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 3 * 365; // From 1st August 2016 to 1st August 2019
         config.dt                     = 0.1;
-        config.lambdas                = {0.00000572}; // TODO
+        config.lambdas                = {0.000008}; // TODO
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 20.;
-        config.I0s                    = {{0, 100}}; // TODO
-        config.R0s                    = {{0, 0}}; // TODO
+        config.I0s                    = {{0, 7500}}; // TODO
+        config.R0s                    = {{0, 20000}}; // TODO
         config.total_populations      = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
         config.season_peaks           = {23, 22, 33}; // Peak transmission rate at day January 24th of each season
