@@ -18,6 +18,7 @@
 * limitations under the License.
 */
 
+#include "memilio/utils/time_series.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
 #include "simulations/hybrid_simulations/sir_metapop/library/smm_helper.h"
 #include "memilio/data/analyze_result.h"
@@ -26,6 +27,7 @@
 #include "smm/simulation.h"
 #include "smm/simulation_set.h"
 #include <cstddef>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -89,7 +91,7 @@ int main()
 {
     const size_t num_runs    = 50000;
     const size_t max_order   = 2;
-    const auto config        = Config::get_config(Config::ConfigType::ConfigTest2ndOutbreak);
+    const auto config        = Config::get_config(Config::ConfigType::ConfigInfluenzaGermany);
     const size_t num_regions = 1;
     if (num_regions != config.num_regions) {
         mio::log_error("Number of regions doesn't match number of regions in config.");
@@ -126,72 +128,68 @@ int main()
         //run += 1;
     }
     // Save percentiles
-    auto p00      = mio::ensemble_percentile(sim_results, 0.0);
     auto p05      = mio::ensemble_percentile(sim_results, 0.05);
     auto p25      = mio::ensemble_percentile(sim_results, 0.25);
     auto p50      = mio::ensemble_percentile(sim_results, 0.5);
     auto p75      = mio::ensemble_percentile(sim_results, 0.75);
     auto p95      = mio::ensemble_percentile(sim_results, 0.95);
-    auto p100     = mio::ensemble_percentile(sim_results, 1.0);
-    auto finished = p00[0].export_csv(save_file + "p00.csv");
-    finished      = p05[0].export_csv(save_file + "p05.csv");
+    auto finished = p05[0].export_csv(save_file + "p05.csv");
     finished      = p25[0].export_csv(save_file + "p25.csv");
     finished      = p50[0].export_csv(save_file + "p50.csv");
     finished      = p75[0].export_csv(save_file + "p75.csv");
     finished      = p95[0].export_csv(save_file + "p95.csv");
-    finished      = p100[0].export_csv(save_file + "p100.csv");
 
     // Save first 100 simulations
-    for (size_t sim = 0; sim < 0; ++sim) {
+    for (size_t sim = 0; sim < 10; ++sim) {
         finished = sim_set.get_result()[sim].export_csv(save_file + std::to_string(sim) + "_result.csv");
     }
 
     // Save means and moments
     finished = sim_set.get_mean().export_csv(save_file + "means.csv");
     finished = sim_set.get_moments().export_csv(save_file + "moments.csv", sim_set.get_moment_names());
-    // Save times
-    mio::TimeSeries<double> time_ts(1);
-    auto& all_times = sim_set.get_sim_times();
-    for (size_t i = 0; i < all_times.size(); i++) {
-        Eigen::VectorXd time = Eigen::VectorXd::Zero(1);
-        time[0]              = all_times[i];
-        time_ts.add_time_point(i, time);
-    }
-    auto finished_time = time_ts.export_csv(save_file + "runtimes.csv", {"Runtime"});
     mio::TimeSeries<double> total_time(1);
     Eigen::VectorXd time = Eigen::VectorXd::Constant(1, mio::timing::time_in_seconds(timer.get_elapsed_time()));
     total_time.add_time_point(0., time);
-    finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+    auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
-    // TODO - Write number of transitions to csv file
-    if (false) {
-        std::vector<
-            std::vector<Eigen::Matrix<size_t, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions,
-                                      static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions>>>
-            number_transitions;
-        number_transitions.reserve(num_runs);
-        for (auto& sim : sim_set.get_simulations()) {
-            number_transitions.push_back(sim.num_transitions);
+    // Write number new infections to csv file
+    std::vector<std::vector<mio::TimeSeries<double>>> new_infections;
+    mio::TimeSeries<double> new_infections_mean(num_regions);
+    for (auto& sim : sim_set.get_simulations()) {
+        mio::TimeSeries<double> new_infections_ts(num_regions);
+        for (size_t t = 0; t < sim.num_adoptions.size(); ++t) {
+            new_infections_ts.add_time_point(t, Eigen::VectorXd::Zero(num_regions));
+            if (static_cast<size_t>(new_infections_mean.get_num_time_points()) <= t) {
+                new_infections_mean.add_time_point(t, Eigen::VectorXd::Zero(num_regions));
+            }
+            for (size_t r = 0; r < num_regions; ++r) {
+                double new_inf = sim.num_adoptions[t](r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                          static_cast<size_t>(mio::osir::InfectionState::Susceptible),
+                                                      r * static_cast<size_t>(mio::osir::InfectionState::Count) +
+                                                          static_cast<size_t>(mio::osir::InfectionState::Infected));
+                new_infections_ts.get_last_value()[r] = new_inf;
+                new_infections_mean.get_value(t)[r] += new_inf;
+            }
         }
-        auto mean = computeMeanMatrices(number_transitions);
-        for (size_t t = 0; t < mean.size(); ++t) {
-            writeMatrixToCSV(mean[t], save_file + std::to_string(t) + "_transitions.csv");
-        }
+        new_infections.push_back({new_infections_ts});
     }
-
-    // TODO - Write number of total events to csv file
-    // Convert result so they fit structure for ensemble_percentile fct
-    std::vector<std::vector<mio::TimeSeries<double>>> events;
-    for (size_t sim = 0; sim < sim_set.get_simulations().size(); ++sim) {
-        events.push_back({sim_set.get_simulations()[sim].num_events});
+    // Normalize mean by number of runs
+    for (size_t t = 0; t < static_cast<size_t>(new_infections_mean.get_num_time_points()); ++t) {
+        new_infections_mean.get_value(t) /= static_cast<double>(num_runs);
     }
-    // Save percentiles
-    auto p50_events  = mio::ensemble_percentile(events, 0.5);
-    auto p00_events  = mio::ensemble_percentile(events, 0.0);
-    auto p100_events = mio::ensemble_percentile(events, 1.0);
-    finished         = p50_events[0].export_csv(save_file + "events_median.csv");
-    finished         = p00_events[0].export_csv(save_file + "events_min.csv");
-    finished         = p100_events[0].export_csv(save_file + "events_max.csv");
+    // Save mean new infections time series
+    finished = new_infections_mean.export_csv(save_file + "new_infections_mean.csv");
+    // Save new infections percentiles
+    auto p05_new_infectuions = mio::ensemble_percentile(new_infections, 0.05);
+    auto p25_new_infectuions = mio::ensemble_percentile(new_infections, 0.25);
+    auto p50_new_infectuions = mio::ensemble_percentile(new_infections, 0.5);
+    auto p75_new_infectuions = mio::ensemble_percentile(new_infections, 0.75);
+    auto p95_new_infectuions = mio::ensemble_percentile(new_infections, 0.95);
+    finished                 = p05_new_infectuions[0].export_csv(save_file + "p05_new_infections.csv");
+    finished                 = p25_new_infectuions[0].export_csv(save_file + "p25_new_infections.csv");
+    finished                 = p50_new_infectuions[0].export_csv(save_file + "p50_new_infections.csv");
+    finished                 = p75_new_infectuions[0].export_csv(save_file + "p75_new_infections.csv");
+    finished                 = p95_new_infectuions[0].export_csv(save_file + "p95_new_infections.csv");
 
     std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
