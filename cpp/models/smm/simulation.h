@@ -460,7 +460,7 @@ private:
     std::vector<FP> m_current_rates; ///< Current values of both types of rates i.e. adoption and transition rates.
 
     const bool count_transitions = true;
-    double dt_transitions        = 1.0; ///< Time step for counting transitions and adoptions.
+    double dt_transitions        = 7.0; ///< Time step for counting transitions and adoptions.
 };
 
 } //namespace smm

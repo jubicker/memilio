@@ -12,7 +12,7 @@ def scaled_mean_percentage_error(y_true, y_pred):
 tau_infectious = 7
 
 sample_start = 0
-sample_end = 999
+sample_end = 4319
 
 data = {"Sample": [], "I_init": [], "R_init": [], "lambda": [], "max_relation": [], "max_relation_adapted": [], "max_mean": [], "R_0": [], "relation_at_max_mu": [], "max_std": [], "max_std_normalized": [], "MSE_mean": [
 ], "MSE_var": [], "MAPE_mean": [], "MAPE_var": [], "sMAPE_mean": [], "sMAPE_var": [], "corr_mean": [], "corr_var": []}
@@ -46,7 +46,7 @@ for s in range(sample_start, sample_end + 1):
     data["max_relation"].append(max_relation)
     # Add adapted max relation to data
     max_idx = (np.sqrt(SMM_moments["M020"])/SMM_mean["C2"]).idxmax()
-    adapted_max_rel = (0 if (np.sqrt(
+    adapted_max_rel = (0 if pd.isna(max_idx) or (np.sqrt(
         SMM_moments["M020"].iloc[max_idx]) < 1 and SMM_mean["C2"].iloc[max_idx] < 1) else max_relation)
     data["max_relation_adapted"].append(adapted_max_rel)
     # Add R0 to data: R0 = S(0) * tau_infectious * lambda

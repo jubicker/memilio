@@ -179,20 +179,6 @@ int main()
         }
     }
 
-    // TODO - Write number of total events to csv file
-    // Convert result so they fit structure for ensemble_percentile fct
-    std::vector<std::vector<mio::TimeSeries<double>>> events;
-    for (size_t sim = 0; sim < sim_set.get_simulations().size(); ++sim) {
-        events.push_back({sim_set.get_simulations()[sim].num_events});
-    }
-    // Save percentiles
-    auto p50_events  = mio::ensemble_percentile(events, 0.5);
-    auto p00_events  = mio::ensemble_percentile(events, 0.0);
-    auto p100_events = mio::ensemble_percentile(events, 1.0);
-    finished         = p50_events[0].export_csv(save_file + "events_median.csv");
-    finished         = p00_events[0].export_csv(save_file + "events_min.csv");
-    finished         = p100_events[0].export_csv(save_file + "events_max.csv");
-
     std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
 
     return 0;

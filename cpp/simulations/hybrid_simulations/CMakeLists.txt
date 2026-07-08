@@ -33,3 +33,7 @@ target_compile_options(stochastic_study PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNI
 add_executable(moment_study sir_metapop/performance_study/moment_model_study.cpp)
 target_link_libraries(moment_study PRIVATE memilio ode_sir moments)
 target_compile_options(moment_study PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
+
+add_executable(influenza_Germany_stochastic sir_metapop/applications/Influenza_simulations/stochastic_Germany.cpp)
+target_link_libraries(influenza_Germany_stochastic PRIVATE memilio ode_sir moments)
+target_compile_options(influenza_Germany_stochastic PRIVATE ${MEMILIO_CXX_FLAGS_ENABLE_WARNING_ERRORS})
