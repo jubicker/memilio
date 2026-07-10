@@ -84,6 +84,9 @@ initialize_model(Eigen::Array<double, Eigen::Dynamic, 1>& expected_values_init,
         // Set transmission rates
         model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(r)] =
             config.lambdas[r];
+        // Set influecing regions and corresponding factors
+        model.parameters.template get<mio::smm_moments::InfluencingRegions>()[mio::regions::Region(r)] =
+            config.influencing_regions[r];
 
         // Set initial expected values
         model.populations[{mio::regions::Region(r), mio::osir::InfectionState::Susceptible}] =

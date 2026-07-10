@@ -77,24 +77,29 @@ public:
         }
         std::array<int, static_cast<size_t>(InfectionState::Count) * NumRegions> indices;
         for (size_t l = 0; l < NumRegions; ++l) {
-            indices.fill(0);
+
             // Indices for S, I, R in region l
-            size_t Sl = this->populations.get_flat_index({Region(l), InfectionState::Susceptible});
-            size_t Il = this->populations.get_flat_index({Region(l), InfectionState::Infected});
-            size_t Rl = this->populations.get_flat_index({Region(l), InfectionState::Recovered});
-            // Multiindex for M_1SlIl
-            indices[l * static_cast<size_t>(InfectionState::Count) + static_cast<size_t>(InfectionState::Susceptible)] =
-                1;
-            indices[l * static_cast<size_t>(InfectionState::Count) + static_cast<size_t>(InfectionState::Infected)] = 1;
-            assert(ClosureOrder >= 2);
-            double M_1SlIl =
-                ClosureOrder > 2 ? y[moments.flatten_index(indices) + populations.get_num_compartments()] : 0;
-            dydt[Sl] = -seasonality_factor * parameters.template get<TransmissionRate>()[Region(l)] *
-                           (y[Sl] * y[Il] + M_1SlIl) +
-                       parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
-            dydt[Il] = seasonality_factor * parameters.template get<TransmissionRate>()[Region(l)] *
-                           (y[Sl] * y[Il] + M_1SlIl) -
-                       parameters.template get<RecoveryRate>()[Region(l)] * y[Il];
+            size_t Sl                     = this->populations.get_flat_index({Region(l), InfectionState::Susceptible});
+            size_t Il                     = this->populations.get_flat_index({Region(l), InfectionState::Infected});
+            size_t Rl                     = this->populations.get_flat_index({Region(l), InfectionState::Recovered});
+            ScalarType transmission_contr = 0;
+            for (auto infl_r : parameters.template get<InfluencingRegions>()[Region(l)]) {
+                size_t Ik = this->populations.get_flat_index({Region(infl_r.first), InfectionState::Infected});
+                indices.fill(0);
+                // Multiindex for M_1SlIk
+                indices[l * static_cast<size_t>(InfectionState::Count) +
+                        static_cast<size_t>(InfectionState::Susceptible)] = 1;
+                indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                        static_cast<size_t>(InfectionState::Infected)]    = 1;
+                assert(ClosureOrder >= 2);
+                double M_1SlIk =
+                    ClosureOrder > 2 ? y[moments.flatten_index(indices) + populations.get_num_compartments()] : 0;
+                transmission_contr += seasonality_factor * infl_r.second *
+                                      parameters.template get<TransmissionRate>()[Region(l)] *
+                                      (y[Sl] * y[Ik] + M_1SlIk);
+            }
+            dydt[Sl] = parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl] - transmission_contr;
+            dydt[Il] = transmission_contr - parameters.template get<RecoveryRate>()[Region(l)] * y[Il];
             dydt[Rl] = parameters.template get<RecoveryRate>()[Region(l)] * y[Il] -
                        parameters.template get<ImmunityLossRate>()[Region(l)] * y[Rl];
             for (size_t k = 0; k < NumRegions; ++k) {
@@ -210,34 +215,41 @@ private:
                                      static_cast<size_t>(InfectionState::Infected)];
             size_t i_R_l = multi_idx[l * static_cast<size_t>(InfectionState::Count) +
                                      static_cast<size_t>(InfectionState::Recovered)];
-            for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
-                for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
-                    if (h_S_l + h_I_l == i_S_l + i_I_l) {
-                        continue;
-                    }
-                    // Set h_S_l_h_I_l_index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = h_I_l;
-                    size_t current_order = order + (h_S_l - i_S_l) + (h_I_l - i_I_l);
-                    double M_h_S_l_h_I_l = ClosureOrder > current_order
-                                               ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
-                                               : m_closure_function(indices, y, moments);
-                    if (current_order == 0) {
-                        M_h_S_l_h_I_l = 1.;
-                    }
-                    dydt[flat_index] += lambda_l * y[Sl] * y[Il] *
-                                        boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
-                                        boost::math::binomial_coefficient<double>(i_I_l, h_I_l) *
-                                        sign_pow(i_S_l - h_S_l) * M_h_S_l_h_I_l;
-                    // Resert helper multi-index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = i_I_l;
-                } // h_I_l
-            } // h_S_l
+            for (auto infl_r : parameters.template get<InfluencingRegions>()[Region(l)]) {
+                size_t i_I_k = multi_idx[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                         static_cast<size_t>(InfectionState::Infected)];
+                size_t Ik    = this->populations.get_flat_index({Region(infl_r.first), InfectionState::Infected});
+                for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
+                    for (size_t h_I_k = 0; h_I_k <= i_I_k; ++h_I_k) {
+                        if (h_S_l + h_I_k == i_S_l + i_I_k) {
+                            continue;
+                        }
+                        // Set h_S_l_h_I_l_index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = h_I_k;
+                        size_t current_order = order + (h_S_l - i_S_l) + (h_I_k - i_I_k);
+                        double M_h_S_l_h_I_k =
+                            ClosureOrder > current_order
+                                ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
+                                : m_closure_function(indices, y, moments);
+                        if (current_order == 0) {
+                            M_h_S_l_h_I_k = 1.;
+                        }
+
+                        dydt[flat_index] += lambda_l * y[Sl] * infl_r.second * y[Ik] *
+                                            boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
+                                            boost::math::binomial_coefficient<double>(i_I_k, h_I_k) *
+                                            sign_pow(i_S_l - h_S_l) * M_h_S_l_h_I_k;
+                        // Resert helper multi-index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = i_I_k;
+                    } // h_I_k
+                } // h_S_l
+            } // influencing regions
 
             for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
                 for (size_t h_R_l = 0; h_R_l <= i_R_l; ++h_R_l) {
@@ -415,55 +427,61 @@ private:
                     } // h_R_k
                 } // h_R_l
             } // k
-            // First derivatives
-            for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
-                for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
-                    if (h_S_l + h_I_l == i_S_l + i_I_l) {
-                        continue;
-                    }
-                    // Set h_S_l_p1_h_I_l_index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = h_S_l + 1;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = h_I_l;
-                    size_t current_order1 = order + (h_S_l + 1 - i_S_l) + (h_I_l - i_I_l);
-                    double M_h_S_l_p1_h_I_l =
-                        ClosureOrder > current_order1
-                            ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
-                            : m_closure_function(indices, y, moments);
-                    // Reset helper multi-index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = i_I_l;
-                    if (current_order1 == 0) {
-                        M_h_S_l_p1_h_I_l = 1.;
-                    }
-                    // Set h_S_l_h_I_l_p1_index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = h_I_l + 1;
-                    size_t current_order2 = order + (h_S_l - i_S_l) + (h_I_l + 1 - i_I_l);
-                    double M_h_S_l_h_I_l_p1 =
-                        ClosureOrder > current_order2
-                            ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
-                            : m_closure_function(indices, y, moments);
-                    // Reset helper multi-index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = i_I_l;
-                    if (current_order2 == 0) {
-                        M_h_S_l_h_I_l_p1 = 1.;
-                    }
-                    dydt[flat_index] += boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
-                                        boost::math::binomial_coefficient<double>(i_I_l, h_I_l) *
-                                        sign_pow(i_S_l - h_S_l) * lambda_l *
-                                        (y[Il] * M_h_S_l_p1_h_I_l + y[Sl] * M_h_S_l_h_I_l_p1);
 
-                } // h_I_l
-            } // h_S_l
+            // First derivatives
+            for (auto infl_r : parameters.template get<InfluencingRegions>()[Region(l)]) {
+                size_t i_I_k = multi_idx[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                         static_cast<size_t>(InfectionState::Infected)];
+                size_t Ik    = this->populations.get_flat_index({Region(infl_r.first), InfectionState::Infected});
+                for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
+                    for (size_t h_I_k = 0; h_I_k <= i_I_k; ++h_I_k) {
+                        if (h_S_l + h_I_k == i_S_l + i_I_k) {
+                            continue;
+                        }
+                        // Set h_S_l_p1_h_I_k_index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = h_S_l + 1;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = h_I_k;
+                        size_t current_order1 = order + (h_S_l + 1 - i_S_l) + (h_I_k - i_I_k);
+                        double M_h_S_l_p1_h_I_k =
+                            ClosureOrder > current_order1
+                                ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
+                                : m_closure_function(indices, y, moments);
+                        // Reset helper multi-index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = i_I_k;
+                        if (current_order1 == 0) {
+                            M_h_S_l_p1_h_I_k = 1.;
+                        }
+                        // Set h_S_l_h_I_k_p1_index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = h_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = h_I_k + 1;
+                        size_t current_order2 = order + (h_S_l - i_S_l) + (h_I_k + 1 - i_I_k);
+                        double M_h_S_l_h_I_k_p1 =
+                            ClosureOrder > current_order2
+                                ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
+                                : m_closure_function(indices, y, moments);
+                        // Reset helper multi-index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = i_I_k;
+                        if (current_order2 == 0) {
+                            M_h_S_l_h_I_k_p1 = 1.;
+                        }
+                        dydt[flat_index] += boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
+                                            boost::math::binomial_coefficient<double>(i_I_k, h_I_k) *
+                                            sign_pow(i_S_l - h_S_l) * lambda_l * infl_r.second *
+                                            (y[Ik] * M_h_S_l_p1_h_I_k + y[Sl] * M_h_S_l_h_I_k_p1);
+
+                    } // h_I_l
+                } // h_S_l
+            } // influencing regions
 
             for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
                 for (size_t h_R_l = 0; h_R_l <= i_R_l; ++h_R_l) {
@@ -693,35 +711,41 @@ private:
                     } // h_R_k
                 } // h_R_l
             } // k
+
             // Second derivatives
-            for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
-                for (size_t h_I_l = 0; h_I_l <= i_I_l; ++h_I_l) {
-                    if (h_S_l + h_I_l == i_S_l + i_I_l) {
-                        continue;
-                    }
-                    // Set h_S_l_p1_h_I_l_p1_index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = h_S_l + 1;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = h_I_l + 1;
-                    size_t current_order = order + (h_S_l + 1 - i_S_l) + (h_I_l + 1 - i_I_l);
-                    double M_h_S_l_p1_h_I_l_p1 =
-                        ClosureOrder > current_order
-                            ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
-                            : m_closure_function(indices, y, moments);
-                    if (current_order == 0) {
-                        M_h_S_l_p1_h_I_l_p1 = 1.;
-                    }
-                    dydt[flat_index] += boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
-                                        boost::math::binomial_coefficient<double>(i_I_l, h_I_l) *
-                                        sign_pow(i_S_l - h_S_l) * lambda_l * M_h_S_l_p1_h_I_l_p1;
-                    // Reset helper multi-index
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
-                    indices[l * static_cast<size_t>(InfectionState::Count) +
-                            static_cast<size_t>(InfectionState::Infected)]    = i_I_l;
-                } // h_I_l
-            } // h_S_l
+            for (auto infl_r : parameters.template get<InfluencingRegions>()[Region(l)]) {
+                size_t i_I_k = multi_idx[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                         static_cast<size_t>(InfectionState::Infected)];
+                for (size_t h_S_l = 0; h_S_l <= i_S_l; ++h_S_l) {
+                    for (size_t h_I_k = 0; h_I_k <= i_I_k; ++h_I_k) {
+                        if (h_S_l + h_I_k == i_S_l + i_I_k) {
+                            continue;
+                        }
+                        // Set h_S_l_p1_h_I_k_p1_index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = h_S_l + 1;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = h_I_k + 1;
+                        size_t current_order = order + (h_S_l + 1 - i_S_l) + (h_I_k + 1 - i_I_k);
+                        double M_h_S_l_p1_h_I_k_p1 =
+                            ClosureOrder > current_order
+                                ? y[moments.flatten_index(indices) + populations.get_num_compartments()]
+                                : m_closure_function(indices, y, moments);
+                        if (current_order == 0) {
+                            M_h_S_l_p1_h_I_k_p1 = 1.;
+                        }
+                        dydt[flat_index] += boost::math::binomial_coefficient<double>(i_S_l, h_S_l) *
+                                            boost::math::binomial_coefficient<double>(i_I_k, h_I_k) *
+                                            sign_pow(i_S_l - h_S_l) * lambda_l * infl_r.second * M_h_S_l_p1_h_I_k_p1;
+                        // Reset helper multi-index
+                        indices[l * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Susceptible)] = i_S_l;
+                        indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
+                                static_cast<size_t>(InfectionState::Infected)]    = i_I_k;
+                    } // h_I_l
+                } // h_S_l
+            } // influencing regions
+
             // Rest
             // Set i_S_l_m1_index
             indices[l * static_cast<size_t>(InfectionState::Count) + static_cast<size_t>(InfectionState::Susceptible)] =

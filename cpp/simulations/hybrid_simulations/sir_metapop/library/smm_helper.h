@@ -21,6 +21,7 @@
 #define SMM_HELPER_H
 
 #include "memilio/config.h"
+#include "memilio/epidemiology/adoption_rate.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.h"
 #include "memilio/utils/time_series.h"
 #include "ode_sir/infection_state.h"
@@ -30,6 +31,7 @@
 #include <cstddef>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace smm_helper
 {
@@ -76,12 +78,18 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
 
     std::vector<mio::AdoptionRate<ScalarType, mio::osir::InfectionState>> adoption_rates;
     for (size_t r = 0; r < config.num_regions; ++r) {
-        // Second-order adoption rate lambda is region dependent
-        adoption_rates.push_back({mio::osir::InfectionState::Susceptible,
-                                  mio::osir::InfectionState::Infected,
-                                  mio::regions::Region(r),
-                                  config.lambdas[r],
-                                  {{mio::osir::InfectionState::Infected, 1., mio::regions::Region(r)}}});
+
+        // Add one adoption per influencing region
+        for (auto infl_r : config.influencing_regions[r]) {
+
+            // Second-order adoption rate lambda is region dependent
+            adoption_rates.push_back(
+                {mio::osir::InfectionState::Susceptible,
+                 mio::osir::InfectionState::Infected,
+                 mio::regions::Region(r),
+                 config.lambdas[r],
+                 {{mio::osir::InfectionState::Infected, infl_r.second, mio::regions::Region(infl_r.first)}}});
+        }
         // Recovery rate gamma is the same for all regions
         adoption_rates.push_back({mio::osir::InfectionState::Infected,
                                   mio::osir::InfectionState::Recovered,

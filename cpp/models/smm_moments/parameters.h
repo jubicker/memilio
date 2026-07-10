@@ -26,6 +26,9 @@
 #include "memilio/utils/custom_index_array.h"
 #include "memilio/utils/parameter_set.h"
 #include "ode_sir/infection_state.h"
+#include <cstddef>
+#include <utility>
+#include <vector>
 
 namespace mio
 {
@@ -45,6 +48,26 @@ struct TransmissionRate {
     static std::string name()
     {
         return "TransmissionRate";
+    }
+};
+
+/**
+ * @brief Regions and corresponding factors influencing the transmission rate per region.
+ */
+struct InfluencingRegions {
+    using Type = mio::CustomIndexArray<std::vector<std::pair<size_t, double>>, mio::regions::Region>;
+    static Type get_default(mio::regions::Region size)
+    {
+        std::vector<std::pair<size_t, double>> default_vec(static_cast<size_t>(size));
+        for (size_t i = 0; i < default_vec.size(); i++) {
+            default_vec[i] = std::make_pair(i, 1.);
+        }
+
+        return Type(size, default_vec);
+    }
+    static std::string name()
+    {
+        return "InfluencingRegions";
     }
 };
 
@@ -173,8 +196,8 @@ struct SeasonalityRho {
 };
 
 using ParametersBase =
-    mio::ParameterSet<TransmissionRate, RecoveryRate, ImmunityLossRate, TransitionRate, SeasonalitySigma,
-                      FirstSeasonStartDay, StartDay, SeasonalityPeak, SeasonalityRho>;
+    mio::ParameterSet<TransmissionRate, InfluencingRegions, RecoveryRate, ImmunityLossRate, TransitionRate,
+                      SeasonalitySigma, FirstSeasonStartDay, StartDay, SeasonalityPeak, SeasonalityRho>;
 
 } // namespace smm_moments
 
