@@ -56,5 +56,5 @@ PYBIND11_MODULE(_simulation_stochastic, m)
     m.def("run_germany", &run_germany, "Simulate simulation set for Germany", py::arg("full_or_scaled"),
           py::arg("num_runs"), py::arg("lambda"), py::arg("gamma"), py::arg("nu"), py::arg("I0"), py::arg("R0"),
           py::arg("peaks"), py::arg("rhos"), py::arg("sigmas"));
-    m.def("") m.attr("__version__") = "dev";
+    m.attr("__version__") = "dev";
 }

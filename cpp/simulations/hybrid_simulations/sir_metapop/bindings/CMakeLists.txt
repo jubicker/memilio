@@ -15,15 +15,17 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Windows has no RPATH (CMAKE_SKIP_RPATH defaults to ON there), so set this only on UNIX and APPLE.
+# Mach-O (APPLE) uses @loader_path, ELF (other UNIX) uses $ORIGIN as the loader-relative token.
 if(APPLE)
-    set(CMAKE_INSTALL_RPATH
-        "@loader_path"
-        "@loader_path/lib"
-    )
+    set(MEMILIO_LOADER_PATH_TOKEN "@loader_path")
 elseif(UNIX)
+    set(MEMILIO_LOADER_PATH_TOKEN "$ORIGIN")
+endif()
+
+if(APPLE OR UNIX)
     set(CMAKE_INSTALL_RPATH
-        "$ORIGIN"
-        "$ORIGIN/lib"
+        "${MEMILIO_LOADER_PATH_TOKEN}"
+        "${MEMILIO_LOADER_PATH_TOKEN}/lib"
     )
 endif()
 
@@ -53,7 +55,7 @@ else()
 endif()
 
 # add in C++ library
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../cpp ${CMAKE_CURRENT_BINARY_DIR}/cpp EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../ ${CMAKE_CURRENT_BINARY_DIR}/cpp EXCLUDE_FROM_ALL)
 
 # a list of all "LINKED_LIBRARIES" that are given to add_pymio_module. will contain duplicates
 # used for wheel installation
@@ -76,7 +78,7 @@ function(add_pymio_module target_name)
 
     # Set RPATH so extension can find the C++ libraries in lib subdirectory
     set_target_properties(${target_name} PROPERTIES
-        INSTALL_RPATH "$ORIGIN/lib"
+        INSTALL_RPATH "${MEMILIO_LOADER_PATH_TOKEN}/lib"
     )
 
     # Make sure to install shared and static libraries (LIBRARY and ARCHIVE) and the executables (RUNTIME).
@@ -102,7 +104,7 @@ list(REMOVE_DUPLICATES PYMIO_MEMILIO_LIBS_LIST)
 foreach(target_name IN LISTS PYMIO_MEMILIO_LIBS_LIST)
     if(TARGET ${target_name})
         set_target_properties(${target_name} PROPERTIES
-            INSTALL_RPATH "$ORIGIN;$ORIGIN/lib"
+            INSTALL_RPATH "${MEMILIO_LOADER_PATH_TOKEN};${MEMILIO_LOADER_PATH_TOKEN}/lib"
         )
     endif()
 endforeach()
@@ -118,7 +120,7 @@ install(TARGETS ${PYMIO_MEMILIO_LIBS_LIST}
 # drop symlinks, so place real copies for each alias.
 if(TARGET jsoncpp_lib)
     set_target_properties(jsoncpp_lib PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
+        INSTALL_RPATH "${MEMILIO_LOADER_PATH_TOKEN}"
     )
     install(FILES
         $<TARGET_FILE:jsoncpp_lib>
@@ -133,7 +135,7 @@ if(TARGET spdlog)
 
     if(_SPDLOG_LIB_TYPE STREQUAL "SHARED_LIBRARY")
         set_target_properties(spdlog PROPERTIES
-            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH "${MEMILIO_LOADER_PATH_TOKEN}"
         )
         install(FILES
             $<TARGET_FILE:spdlog>
