@@ -205,6 +205,7 @@ std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, co
     }
 }
 
+#ifndef STOCHASTIC_SIM_BINDINGS_SKIP_MAIN
 int main()
 {
     const size_t num_runs = 10000;
@@ -213,3 +214,4 @@ int main()
 
     return 0;
 }
+#endif

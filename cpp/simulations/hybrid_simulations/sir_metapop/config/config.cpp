@@ -469,17 +469,17 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 3 * 365 - 3; // From 1st August 2016 to 29th July 2019
         config.dt                     = 0.1;
-        config.lambdas                = {0.000003}; // TODO
+        config.lambdas                = {0.0000018}; // TODO
         config.influencing_regions    = {{{0, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 14.;
-        config.I0s                    = {{0, 2500}}; // TODO
+        config.I0s                    = {{0, 1000}}; // TODO
         config.R0s                    = {{0, 20000}}; // TODO
         config.total_populations      = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
-        config.season_peaks           = {22, 20, 20};
-        config.seasonality_rhos       = {0.6, 0.6, 0.6}; // Variation factor for each season
-        config.seasonality_sigmas     = {50, 50, 50}; // Standard deviation for the Gaussian function for each season
+        config.season_peaks           = {-10, -5, -5};
+        config.seasonality_rhos       = {0.5, 0.7, 0.7}; // Variation factor for each season
+        config.seasonality_sigmas     = {100, 100, 100}; // Standard deviation for the Gaussian function for each season
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
@@ -496,9 +496,9 @@ Config get_config(ConfigType type)
         config.R0s                    = {{0, 20000}}; // TODO
         config.total_populations      = {83577140};
         config.first_season_start_day = -90; // First season starts at 3rd October of the previous year
-        config.season_peaks           = {20, 20, 20};
+        config.season_peaks           = {15, 20, 20};
         config.seasonality_rhos       = {0.3, 0.2, 0.2}; // Variation factor for each season
-        config.seasonality_sigmas     = {40, 40, 40}; // Standard deviation for the Gaussian function for each season
+        config.seasonality_sigmas     = {30, 30, 30}; // Standard deviation for the Gaussian function for each season
         return config;
         break;
     case ConfigType::ConfigInfluenzaAgeGroups:
