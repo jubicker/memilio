@@ -53,7 +53,7 @@ else()
 endif()
 
 # add in C++ library
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../cpp ${CMAKE_CURRENT_BINARY_DIR}/cpp EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../cpp ${CMAKE_CURRENT_BINARY_DIR}/cpp EXCLUDE_FROM_ALL)
 
 # a list of all "LINKED_LIBRARIES" that are given to add_pymio_module. will contain duplicates
 # used for wheel installation
