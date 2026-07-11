@@ -87,15 +87,9 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
     return mean;
 }
 
-std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, const Config::Config& config,
-                                                             bool write_outputs)
+template <size_t num_regions, size_t max_order>
+std::vector<double> run_with_region_num(size_t num_runs, const Config::Config& config, bool write_outputs)
 {
-    const size_t max_order   = 2;
-    const size_t num_regions = 1;
-    if (num_regions != config.num_regions) {
-        mio::log_error("Number of regions doesn't match number of regions in config.");
-    }
-
     // Initialize model
     auto model = smm_helper::initialize_model<num_regions>(config);
     // Create simulation set
@@ -203,6 +197,42 @@ std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, co
         }
         return new_inf_vec;
     }
+}
+
+std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, const Config::Config& config,
+                                                             bool write_outputs)
+{
+    const size_t max_order   = 2;
+    const size_t num_regions = 1;
+    if (num_regions != config.num_regions) {
+        mio::log_error("Number of regions doesn't match number of regions in config.");
+    }
+
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
+}
+
+std::vector<double> run_stochastic_simulation_set_four_regions(size_t num_runs, const Config::Config& config,
+                                                               bool write_outputs)
+{
+    const size_t max_order   = 2;
+    const size_t num_regions = 4;
+    if (num_regions != config.num_regions) {
+        mio::log_error("Number of regions doesn't match number of regions in config.");
+    }
+
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
+}
+
+std::vector<double> run_stochastic_simulation_set_five_regions(size_t num_runs, const Config::Config& config,
+                                                               bool write_outputs)
+{
+    const size_t max_order   = 2;
+    const size_t num_regions = 5;
+    if (num_regions != config.num_regions) {
+        mio::log_error("Number of regions doesn't match number of regions in config.");
+    }
+
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
 }
 
 #ifndef STOCHASTIC_SIM_BINDINGS_SKIP_MAIN

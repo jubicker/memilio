@@ -91,7 +91,9 @@ enum class ConfigType
     ConfigInfluenzaGermany,
     ConfigInfluenzaGermany_full,
     ConfigInfluenzaAgeGroups,
-    ConfigInfluenzaAgeGroups_full
+    ConfigInfluenzaAgeGroups_full,
+    ConfigInfluenzaRegions,
+    ConfigInfluenzaRegions_full
 };
 
 Config get_config(ConfigType type);
