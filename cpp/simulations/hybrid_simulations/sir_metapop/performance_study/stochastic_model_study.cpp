@@ -73,7 +73,7 @@ int main()
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    std::vector<size_t> Iinit_buckets  = {0, 10, 50, 100, 500, 1000, 10000};
+    std::vector<size_t> Iinit_buckets  = {1, 10, 50, 100, 500, 1000, 10000};
     std::vector<size_t> Rinit_buckets  = {0, 1000, 10000, 20000, 30000, 50000, 80000};
     std::vector<double> lambda_buckets = {0.0000014,  0.00000216, 0.00000293, 0.0000037,
                                           0.00000446, 0.00000523, 0.000006};
@@ -89,7 +89,7 @@ int main()
         return -1;
     }
     save_file += "/";
-    bool use_R0_buckets = false;
+    bool use_R0_buckets = true;
 
     size_t sample_counter = -1;
 
