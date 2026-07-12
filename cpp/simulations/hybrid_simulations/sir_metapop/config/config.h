@@ -30,7 +30,7 @@
 
 namespace Config
 {
-const std::string SAVE_DIR = "/Users/julia/repos/fork/memilio/output/";
+const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
 //"/p/project1/loki/bicker1/memilio/output/"; //"/Users/julia/repos/fork/memilio/output/";//"/hpc_data/bick_ju/TemporalHybrid/";
 
 const std::vector<std::string> closure_string          = {"truncation", "pair_approx", "lognorm", "lognorm_zero_infl"};
@@ -44,14 +44,16 @@ struct Config {
     double t0, tmax, dt;
     // Lambdas (S->E) for every region
     std::vector<double> lambdas;
+    // Regions and corresponding factors influencing lambda for every region
+    std::vector<std::vector<std::pair<size_t, double>>> influencing_regions;
     // Recovery rate (I->R) is the same for all regions
     double gamma;
     // Immunity loss rate (R->S) is the same for all regions
     double nu;
     // Number of initially infected for given regions. If a region id is not present in the vector, the number of initially infected in that region is 0.
-    std::vector<std::pair<int, double>> I0s;
+    std::vector<std::pair<size_t, double>> I0s;
     // Number of initially recovered for given regions. If a region id is not present in the vector, the number of initially recovered in that region is 0.
-    std::vector<std::pair<int, double>> R0s;
+    std::vector<std::pair<size_t, double>> R0s;
     // Total population for every region
     std::vector<double> total_populations;
     // Transition rates
@@ -86,7 +88,12 @@ enum class ConfigType
     ConfigPerformanceStudySIR,
     ConfigPerformanceStudySIRS,
     ConfigPerformanceStudySIRS_seasonal,
-    ConfigInfluenzaGermany
+    ConfigInfluenzaGermany,
+    ConfigInfluenzaGermany_full,
+    ConfigInfluenzaAgeGroups,
+    ConfigInfluenzaAgeGroups_full,
+    ConfigInfluenzaRegions,
+    ConfigInfluenzaRegions_full
 };
 
 Config get_config(ConfigType type);
