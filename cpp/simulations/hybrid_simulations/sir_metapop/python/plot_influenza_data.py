@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 from settings import *
+import os
 
 
-def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_date, tmax):
+def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_date, tmax, region, pop_size, region_name):
     sim_outputs = {"Date": [], "Mean": []}
     df = pd.read_csv(sim_output_filepath + "/new_infections_mean.csv")
     current_date = start_date
-    for week in range(0, len(df), 7):
-        incidence = df.C1.iloc[week: week + 7].sum()
+    for week in range(0, len(df)):
+        incidence = (df.iloc[week, region + 1]) / pop_size * 100000
         sim_outputs["Date"].append(current_date)
         sim_outputs["Mean"].append(incidence)
         current_date += pd.Timedelta(days=7)
@@ -18,13 +19,13 @@ def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_dat
 
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(sim_outputs["Date"], sim_outputs["Mean"],
-            marker='o', linestyle='-', color='blue', label='simulated')
+            marker='o', linestyle='-', color=colors['middle blue'], label='simulated')
 
     if (real_data_file != ""):
         real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
         end_date = start_date + pd.Timedelta(days=tmax)
         filtered_df = real_df[(real_df["Datum"] >= start_date)
-                              & (real_df["Datum"] <= end_date)]
+                              & (real_df["Datum"] <= end_date) & (real_df["Region"] == region_name)]
         ax.scatter(filtered_df["Datum"], filtered_df["Inzidenz"],
                    marker='x', color='black', label='real')
 
@@ -38,10 +39,10 @@ def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_dat
     plt.grid()
     plt.tight_layout()
     fig.savefig(save_dir +
-                f"incidence.png")
+                f"incidence_{region_name}.png")
 
 
-def plot_infected(sim_output_filepath, save_dir, start_date, p_lower, p_upper):
+def plot_infected(sim_output_filepath, save_dir, start_date, p_lower, p_upper, region_name, col="C2", col_var="M020"):
     sim_outputs = {"Date": [], "Mean": [], "Std": [], "Lower": [], "Upper": []}
     df_mean = pd.read_csv(sim_output_filepath + "/means.csv")
     df_moments = pd.read_csv(sim_output_filepath + "/moments.csv")
@@ -51,10 +52,10 @@ def plot_infected(sim_output_filepath, save_dir, start_date, p_lower, p_upper):
 
     for t in range(0, len(df_mean)):
         sim_outputs["Date"].append(current_date + pd.to_timedelta(t, unit="D"))
-        sim_outputs["Mean"].append(df_mean.C2.iloc[t])
-        sim_outputs["Std"].append(np.sqrt(df_moments.M020.iloc[t]))
-        sim_outputs["Lower"].append(df_lower.C2.iloc[t])
-        sim_outputs["Upper"].append(df_upper.C2.iloc[t])
+        sim_outputs["Mean"].append(df_mean[col].iloc[t])
+        sim_outputs["Std"].append(np.sqrt(df_moments[col_var].iloc[t]))
+        sim_outputs["Lower"].append(df_lower[col].iloc[t])
+        sim_outputs["Upper"].append(df_upper[col].iloc[t])
 
     sim_outputs = pd.DataFrame(sim_outputs)
     interval = int(8*7/0.1)
@@ -74,7 +75,7 @@ def plot_infected(sim_output_filepath, save_dir, start_date, p_lower, p_upper):
     ax.legend(lines, labels, loc='upper left')
     plt.grid()
     plt.tight_layout()
-    fig.savefig(save_dir + f"mean_std.png")
+    fig.savefig(save_dir + f"mean_std_{region_name}.png")
 
     # Plot mean and percentiles
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -91,10 +92,23 @@ def plot_infected(sim_output_filepath, save_dir, start_date, p_lower, p_upper):
     ax.legend(lines, labels, loc='upper left')
     plt.grid()
     plt.tight_layout()
-    fig.savefig(save_dir + f"percentiles.png")
+    fig.savefig(save_dir + f"percentiles_{region_name}.png")
 
 
-plot_new_infections("V:/bick_ju/TemporalHybrid/SMM/config_influenza_germany", "",
-                    "C:/Users/bick_ju/Documents/repos/grippeweb_data/ILI_df_Germany.csv", pd.to_datetime("2016-08-01"), 3 * 365)
-plot_infected("V:/bick_ju/TemporalHybrid/SMM/config_influenza_germany",
-              "", pd.to_datetime("2016-08-01"), "p05", "p95")
+sim_output_dir = "V:/bick_ju/TemporalHybrid/SMM/"
+grippe_web_data = "C:/Users/bick_ju/Documents/repos/grippeweb_data/ILI_df_Germany.csv"
+start_date = pd.to_datetime("2016-08-01")
+save_dir = "H:/Documents/TemporalHybridModel/SMM/"
+config = "config_influenza_germany"
+sim_output_dir += config
+save_dir += config + "/"
+region = 0
+pop_size = 100000
+region_name = "Bundesweit"
+
+os.makedirs(save_dir, exist_ok=True)
+
+plot_new_infections(sim_output_dir, save_dir,
+                    grippe_web_data, start_date, 3 * 365 - 3, region, pop_size, region_name)
+plot_infected(sim_output_dir,
+              save_dir, start_date, "p05", "p95", region_name)
