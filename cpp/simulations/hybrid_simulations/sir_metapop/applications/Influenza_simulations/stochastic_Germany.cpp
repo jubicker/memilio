@@ -88,7 +88,7 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
 }
 
 template <size_t num_regions, size_t max_order>
-std::vector<double> run_with_region_num(size_t num_runs, const Config::Config& config, bool write_outputs)
+std::vector<std::vector<double>> run_with_region_num(size_t num_runs, const Config::Config& config, bool write_outputs)
 {
     // Initialize model
     auto model = smm_helper::initialize_model<num_regions>(config);
@@ -161,7 +161,7 @@ std::vector<double> run_with_region_num(size_t num_runs, const Config::Config& c
         finished      = p95[0].export_csv(save_file + "p95.csv");
 
         // Save first 10 simulations
-        for (size_t sim = 0; sim < 10; ++sim) {
+        for (size_t sim = 0; sim < 1; ++sim) {
             finished = sim_set.get_result()[sim].export_csv(save_file + std::to_string(sim) + "_result.csv");
         }
 
@@ -191,16 +191,19 @@ std::vector<double> run_with_region_num(size_t num_runs, const Config::Config& c
         return {};
     }
     else {
-        std::vector<double> new_inf_vec(static_cast<size_t>(new_infections_mean.get_num_time_points()));
+        std::vector<std::vector<double>> new_inf_vec(static_cast<size_t>(new_infections_mean.get_num_time_points()),
+                                                     std::vector<double>(num_regions));
         for (size_t t = 0; t < new_inf_vec.size(); ++t) {
-            new_inf_vec[t] = new_infections_mean.get_value(t)[0];
+            for (size_t r = 0; r < num_regions; r++) {
+                new_inf_vec[t][r] = new_infections_mean.get_value(t)[r];
+            }
         }
         return new_inf_vec;
     }
 }
 
-std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, const Config::Config& config,
-                                                             bool write_outputs)
+std::vector<std::vector<double>> run_stochastic_simulation_set_one_region(size_t num_runs, const Config::Config& config,
+                                                                          bool write_outputs)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 1;
@@ -211,8 +214,8 @@ std::vector<double> run_stochastic_simulation_set_one_region(size_t num_runs, co
     return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
 }
 
-std::vector<double> run_stochastic_simulation_set_four_regions(size_t num_runs, const Config::Config& config,
-                                                               bool write_outputs)
+std::vector<std::vector<double>>
+run_stochastic_simulation_set_four_regions(size_t num_runs, const Config::Config& config, bool write_outputs)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 4;
@@ -223,8 +226,8 @@ std::vector<double> run_stochastic_simulation_set_four_regions(size_t num_runs, 
     return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
 }
 
-std::vector<double> run_stochastic_simulation_set_five_regions(size_t num_runs, const Config::Config& config,
-                                                               bool write_outputs)
+std::vector<std::vector<double>>
+run_stochastic_simulation_set_five_regions(size_t num_runs, const Config::Config& config, bool write_outputs)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 5;
