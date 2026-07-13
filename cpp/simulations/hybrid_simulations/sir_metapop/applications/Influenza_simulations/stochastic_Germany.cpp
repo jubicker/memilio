@@ -18,6 +18,7 @@
 * limitations under the License.
 */
 
+#include "memilio/timer/definitions.h"
 #include "memilio/utils/time_series.h"
 #include "simulations/hybrid_simulations/sir_metapop/config/config.cpp"
 #include "simulations/hybrid_simulations/sir_metapop/library/smm_helper.h"
@@ -187,7 +188,8 @@ std::vector<std::vector<double>> run_with_region_num(size_t num_runs, const Conf
         finished                 = p75_new_infectuions[0].export_csv(save_file + "p75_new_infections.csv");
         finished                 = p95_new_infectuions[0].export_csv(save_file + "p95_new_infections.csv");
 
-        std::cout << "SMM Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
+        std::cout << "SMM Elapsed time: " << mio::timing::time_in_seconds(timer.get_elapsed_time()) << std::endl
+                  << std::flush;
         return {};
     }
     else {
