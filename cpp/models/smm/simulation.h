@@ -219,8 +219,9 @@ public:
                     next_transition_result_time += dt_transitions;
                 }
             }
+        }
 
-            // update internal times
+        if (current_time < tmax) { // update internal times
             for (size_t i = 0; i < m_internal_time.size(); i++) {
                 m_internal_time[i] += m_current_rates[i] * (tmax - current_time);
             }
