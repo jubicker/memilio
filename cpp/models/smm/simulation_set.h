@@ -169,117 +169,107 @@ public:
         for (size_t tp_index = 0; tp_index < new_points[0].size(); ++tp_index) {
             double time_k = new_points[0][tp_index].time;
 #ifdef MEMILIO_ENABLE_OPENMP
-#pragma omp parallel
+#pragma omp parallel for
 #endif
-            { // One parallel region per time step
-#ifdef MEMILIO_ENABLE_OPENMP
-                const int tid      = omp_get_thread_num();
-                const int nthreads = omp_get_num_threads();
-#else
-                const int tid      = 0;
-                const int nthreads = 1;
-#endif
-
-                // Each thread updates distinct rows (runs) of last_results.
-                for (int run = tid; run < n_runs; run += nthreads) {
-                    // copy values into last_results row
-                    for (int c = 0; c < n_cols; ++c) {
-                        last_results(run, c) = new_points[run][tp_index].value[c];
-                    }
+            // Each thread updates distinct rows (runs) of last_results.
+            for (int run = 0; run < n_runs; ++run) {
+                // copy values into last_results row
+                for (int c = 0; c < n_cols; ++c) {
+                    last_results(run, c) = new_points[run][tp_index].value[c];
                 }
-                // compute means and centered_values once
+            }
+            // compute means and centered_values once
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp barrier
 #pragma omp single
 #endif
-                {
-                    means = last_results.colwise().mean();
-                    if (m_means.get_num_time_points() == 0 || m_means.get_last_time() < time_k) {
-                        m_means.add_time_point(time_k, means);
-                    }
-                    else {
-                        m_means.get_last_value() = means;
-                    }
-                    // compute centered values
-                    centered_values = last_results.rowwise() - means;
+            {
+                means = last_results.colwise().mean();
+                if (m_means.get_num_time_points() == 0 || m_means.get_last_time() < time_k) {
+                    m_means.add_time_point(time_k, means);
+                }
+                else {
+                    m_means.get_last_value() = means;
+                }
+                // compute centered values
+                centered_values = last_results.rowwise() - means;
 
-                    // detect active columns (any non-zero across runs) to skip empty regions
-                    Eigen::RowVectorXd maxabs = last_results.cwiseAbs().colwise().maxCoeff();
-                    std::vector<char> active_col(static_cast<size_t>(maxabs.size()));
-                    for (int c = 0; c < static_cast<int>(maxabs.size()); ++c) {
-                        active_col[static_cast<size_t>(c)] =
-                            (maxabs[c] >
-                             0.0); // if column is all zero, we can skip it in moment calculations and mark moments that only reference this column as zero
-                    }
-                    // Rescale cached powers for centered values only if shape/order changed
-                    const size_t max_order = MaxMomentOrder;
-                    if (m_col_pows.size() != (max_order + 1) || m_col_pows[0].rows() != centered_values.rows() ||
-                        m_col_pows[0].cols() != centered_values.cols()) {
-                        m_col_pows.assign(static_cast<size_t>(max_order) + 1,
-                                          MatrixType::Zero(centered_values.rows(), centered_values.cols()));
-                    }
-                    // compute integer powers into preallocated matrices (no alloc)
-                    m_col_pows[0].setOnes(); // Power 0 is always 1
-                    if (max_order >= 1) {
-                        m_col_pows[1] = centered_values;
-                    }
-                    for (size_t p = 2; p <= max_order; ++p) {
-                        m_col_pows[p].noalias() = m_col_pows[p - 1].cwiseProduct(centered_values);
-                    }
-                    // set inactive columns in all powers to zero
-                    const int cols = static_cast<int>(m_col_pows[0].cols());
-                    for (size_t p = 0; p < m_col_pows.size(); ++p) {
-                        for (int c = 0; c < cols; ++c) {
-                            if (!active_col[static_cast<size_t>(c)]) {
-                                m_col_pows[p].col(c).setZero();
-                            }
+                // detect active columns (any non-zero across runs) to skip empty regions
+                Eigen::RowVectorXd maxabs = last_results.cwiseAbs().colwise().maxCoeff();
+                std::vector<char> active_col(static_cast<size_t>(maxabs.size()));
+                for (int c = 0; c < static_cast<int>(maxabs.size()); ++c) {
+                    active_col[static_cast<size_t>(c)] =
+                        (maxabs[c] >
+                         0.0); // if column is all zero, we can skip it in moment calculations and mark moments that only reference this column as zero
+                }
+                // Rescale cached powers for centered values only if shape/order changed
+                const size_t max_order = MaxMomentOrder;
+                if (m_col_pows.size() != (max_order + 1) || m_col_pows[0].rows() != centered_values.rows() ||
+                    m_col_pows[0].cols() != centered_values.cols()) {
+                    m_col_pows.assign(static_cast<size_t>(max_order) + 1,
+                                      MatrixType::Zero(centered_values.rows(), centered_values.cols()));
+                }
+                // compute integer powers into preallocated matrices (no alloc)
+                m_col_pows[0].setOnes(); // Power 0 is always 1
+                if (max_order >= 1) {
+                    m_col_pows[1] = centered_values;
+                }
+                for (size_t p = 2; p <= max_order; ++p) {
+                    m_col_pows[p].noalias() = m_col_pows[p - 1].cwiseProduct(centered_values);
+                }
+                // set inactive columns in all powers to zero
+                const int cols = static_cast<int>(m_col_pows[0].cols());
+                for (size_t p = 0; p < m_col_pows.size(); ++p) {
+                    for (int c = 0; c < cols; ++c) {
+                        if (!active_col[static_cast<size_t>(c)]) {
+                            m_col_pows[p].col(c).setZero();
                         }
-                    }
-
-                    // Determine which moments are trivially zero because they reference only inactive columns
-                    for (size_t mi = 0; mi < moment_indices.size(); ++mi) {
-                        const auto& idx_arr = moment_indices[mi];
-                        bool active         = true;
-                        for (int c = 0; c < static_cast<int>(idx_arr.size()); ++c) {
-                            if (idx_arr[static_cast<size_t>(c)] > 0 && !active_col[static_cast<size_t>(c)]) {
-                                active = false;
-                                break;
-                            }
-                        }
-                        skip_moment[mi] = !active;
                     }
                 }
+
+                // Determine which moments are trivially zero because they reference only inactive columns
+                for (size_t mi = 0; mi < moment_indices.size(); ++mi) {
+                    const auto& idx_arr = moment_indices[mi];
+                    bool active         = true;
+                    for (int c = 0; c < static_cast<int>(idx_arr.size()); ++c) {
+                        if (idx_arr[static_cast<size_t>(c)] > 0 && !active_col[static_cast<size_t>(c)]) {
+                            active = false;
+                            break;
+                        }
+                    }
+                    skip_moment[mi] = !active;
+                }
+            }
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp barrier
 #endif
 
-                // Calculate moments in parallel across indices using precomputed powers + skip trivial zeros
+            // Calculate moments in parallel across indices using precomputed powers + skip trivial zeros
 #ifdef MEMILIO_ENABLE_OPENMP
-#pragma omp for schedule(static)
+#pragma omp parallel for
 #endif
-                for (int i = 0; i < static_cast<int>(moment_indices.size()); ++i) {
-                    if (skip_moment[static_cast<size_t>(i)]) {
-                        m_mom_array[moment_indices[static_cast<size_t>(i)]] = 0.0;
-                        continue;
-                    }
-                    auto& idx_arr        = moment_indices[static_cast<size_t>(i)];
-                    m_mom_array[idx_arr] = calculate_moment_from_pows(m_col_pows, idx_arr);
+            for (int i = 0; i < static_cast<int>(moment_indices.size()); ++i) {
+                if (skip_moment[static_cast<size_t>(i)]) {
+                    m_mom_array[moment_indices[static_cast<size_t>(i)]] = 0.0;
+                    continue;
                 }
+                auto& idx_arr        = moment_indices[static_cast<size_t>(i)];
+                m_mom_array[idx_arr] = calculate_moment_from_pows(m_col_pows, idx_arr);
+            }
 
-                // single thread writes m_moments
+            // single thread writes m_moments
 #ifdef MEMILIO_ENABLE_OPENMP
 #pragma omp barrier
 #pragma omp single
 #endif
-                {
-                    auto moment_values   = m_mom_array.get_values();
-                    Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
-                    if (m_moments.get_num_time_points() == 0 || m_moments.get_last_time() < time_k) {
-                        m_moments.add_time_point(time_k, data);
-                    }
-                    else {
-                        m_moments.get_last_value() = data;
-                    }
+            {
+                auto moment_values   = m_mom_array.get_values();
+                Eigen::VectorXd data = Eigen::VectorXd::Map(moment_values.data(), moment_values.size());
+                if (m_moments.get_num_time_points() == 0 || m_moments.get_last_time() < time_k) {
+                    m_moments.add_time_point(time_k, data);
+                }
+                else {
+                    m_moments.get_last_value() = data;
                 }
             }
         }

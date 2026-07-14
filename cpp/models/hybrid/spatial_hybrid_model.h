@@ -885,6 +885,11 @@ private:
         model.parameters.template get<mio::smm_moments::RecoveryRate>()     = 0.0;
         model.parameters.template get<mio::smm_moments::ImmunityLossRate>() = 0.0;
 
+        for (size_t r = 0; r < num_regions; ++r) {
+            model.parameters.template get<mio::smm_moments::InfluencingRegions>()[mio::regions::Region(r)] =
+                m_config->influencing_regions[r];
+        }
+
         if (m_config->seasonality_rhos.size() > 0) {
             // Set seasonality parameters
             for (size_t season = 0; season < m_config->seasonality_rhos.size(); ++season) {

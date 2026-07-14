@@ -19,6 +19,7 @@
 */
 
 #include "hybrid/spatial_hybrid_model.h"
+#include "memilio/timer/definitions.h"
 #include "memilio/utils/compiler_diagnostics.h"
 #include "memilio/utils/uncertain_value.h"
 #include "ode_sir/infection_state.h"
@@ -50,16 +51,17 @@ int main()
     }
 
     // INPUT - SIR/SIRS
-    std::string save_file = Config::SAVE_DIR + "Spatial-Hybrid2/";
+    std::string save_file  = Config::SAVE_DIR + "Spatial-Hybrid2/test/";
+    auto created_directory = mio::create_directory(save_file);
     save_file += config.name;
 
-    auto created_directory = mio::create_directory(save_file);
+    created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
         return -1;
     }
 
-    save_file += "/abs_threshold_condition_region";
+    save_file += "/combined_relation_var_gradient_condition_region";
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -96,7 +98,7 @@ int main()
 
     mio::timing::BasicTimer timer;
     timer.start();
-    spatial_hybrid_sim.advance(config.tmax, Condition.abs_threshold_condition_region, true);
+    spatial_hybrid_sim.advance(config.tmax, Condition.combined_relation_var_gradient_condition_region, true);
     timer.stop();
 
     // Save stochastic outputs
@@ -120,7 +122,8 @@ int main()
     total_time.add_time_point(0., time);
     auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
 
-    std::cout << "Spatial-hybrid Elapsed time: " << timer.get_elapsed_time() << std::endl << std::flush;
+    std::cout << "Spatial-hybrid Elapsed time: " << mio::timing::time_in_seconds(timer.get_elapsed_time()) << std::endl
+              << std::flush;
 
     return 0;
 }
