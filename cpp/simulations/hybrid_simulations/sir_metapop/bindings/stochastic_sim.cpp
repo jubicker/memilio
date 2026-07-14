@@ -31,7 +31,7 @@
 namespace py = pybind11;
 
 std::vector<std::vector<double>> run_germany(int full_or_scaled, size_t num_runs, double lambda, double gamma,
-                                             double nu, double I0, double R0, std::vector<int> peaks,
+                                             double nu, double I0, double R0, std::vector<double> peaks,
                                              std::vector<double> rhos, std::vector<double> sigmas)
 {
     Config::Config config;
