@@ -62,7 +62,7 @@ struct Config {
     // Start day of the first season given in days from 1st January in the first season, e.g. 0 for 1st January, -185 for 1st July (in the year before 1st January of that season), etc.
     int first_season_start_day;
     // Time points of peak transmission rate for each season given in days from 1st January in the first season, e.g. 0 for 1st January, 10 for 11th January, etc.
-    std::vector<int> season_peaks;
+    std::vector<double> season_peaks;
     // Variation factor for each season
     std::vector<double> seasonality_rhos;
     // Standard deviation for the Gaussian function for each season

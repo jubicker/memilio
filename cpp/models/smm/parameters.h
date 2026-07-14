@@ -105,7 +105,7 @@ struct StartDay {
  * The day is given in days from 1st January of the current season, e.g. 0 for 1st January, 180 for 1st July, etc.
  */
 struct SeasonalityPeak {
-    using Type = std::vector<int>;
+    using Type = std::vector<double>;
     static Type get_default(size_t size)
     {
         return Type(size, 0.);
