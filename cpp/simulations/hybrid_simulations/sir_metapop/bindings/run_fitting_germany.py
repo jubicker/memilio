@@ -2,6 +2,9 @@ from _simulation_stochastic import run_germany
 import pandas as pd
 import pyabc
 import numpy as np
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.dates as mdates
 
 # Load fitting data
 target_file = "ILI_df_Germany.csv"
@@ -34,9 +37,9 @@ def model(parameters):
         nu, 
         10**parameters["I0"], 
         10**parameters["R0"], 
-        [round(parameters["peaks_year_1"]),
-        round(parameters["peaks_year_2"]),
-        round(parameters["peaks_year_3"])], 
+        [parameters["peaks_year_1"],
+        parameters["peaks_year_2"],
+        parameters["peaks_year_3"]], 
         [parameters["rhos_year_1"],
         parameters["rhos_year_2"],
         parameters["rhos_year_3"]], 
@@ -48,9 +51,9 @@ def model(parameters):
 
 # Define the prior for all other parameters
 prior = pyabc.Distribution(
-    trams_rate=pyabc.RV("uniform", 3, 7),
-    I0=pyabc.RV("uniform", 2, 4),
-    R0=pyabc.RV("uniform", 2, 4),
+    trams_rate=pyabc.RV("uniform", 4, 2),
+    I0=pyabc.RV("uniform", 2, 2),
+    R0=pyabc.RV("uniform", 2, 2.5),
     peaks_year_1=pyabc.RV("norm", loc = 0, scale = 20),
     peaks_year_2=pyabc.RV("norm", loc = 0, scale = 20),
     peaks_year_3=pyabc.RV("norm", loc = 0, scale = 20), 
@@ -63,18 +66,138 @@ prior = pyabc.Distribution(
 )
 
 # Define the fitting problem
-abc = pyabc.ABCSMC(model, prior, pyabc.distance.PNormDistance(), population_size = 100)
+abc = pyabc.ABCSMC(model, prior, pyabc.distance.PNormDistance(), population_size = 4000, eps = pyabc.epsilon.SilkOptimalEpsilon(min_rate=0.0000001))
 
 # Create a database
-db_path = "sqlite:///influenca_fitting.db"
+db_path = "sqlite:///influenca_fitting3.db"
 abc.new(db_path, obs_data)
 
 # Run the fitting
-history = abc.run(max_nr_populations=10, minimum_epsilon=0.1, min_acceptance_rate=0.01)
+history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
+
+pop = history.get_population()
+best_particle = min(pop.particles, key = lambda p: p.distance)
+output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
+output.to_csv("new_infections_mean.csv")
+
+df, w = history.get_distribution()
+
+_fig, _arr_ax = plt.subplots(1, 5, figsize=(10, 2.5))
+_arr_ax = _arr_ax.flatten()
+pyabc.visualization.plot_sample_numbers(history, ax=_arr_ax[0])
+_arr_ax[0].get_legend().remove()
+pyabc.visualization.plot_walltime(history, ax=_arr_ax[1], unit='h')
+_arr_ax[1].get_legend().remove()
+pyabc.visualization.plot_epsilons(history, ax=_arr_ax[2])
+pyabc.visualization.plot_effective_sample_sizes(history, ax=_arr_ax[3])
+pyabc.visualization.plot_acceptance_rates_trajectory(history, ax=_arr_ax[4])
+plt.savefig("stats.png")
+
+def weighted_quantiles(simulations, weights, qs):
+    """
+    Compute weighted quantiles column-wise.
+
+    Parameters
+    ----------
+    simulations : array-like, shape (n, m)
+        n simulations, m time points (or dimensions).
+    weights : array-like, shape (n,)
+        Nonnegative weights.
+    qs : float or array-like
+        Quantile(s) in [0, 1]. Example: 0.5 or (0.25, 0.5, 0.75).
+
+    Returns
+    -------
+    quantiles : ndarray
+        If qs is scalar -> shape (m,)
+        If qs is iterable of length k -> shape (k, m)
+    """
+    x = np.asarray(simulations)
+    w = np.asarray(weights)
+    if x.ndim != 2:
+        raise ValueError("simulations must be 2D (n, m)")
+    if w.ndim != 1 or w.shape[0] != x.shape[0]:
+        raise ValueError("weights must be 1D with length n")
+    if np.any(w < 0):
+        raise ValueError("weights must be nonnegative")
+    tot = w.sum()
+    if tot <= 0:
+        raise ValueError("sum of weights must be > 0")
+    qs = np.atleast_1d(qs)
+    # sort each column
+    idx = np.argsort(x, axis=0)                   # (n, m)
+    x_sorted = np.take_along_axis(x, idx, axis=0)
+    # reorder weights the same way (no huge broadcasted temp arrays)
+    w_sorted = w[idx]                             # (n, m)
+    cw = np.cumsum(w_sorted, axis=0)              # (n, m)
+    results = []
+    for q in qs:
+        cutoff = q * tot
+        k = (cw >= cutoff).argmax(axis=0)         # (m,)
+        results.append(x_sorted[k, np.arange(x.shape[1])])
+    result = np.vstack(results)
+    if result.shape[0] == 1:
+        return result[0]                          # (m,)
+    return result 
 
 
+result_matrix = np.vstack([x.sum_stat["data"] for x in pop.particles])
+weighted_results = weighted_quantiles(result_matrix, w, (0.05, 0.5, 0.95))
 
 
+def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_date, tmax, region, pop_size, region_name):
+    # Median
+    median_curve = {"Date": [], "Mean": []}
+    current_date = start_date
+    for week in range(0, len(sim_output_matrix[1])):
+        incidence = (sim_output_matrix[1][week]) / pop_size * 100000
+        median_curve["Date"].append(current_date)
+        median_curve["Mean"].append(incidence)
+        current_date += pd.Timedelta(days=7)
+    median_curve = pd.DataFrame(median_curve)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(median_curve["Date"], median_curve["Mean"],
+            marker='o', linestyle='-', color='cornflowerblue', label='simulated median')
+    # Lower Bound
+    lower_curve = {"Date": [], "Mean": []}
+    current_date = start_date
+    for week in range(0, len(sim_output_matrix[0])):
+        incidence = (sim_output_matrix[0][week]) / pop_size * 100000
+        lower_curve["Date"].append(current_date)
+        lower_curve["Mean"].append(incidence)
+        current_date += pd.Timedelta(days=7)
+    lower_curve = pd.DataFrame(lower_curve)
+    # Upper Bound
+    upper_curve = {"Date": [], "Mean": []}
+    current_date = start_date
+    for week in range(0, len(sim_output_matrix[2])):
+        incidence = (sim_output_matrix[2][week]) / pop_size * 100000
+        upper_curve["Date"].append(current_date)
+        upper_curve["Mean"].append(incidence)
+        current_date += pd.Timedelta(days=7)
+    upper_curve = pd.DataFrame(upper_curve)
+    ax.fill_between(upper_curve["Date"], lower_curve["Mean"], upper_curve["Mean"],
+             color='cornflowerblue', alpha = 0.3, label='CrI')
+    if (real_data_file != ""):
+        real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
+        end_date = start_date + pd.Timedelta(days=tmax)
+        filtered_df = real_df[(real_df["Datum"] >= start_date)
+                              & (real_df["Datum"] <= end_date) & (real_df["Region"] == region_name)]
+        ax.scatter(filtered_df["Datum"], filtered_df["Inzidenz"],
+                   marker='x', color='black', label='real')
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Incidence")
+    ax.set_xticks(median_curve["Date"].iloc[::8])
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    lines, labels = ax.get_legend_handles_labels()
+    ax.legend(lines, labels, loc='upper left')
+    plt.grid()
+    plt.tight_layout()
+    fig.savefig(save_dir +
+                f"incidence_{region_name}.png")
+
+plot_new_infections_cis(weighted_results, ".", "ILI_df_Germany.csv", pd.Timestamp("2016-08-01"), 3*365-4, 0, 100000, "Bundesweit")
 
 # trams_rate = 0.0000018
 # I0 = 1000
@@ -83,3 +206,4 @@ history = abc.run(max_nr_populations=10, minimum_epsilon=0.1, min_acceptance_rat
 # rhos = [0.5, 0.7, 0.7]
 # sigmas = [100, 100, 100]
 # print()
+
