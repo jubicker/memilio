@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.dates as mdates
 
 # Load fitting data
-target_file = "ILI_df_Germany.csv"
+target_file = "/Users/julia/repos/grippeweb_data/ILI_df_Germany.csv"
 
 start_date = pd.to_datetime("2016-08-01")
 num_days = 3 * 365 - 4
@@ -19,79 +19,55 @@ filtered_df = real_df[(real_df["Datum"] >= start_date)
 target = np.array(filtered_df.Inzidenz)
 obs_data = dict(data=target)
 
-#setup parameters
+# setup parameters
 full_or_scaled = 0
 num_runs = 1
 
-#fixed parameters that are not fitted:
+# fixed parameters that are not fitted:
 gamma = 1./7.
 nu = 1./14.
 
 # Model function that gets parameters, runs simulation and returns result dictionary
+
+
 def model(parameters):
     res = run_germany(
-        full_or_scaled, 
-        num_runs, 
+        full_or_scaled,
+        num_runs,
         10**(-1*parameters["trams_rate"]),
-        gamma, 
-        nu, 
-        10**parameters["I0"], 
-        10**parameters["R0"], 
+        gamma,
+        nu,
+        10**parameters["I0"],
+        10**parameters["R0"],
         [parameters["peaks_year_1"],
-        parameters["peaks_year_2"],
-        parameters["peaks_year_3"]], 
+         parameters["peaks_year_2"],
+         parameters["peaks_year_3"]],
         [parameters["rhos_year_1"],
-        parameters["rhos_year_2"],
-        parameters["rhos_year_3"]], 
+         parameters["rhos_year_2"],
+         parameters["rhos_year_3"]],
         [parameters["sigmas_year_1"],
-        parameters["sigmas_year_2"],
-        parameters["sigmas_year_3"]])
+         parameters["sigmas_year_2"],
+         parameters["sigmas_year_3"]])
     # We only use one region, so we can directly simplify the data
-    return{"data": np.array([week[0] for week in res])}
+    return {"data": np.array([week[0] for week in res])}
+
 
 # Define the prior for all other parameters
 prior = pyabc.Distribution(
     trams_rate=pyabc.RV("uniform", 4, 2),
     I0=pyabc.RV("uniform", 2, 2),
     R0=pyabc.RV("uniform", 2, 2.5),
-    peaks_year_1=pyabc.RV("norm", loc = 0, scale = 20),
-    peaks_year_2=pyabc.RV("norm", loc = 0, scale = 20),
-    peaks_year_3=pyabc.RV("norm", loc = 0, scale = 20), 
+    peaks_year_1=pyabc.RV("norm", loc=0, scale=20),
+    peaks_year_2=pyabc.RV("norm", loc=0, scale=20),
+    peaks_year_3=pyabc.RV("norm", loc=0, scale=20),
     rhos_year_1=pyabc.RV("uniform", 0, 1),
     rhos_year_2=pyabc.RV("uniform", 0, 1),
-    rhos_year_3=pyabc.RV("uniform", 0, 1), 
+    rhos_year_3=pyabc.RV("uniform", 0, 1),
     sigmas_year_1=pyabc.RV("uniform", 0, 200),
     sigmas_year_2=pyabc.RV("uniform", 0, 200),
     sigmas_year_3=pyabc.RV("uniform", 0, 200),
 )
 
-# Define the fitting problem
-abc = pyabc.ABCSMC(model, prior, pyabc.distance.PNormDistance(), population_size = 4000, eps = pyabc.epsilon.SilkOptimalEpsilon(min_rate=0.0000001))
-
-# Create a database
-db_path = "sqlite:///influenca_fitting3.db"
-abc.new(db_path, obs_data)
-
-# Run the fitting
-history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
-
-pop = history.get_population()
-best_particle = min(pop.particles, key = lambda p: p.distance)
-output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
-output.to_csv("new_infections_mean.csv")
-
-df, w = history.get_distribution()
-
-_fig, _arr_ax = plt.subplots(1, 5, figsize=(10, 2.5))
-_arr_ax = _arr_ax.flatten()
-pyabc.visualization.plot_sample_numbers(history, ax=_arr_ax[0])
-_arr_ax[0].get_legend().remove()
-pyabc.visualization.plot_walltime(history, ax=_arr_ax[1], unit='h')
-_arr_ax[1].get_legend().remove()
-pyabc.visualization.plot_epsilons(history, ax=_arr_ax[2])
-pyabc.visualization.plot_effective_sample_sizes(history, ax=_arr_ax[3])
-pyabc.visualization.plot_acceptance_rates_trajectory(history, ax=_arr_ax[4])
-plt.savefig("stats.png")
 
 def weighted_quantiles(simulations, weights, qs):
     """
@@ -138,11 +114,7 @@ def weighted_quantiles(simulations, weights, qs):
     result = np.vstack(results)
     if result.shape[0] == 1:
         return result[0]                          # (m,)
-    return result 
-
-
-result_matrix = np.vstack([x.sum_stat["data"] for x in pop.particles])
-weighted_results = weighted_quantiles(result_matrix, w, (0.05, 0.5, 0.95))
+    return result
 
 
 def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_date, tmax, region, pop_size, region_name):
@@ -177,7 +149,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
         current_date += pd.Timedelta(days=7)
     upper_curve = pd.DataFrame(upper_curve)
     ax.fill_between(upper_curve["Date"], lower_curve["Mean"], upper_curve["Mean"],
-             color='cornflowerblue', alpha = 0.3, label='CrI')
+                    color='cornflowerblue', alpha=0.3, label='CrI')
     if (real_data_file != ""):
         real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
         end_date = start_date + pd.Timedelta(days=tmax)
@@ -197,13 +169,50 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
     fig.savefig(save_dir +
                 f"incidence_{region_name}.png")
 
-plot_new_infections_cis(weighted_results, ".", "ILI_df_Germany.csv", pd.Timestamp("2016-08-01"), 3*365-4, 0, 100000, "Bundesweit")
 
-# trams_rate = 0.0000018
-# I0 = 1000
-# R0 = 20000
-# peaks = [-10, -5, -5]
-# rhos = [0.5, 0.7, 0.7]
-# sigmas = [100, 100, 100]
-# print()
+if __name__ == "__main__":
+    # Define the fitting problem
+    abc = pyabc.ABCSMC(model, prior, pyabc.distance.PNormDistance(
+        # eps=pyabc.epsilon.SilkOptimalEpsilon(min_rate=0.0000001)
+    ), population_size=pyabc.populationstrategy.AdaptivePopulationSize(
+        300, mean_cv=0.05, max_population_size=1000))
 
+    # Create a database
+    db_path = "sqlite:///influenca_fitting3.db"
+    abc.new(db_path, obs_data)
+
+    # Run the fitting
+    history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
+
+    pop = history.get_population()
+    best_particle = min(pop.particles, key=lambda p: p.distance)
+    output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
+    output.to_csv("new_infections_mean.csv")
+
+    df, w = history.get_distribution()
+
+    _fig, _arr_ax = plt.subplots(1, 5, figsize=(10, 2.5))
+    _arr_ax = _arr_ax.flatten()
+    pyabc.visualization.plot_sample_numbers(history, ax=_arr_ax[0])
+    _arr_ax[0].get_legend().remove()
+    pyabc.visualization.plot_walltime(history, ax=_arr_ax[1], unit='h')
+    _arr_ax[1].get_legend().remove()
+    pyabc.visualization.plot_epsilons(history, ax=_arr_ax[2])
+    pyabc.visualization.plot_effective_sample_sizes(history, ax=_arr_ax[3])
+    pyabc.visualization.plot_acceptance_rates_trajectory(
+        history, ax=_arr_ax[4])
+    plt.savefig("stats.png")
+
+    result_matrix = np.vstack([x.sum_stat["data"] for x in pop.particles])
+    weighted_results = weighted_quantiles(result_matrix, w, (0.05, 0.5, 0.95))
+
+    plot_new_infections_cis(weighted_results, ".", "ILI_df_Germany.csv", pd.Timestamp(
+        "2016-08-01"), 3*365-4, 0, 100000, "Bundesweit")
+
+    # trams_rate = 0.0000018
+    # I0 = 1000
+    # R0 = 20000
+    # peaks = [-10, -5, -5]
+    # rhos = [0.5, 0.7, 0.7]
+    # sigmas = [100, 100, 100]
+    # print()
