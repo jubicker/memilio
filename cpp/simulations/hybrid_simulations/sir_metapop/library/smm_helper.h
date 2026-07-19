@@ -58,14 +58,14 @@ mio::smm::Model<ScalarType, NumRegions, mio::osir::InfectionState> initialize_mo
     for (size_t i = 0; i < config.I0s.size(); ++i) {
         int region_id = config.I0s[i].first;
         double I0     = config.I0s[i].second;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = I0;
+        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Infected}] = int(I0);
     }
 
     // Set initially recovered
     for (size_t i = 0; i < config.R0s.size(); ++i) {
         int region_id = config.R0s[i].first;
         double R0     = config.R0s[i].second;
-        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}] = R0;
+        model.populations[{mio::regions::Region(region_id), mio::osir::InfectionState::Recovered}] = int(R0);
     }
 
     // Adapt initially susceptile
@@ -137,7 +137,7 @@ calculate_moment(const Eigen::Matrix<ScalarType, Eigen::Dynamic,
                  const std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions>& indices)
 {
     // values has 3 columns per region: S, I, R
-    Eigen::Matrix<ScalarType, 1, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions> means =
+    Eigen::Matrix<ScalarType, 1, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions> means =
         values.colwise().mean();
     double moment = 0.0;
     for (int i = 0; i < values.rows(); ++i) {
@@ -185,7 +185,7 @@ calculate_means_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarTyp
     std::vector<std::string> names(static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions);
     mio::TimeSeries<double> mean_ts(static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions);
     for (int t = 0; t < sim_results[0][0].get_num_time_points(); ++t) {
-        Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions>
+        Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions>
             result =
                 Eigen::Matrix<ScalarType, Eigen::Dynamic,
                               static_cast<size_t>(mio::osir::InfectionState::Count) *
@@ -251,7 +251,7 @@ calculate_moments_from_sim(const std::vector<std::vector<mio::TimeSeries<ScalarT
     MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, Order> moments;
     mio::TimeSeries<double> moment_ts(moments.get_indices().size());
     for (int t = 0; t < sim_results[0][0].get_num_time_points(); ++t) {
-        Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count)* NumRegions>
+        Eigen::Matrix<ScalarType, Eigen::Dynamic, static_cast<size_t>(mio::osir::InfectionState::Count) * NumRegions>
             result =
                 Eigen::Matrix<ScalarType, Eigen::Dynamic,
                               static_cast<size_t>(mio::osir::InfectionState::Count) *

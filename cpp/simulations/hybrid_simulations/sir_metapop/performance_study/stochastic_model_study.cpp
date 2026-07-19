@@ -29,7 +29,6 @@
 #include <string>
 #include <fstream>
 #include <vector>
-#include <omp.h>
 
 void write_parameter_csv(double I0, double R0, double lambda, std::string filename)
 {

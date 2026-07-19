@@ -89,7 +89,8 @@ computeMeanMatrices(std::vector<std::vector<Eigen::Matrix<size_t, n, n>>>& data)
 }
 
 template <size_t num_regions, size_t max_order>
-std::vector<std::vector<double>> run_with_region_num(size_t num_runs, const Config::Config& config, bool write_outputs)
+std::vector<std::vector<double>> run_with_region_num(size_t num_runs, const Config::Config& config, bool write_outputs,
+                                                     bool return_new_inf)
 {
     // Initialize model
     auto model = smm_helper::initialize_model<num_regions>(config);
@@ -193,19 +194,34 @@ std::vector<std::vector<double>> run_with_region_num(size_t num_runs, const Conf
         return {};
     }
     else {
-        std::vector<std::vector<double>> new_inf_vec(static_cast<size_t>(new_infections_mean.get_num_time_points()),
-                                                     std::vector<double>(num_regions));
-        for (size_t t = 0; t < new_inf_vec.size(); ++t) {
+        if (return_new_inf) {
+            std::vector<std::vector<double>> new_inf_vec(static_cast<size_t>(new_infections_mean.get_num_time_points()),
+                                                         std::vector<double>(num_regions));
+            for (size_t t = 0; t < new_inf_vec.size(); ++t) {
+                for (size_t r = 0; r < num_regions; r++) {
+                    new_inf_vec[t][r] = new_infections_mean.get_value(t)[r];
+                }
+            }
+            return new_inf_vec;
+        }
+        std::vector<std::vector<double>> result_vec(
+            static_cast<size_t>(sim_set.get_mean().get_num_time_points() / static_cast<size_t>(7 / config.dt)),
+            std::vector<double>(num_regions));
+        std::vector<double> mean_per_week(num_regions);
+        for (size_t t = 0; t < result_vec.size(); t += static_cast<size_t>(7 / config.dt)) {
             for (size_t r = 0; r < num_regions; r++) {
-                new_inf_vec[t][r] = new_infections_mean.get_value(t)[r];
+                result_vec[t / static_cast<size_t>(7 / config.dt)][r] =
+                    sim_set.get_mean().get_value(t)[static_cast<size_t>(mio::osir::InfectionState::Count) * r +
+                                                    static_cast<size_t>(mio::osir::InfectionState::Infected)];
             }
         }
-        return new_inf_vec;
+        return result_vec;
     }
 }
 
 std::vector<std::vector<double>> run_stochastic_simulation_set_one_region(size_t num_runs, const Config::Config& config,
-                                                                          bool write_outputs)
+                                                                          bool write_outputs,
+                                                                          bool return_new_inf = true)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 1;
@@ -213,11 +229,13 @@ std::vector<std::vector<double>> run_stochastic_simulation_set_one_region(size_t
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs, return_new_inf);
 }
 
-std::vector<std::vector<double>>
-run_stochastic_simulation_set_four_regions(size_t num_runs, const Config::Config& config, bool write_outputs)
+std::vector<std::vector<double>> run_stochastic_simulation_set_four_regions(size_t num_runs,
+                                                                            const Config::Config& config,
+                                                                            bool write_outputs,
+                                                                            bool return_new_inf = true)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 4;
@@ -225,11 +243,13 @@ run_stochastic_simulation_set_four_regions(size_t num_runs, const Config::Config
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs, return_new_inf);
 }
 
-std::vector<std::vector<double>>
-run_stochastic_simulation_set_five_regions(size_t num_runs, const Config::Config& config, bool write_outputs)
+std::vector<std::vector<double>> run_stochastic_simulation_set_five_regions(size_t num_runs,
+                                                                            const Config::Config& config,
+                                                                            bool write_outputs,
+                                                                            bool return_new_inf = true)
 {
     const size_t max_order   = 2;
     const size_t num_regions = 5;
@@ -237,15 +257,15 @@ run_stochastic_simulation_set_five_regions(size_t num_runs, const Config::Config
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs);
+    return run_with_region_num<num_regions, max_order>(num_runs, config, write_outputs, return_new_inf);
 }
 
 #ifndef STOCHASTIC_SIM_BINDINGS_SKIP_MAIN
 int main()
 {
-    const size_t num_runs = 10000;
+    const size_t num_runs = 1;
     const auto config     = Config::get_config(Config::ConfigType::ConfigInfluenzaGermany);
-    run_stochastic_simulation_set_one_region(num_runs, config, true);
+    run_stochastic_simulation_set_one_region(num_runs, config, false, false);
 
     return 0;
 }

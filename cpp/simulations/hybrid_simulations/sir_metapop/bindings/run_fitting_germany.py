@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.dates as mdates
+import os
 
 # Load fitting data
 target_file = "/Users/julia/repos/grippeweb_data/ILI_df_Germany.csv"
@@ -21,24 +22,24 @@ obs_data = dict(data=target)
 
 # setup parameters
 full_or_scaled = 0
+use_new_inf = True
 num_runs = 1
 
 # fixed parameters that are not fitted:
 gamma = 1./7.
-nu = 1./14.
 
 # Model function that gets parameters, runs simulation and returns result dictionary
 
 
 def model(parameters):
     res = run_germany(
-        full_or_scaled,
+        full_or_scaled, use_new_inf,
         num_runs,
         10**(-1*parameters["trams_rate"]),
         gamma,
-        nu,
-        10**parameters["I0"],
-        10**parameters["R0"],
+        1./parameters["T_R"],
+        parameters["I0"],
+        parameters["R0"],
         [parameters["peaks_year_1"],
          parameters["peaks_year_2"],
          parameters["peaks_year_3"]],
@@ -52,11 +53,31 @@ def model(parameters):
     return {"data": np.array([week[0] for week in res])}
 
 
+domain_I0 = np.arange(0, 2000)
+domain_R0 = np.arange(0, 30000)
+domain_peaks = np.arange(-30, 30)
+
 # Define the prior for all other parameters
+# prior = pyabc.Distribution(
+#     trams_rate=pyabc.RV("uniform", 4, 2),
+#     I0=pyabc.RV("rv_discrete", values=(domain_I0, [1 / 2000] * 2000)),
+#     R0=pyabc.RV("rv_discrete", values=(domain_R0, [1 / 30000] * 30000)),
+#     peaks_year_1=pyabc.RV("rv_discrete", values=(domain_peaks, [1 / 60] * 60)),
+#     peaks_year_2=pyabc.RV("rv_discrete", values=(domain_peaks, [1 / 60] * 60)),
+#     peaks_year_3=pyabc.RV("rv_discrete", values=(domain_peaks, [1 / 60] * 60)),
+#     rhos_year_1=pyabc.RV("uniform", 0, 1),
+#     rhos_year_2=pyabc.RV("uniform", 0, 1),
+#     rhos_year_3=pyabc.RV("uniform", 0, 1),
+#     sigmas_year_1=pyabc.RV("uniform", 0, 200),
+#     sigmas_year_2=pyabc.RV("uniform", 0, 200),
+#     sigmas_year_3=pyabc.RV("uniform", 0, 200),
+# )
+
 prior = pyabc.Distribution(
     trams_rate=pyabc.RV("uniform", 4, 2),
-    I0=pyabc.RV("uniform", 2, 2),
-    R0=pyabc.RV("uniform", 2, 2.5),
+    T_R=pyabc.RV("uniform", 10, 355),
+    I0=pyabc.RV("uniform", 0, 3000),
+    R0=pyabc.RV("uniform", 0, 30000),
     peaks_year_1=pyabc.RV("norm", loc=0, scale=20),
     peaks_year_2=pyabc.RV("norm", loc=0, scale=20),
     peaks_year_3=pyabc.RV("norm", loc=0, scale=20),
@@ -67,6 +88,29 @@ prior = pyabc.Distribution(
     sigmas_year_2=pyabc.RV("uniform", 0, 200),
     sigmas_year_3=pyabc.RV("uniform", 0, 200),
 )
+
+
+transition = pyabc.AggregatedTransition(
+    mapping={
+        'trams_rate': pyabc.MultivariateNormalTransition(),
+        'T_R': pyabc.MultivariateNormalTransition(),
+        'I0': pyabc.DiscreteJumpTransition(domain=domain_I0, p_stay=0.7),
+        'R0': pyabc.DiscreteJumpTransition(domain=domain_R0, p_stay=0.7),
+        'peaks_year_1': pyabc.DiscreteJumpTransition(domain=domain_peaks, p_stay=0.7),
+        'peaks_year_2': pyabc.DiscreteJumpTransition(domain=domain_peaks, p_stay=0.7),
+        'peaks_year_3': pyabc.DiscreteJumpTransition(domain=domain_peaks, p_stay=0.7),
+        'rhos_year_1': pyabc.MultivariateNormalTransition(),
+        'rhos_year_2': pyabc.MultivariateNormalTransition(),
+        'rhos_year_3': pyabc.MultivariateNormalTransition(),
+        'sigmas_year_1': pyabc.MultivariateNormalTransition(),
+        'sigmas_year_2': pyabc.MultivariateNormalTransition(),
+        'sigmas_year_3': pyabc.MultivariateNormalTransition()
+    }
+)
+
+
+def distance(x, x0):
+    return np.square(x["data"] - x0["data"]).mean()
 
 
 def weighted_quantiles(simulations, weights, qs):
@@ -171,25 +215,38 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    # Define the fitting problem
-    abc = pyabc.ABCSMC(model, prior, pyabc.distance.PNormDistance(
-        # eps=pyabc.epsilon.SilkOptimalEpsilon(min_rate=0.0000001)
-    ), population_size=pyabc.populationstrategy.AdaptivePopulationSize(
-        300, mean_cv=0.05, max_population_size=1000))
-
+    dir_path = "/Users/julia/repos/fork/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
+    os.makedirs(dir_path, exist_ok=True)
     # Create a database
-    db_path = "sqlite:///influenca_fitting3.db"
-    abc.new(db_path, obs_data)
+    db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
+    run = True
+    if (run):
+        # Define the fitting problem
+        abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
+            300, mean_cv=0.05, max_population_size=1000))
 
-    # Run the fitting
-    history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
+        abc.new(db_path, obs_data)
+
+        # Run the fitting
+        history = abc.run(max_nr_populations=10, minimum_epsilon=0.1)
+
+    else:
+        history = pyabc.History(db_path, create=False)
 
     pop = history.get_population()
     best_particle = min(pop.particles, key=lambda p: p.distance)
     output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
-    output.to_csv("new_infections_mean.csv")
+    output.to_csv(dir_path + "new_infections_mean.csv")
+
+    top10_particles = sorted(pop.particles, key=lambda p: p.distance)[:10]
+    top10_df = pd.DataFrame([dict(p.parameter) for p in top10_particles])
+    top10_df.insert(0, "distance", [p.distance for p in top10_particles])
+    top10_df.to_csv(dir_path + "top10_particles.csv", index=False)
 
     df, w = history.get_distribution()
+
+    pyabc.visualization.plot_kde_matrix(df, w)
+    plt.savefig(dir_path + "posterior_kde_matrix.png")
 
     _fig, _arr_ax = plt.subplots(1, 5, figsize=(10, 2.5))
     _arr_ax = _arr_ax.flatten()
@@ -201,12 +258,12 @@ if __name__ == "__main__":
     pyabc.visualization.plot_effective_sample_sizes(history, ax=_arr_ax[3])
     pyabc.visualization.plot_acceptance_rates_trajectory(
         history, ax=_arr_ax[4])
-    plt.savefig("stats.png")
+    plt.savefig(dir_path + "stats.png")
 
     result_matrix = np.vstack([x.sum_stat["data"] for x in pop.particles])
     weighted_results = weighted_quantiles(result_matrix, w, (0.05, 0.5, 0.95))
 
-    plot_new_infections_cis(weighted_results, ".", "ILI_df_Germany.csv", pd.Timestamp(
+    plot_new_infections_cis(weighted_results, dir_path, target_file, pd.Timestamp(
         "2016-08-01"), 3*365-4, 0, 100000, "Bundesweit")
 
     # trams_rate = 0.0000018
