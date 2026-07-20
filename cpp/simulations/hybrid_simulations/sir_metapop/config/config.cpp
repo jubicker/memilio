@@ -473,17 +473,18 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 3 * 365 - 3; // From 1st August 2016 to 29th July 2019
         config.dt                     = 0.1;
-        config.lambdas                = {0.0000018}; // TODO
+        config.lambdas                = {0.0000023939}; // manual: 0.0000018, top: 0.0000023939, mean: 0.0000022811
         config.influencing_regions    = {{{0, 1}}};
         config.gamma                  = 1. / 7.;
-        config.nu                     = 1 / 14.;
-        config.I0s                    = {{0, 1000}}; // TODO
-        config.R0s                    = {{0, 20000}}; // TODO
+        config.nu                     = 1 / 142.; // manual: 1/14, top: 1/142, mean: 1/122
+        config.I0s                    = {{0, 567}}; // manual: 1000, top: 567, mean: 558
+        config.R0s                    = {{0, 25136}}; // manual: 20000, top: 25136, mean: 18063
         config.total_populations      = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
-        config.season_peaks           = {-10, -25, -20};
-        config.seasonality_rhos       = {0.5, 0.65, 0.1}; // Variation factor for each season
-        config.seasonality_sigmas     = {100, 105, 130}; // Standard deviation for the Gaussian function for each season
+        config.season_peaks           = {21, 39, 33}; // manual: {-10, -25, -20}, top: {21, 39, 33}, mean: {21, 37, 39}
+        config.seasonality_rhos       = {0.82, 0.8,
+                                         0.8}; // manual: {0.5, 0.65, 0.1}, top: {0.82, 0.8, 0.8}, mean: {0.81, 0.8, 0.8}
+        config.seasonality_sigmas     = {7, 17, 9}; // manual: {100, 105, 130}, top: {7, 17, 9}, mean: {10, 17, 7}
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
