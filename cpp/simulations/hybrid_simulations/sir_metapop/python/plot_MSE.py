@@ -415,7 +415,7 @@ parameter_bins = {
     "I_init": [0, 10, 20, 30, 40, 50, np.inf],
     "R_init": [0, 0.01*100000, 0.1*100000, 0.2*100000, 0.3*100000, 0.4*100000, 0.5*100000, np.inf],
     "lambda": np.linspace(0.0000014, 0.000006, 7).tolist() + [np.inf],
-    "R_0": [0, 1, 2, 3, 4, np.inf],
+    "R_0": [0., 1., 1.5, 2., 2.5, 3., 4.],
     "max_mean": [0, 0.01*100000, 0.1*100000, 0.2*100000, 0.3*100000, np.inf],
     "max_std": [0, 10, 100, 500, 1000, 3000],
     "max_std_normalized": [0, 0.1, 0.2, 0.3, 0.4, 0.5, np.inf],
@@ -457,6 +457,9 @@ plot_err_bar_bins(df, col, "max_std",
                   parameter_bins["max_std"], bin_labels["max_std"])
 plot_err_bar_bins(df, col, "max_std_normalized",
                   parameter_bins["max_std_normalized"], bin_labels["max_std_normalized"])
+plot_err_2D_bins(df, col, "I_init", "R_0", parameter_bins["I_init"], parameter_bins["R_0"], bin_labels["I_init"], bin_labels["R_0"])
+plot_err_2D_bins(df, col, "I_init", "max_std", parameter_bins["I_init"], parameter_bins["max_std"], bin_labels["I_init"], bin_labels["max_std"])
+plot_err_2D_bins(df, col, "I_init", "max_std_normalized", parameter_bins["I_init"], parameter_bins["max_std_normalized"], bin_labels["I_init"], bin_labels["max_std_normalized"])
 
 # plot_MSE_3D(df, col, "max_mean", "max_std", "R_0")
 # plot_MSE_3D(df, col, "max_mean", "max_std_normalized", "R_0")
