@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 import os
 
 # Load fitting data
-target_file = "/Users/julia/repos/grippeweb_data/ILI_df_Germany.csv"
+target_file = "/p/project1/loki/bicker1/memilio/ILI_df_Germany.csv"
 
 start_date = pd.to_datetime("2016-08-01")
 num_days = 3 * 365 - 4
@@ -215,20 +215,23 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    dir_path = "/Users/julia/repos/fork/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
+    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
-    run = True
+    run = False
+    load = True
     if (run):
         # Define the fitting problem
         abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
-            300, mean_cv=0.05, max_population_size=1000))
-
-        abc.new(db_path, obs_data)
+                300, mean_cv=0.05, max_population_size=4000))
+        if(load):
+            abc.load(db_path, 1)
+        else:
+            abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=10, minimum_epsilon=0.1)
+        history = abc.run(max_nr_populations=100, minimum_epsilon=0.1)
 
     else:
         history = pyabc.History(db_path, create=False)

@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 import os
 
 # Load fitting data
-target_file = "/Users/julia/repos/grippeweb_data/ILI_df_age_groups.csv"
+target_file = "/p/project1/loki/bicker1/memilio/ILI_df_age_groups.csv"
 age_group_to_index = {"0-4": 0, "5-14": 1, "15-34": 2, "35-59": 3, "60+": 4}
 
 start_date = pd.to_datetime("2016-08-01")
@@ -38,9 +38,9 @@ num_runs = 1
 
 # fixed parameters that are not fitted:
 gamma = 1./7.
-nu = 1./14.
-peaks = [0, 0, 0]
-sigmas = [50, 50, 50]
+nu = 1./149.
+peaks = [21, 37, 24]
+sigmas = [10, 15, 5]
 
 # Model function that gets parameters, runs simulation and returns result dictionary
 
@@ -51,6 +51,11 @@ def model(parameters):
         num_runs,
         [10**(-1*parameters["trams_rate_group_1"]), 10**(-1*parameters["trams_rate_group_2"]), 10**(-1 *
                                                                                                     parameters["trams_rate_group_3"]), 10**(-1*parameters["trams_rate_group_4"]), 10**(-1*parameters["trams_rate_group_5"])],
+        [[parameters["f11"], parameters["f12"], parameters["f13"], parameters["f14"], parameters["f15"]],
+         [parameters["f12"], parameters["f22"], parameters["f23"], parameters["f24"], parameters["f25"]],
+         [parameters["f13"], parameters["f23"], parameters["f33"], parameters["f34"], parameters["f35"]],
+         [parameters["f14"], parameters["f24"], parameters["f34"], parameters["f44"], parameters["f45"]],
+         [parameters["f15"], parameters["f25"], parameters["f35"], parameters["f45"], parameters["f55"]]],
         gamma,
         nu,
         [parameters["I0_group_1"], parameters["I0_group_2"], parameters["I0_group_3"],
@@ -71,6 +76,21 @@ prior = pyabc.Distribution(
     trams_rate_group_3=pyabc.RV("uniform", 4, 2),
     trams_rate_group_4=pyabc.RV("uniform", 4, 2),
     trams_rate_group_5=pyabc.RV("uniform", 4, 2),
+    f11 = pyabc.RV("uniform", 0, 1),
+    f12 = pyabc.RV("uniform", 0, 1),
+    f13 = pyabc.RV("uniform", 0, 1),
+    f14 = pyabc.RV("uniform", 0, 1),
+    f15 = pyabc.RV("uniform", 0, 1),
+    f22 = pyabc.RV("uniform", 0, 1),
+    f23 = pyabc.RV("uniform", 0, 1),
+    f24 = pyabc.RV("uniform", 0, 1),
+    f25 = pyabc.RV("uniform", 0, 1),
+    f33 = pyabc.RV("uniform", 0, 1),
+    f34 = pyabc.RV("uniform", 0, 1),
+    f35 = pyabc.RV("uniform", 0, 1),
+    f44 = pyabc.RV("uniform", 0, 1),
+    f45 = pyabc.RV("uniform", 0, 1),
+    f55 = pyabc.RV("uniform", 0, 1),
     I0_group_1=pyabc.RV("uniform", 0, 3000),
     I0_group_2=pyabc.RV("uniform", 0, 3000),
     I0_group_3=pyabc.RV("uniform", 0, 3000),
@@ -222,27 +242,31 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    dir_path = "/Users/julia/repos/fork/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
+    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output_ag/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
     run = True
+    load = False
     if (run):
         # Define the fitting problem
         abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
-            300, mean_cv=0.05, max_population_size=1000))
-
-        abc.new(db_path, obs_data)
+            500, mean_cv=0.05, max_population_size=3000))
+        
+        if(load):
+            abc.load(db_path, 1)
+        else:
+            abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
+        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1)
 
     else:
         history = pyabc.History(db_path, create=False)
 
     pop = history.get_population()
     best_particle = min(pop.particles, key=lambda p: p.distance)
-    output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
+    output = pd.DataFrame({"Mean": [best_particle.sum_stat["data"][t, :] for t in range(best_particle.sum_stat["data"].shape[0])]})
     output.to_csv(dir_path + "new_infections_mean.csv")
 
     top10_particles = sorted(pop.particles, key=lambda p: p.distance)[:10]
@@ -274,11 +298,3 @@ if __name__ == "__main__":
 
     plot_new_infections_cis(weighted_results, dir_path, target_file, pd.Timestamp(
         "2016-08-01"), 3*365-4, 0, 100000, "Bundesweit", age_group_to_index)
-
-    # trams_rate = 0.0000018
-    # I0 = 1000
-    # R0 = 20000
-    # peaks = [-10, -5, -5]
-    # rhos = [0.5, 0.7, 0.7]
-    # sigmas = [100, 100, 100]
-    # print()

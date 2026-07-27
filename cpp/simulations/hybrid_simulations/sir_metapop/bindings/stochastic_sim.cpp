@@ -52,11 +52,10 @@ std::vector<std::vector<double>> run_germany(int full_or_scaled, bool use_new_in
     return run_stochastic_simulation_set_one_region(num_runs, config, false, use_new_inf);
 }
 
-std::vector<std::vector<double>> run_age_groups(int full_or_scaled, bool use_new_inf, size_t num_runs,
-                                                std::vector<double> lambdas, double gamma, double nu,
-                                                std::vector<double> I0s, std::vector<double> R0s,
-                                                std::vector<double> peaks, std::vector<double> rhos,
-                                                std::vector<double> sigmas)
+std::vector<std::vector<double>>
+run_age_groups(int full_or_scaled, bool use_new_inf, size_t num_runs, std::vector<double> lambdas,
+               std::vector<std::vector<double>> influencing_facs, double gamma, double nu, std::vector<double> I0s,
+               std::vector<double> R0s, std::vector<double> peaks, std::vector<double> rhos, std::vector<double> sigmas)
 {
     Config::Config config;
     if (full_or_scaled) {
@@ -71,6 +70,9 @@ std::vector<std::vector<double>> run_age_groups(int full_or_scaled, bool use_new
     for (size_t ag = 0; ag < I0s.size(); ++ag) {
         config.I0s[ag] = {ag, I0s[ag]};
         config.R0s[ag] = {ag, R0s[ag]};
+        for (size_t influence = 0; influence < config.influencing_regions[ag].size(); ++influence) {
+            config.influencing_regions[ag][influence].second = influencing_facs[ag][influence];
+        }
     }
     config.season_peaks       = peaks;
     config.seasonality_rhos   = rhos;
@@ -110,8 +112,9 @@ PYBIND11_MODULE(_simulation_stochastic, m)
           py::arg("use_new_inf"), py::arg("num_runs"), py::arg("lambda"), py::arg("gamma"), py::arg("nu"),
           py::arg("I0"), py::arg("R0"), py::arg("peaks"), py::arg("rhos"), py::arg("sigmas"));
     m.def("run_age_groups", &run_age_groups, "Simulate simulation set for Germany age-resolved",
-          py::arg("full_or_scaled"), py::arg("use_new_inf"), py::arg("num_runs"), py::arg("lambdas"), py::arg("gamma"),
-          py::arg("nu"), py::arg("I0s"), py::arg("R0s"), py::arg("peaks"), py::arg("rhos"), py::arg("sigmas"));
+          py::arg("full_or_scaled"), py::arg("use_new_inf"), py::arg("num_runs"), py::arg("lambdas"),
+          py::arg("influencing_facs"), py::arg("gamma"), py::arg("nu"), py::arg("I0s"), py::arg("R0s"),
+          py::arg("peaks"), py::arg("rhos"), py::arg("sigmas"));
     m.def("run_regions", &run_regions, "Simulate simulation set for Germany region-resolved", py::arg("full_or_scaled"),
           py::arg("use_new_inf"), py::arg("num_runs"), py::arg("lambdas"), py::arg("gamma"), py::arg("nu"),
           py::arg("I0s"), py::arg("R0s"), py::arg("peaks"), py::arg("rhos"), py::arg("sigmas"));

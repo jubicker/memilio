@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 import os
 
 # Load fitting data
-target_file = "/Users/julia/repos/grippeweb_data/ILI_df_regions.csv"
+target_file = "/p/project1/loki/bicker1/memilio/ILI_df_regions.csv"
 region_to_index = {'Norden (West)': 0, 'Osten': 1,
                    'Sueden': 2, 'Mitte (West)': 3}
 
@@ -29,7 +29,7 @@ for date in filtered_df.Datum.unique():
     target.append(region_values)
 
 target_arr = np.array(target)          # shape (T, 5)
-group_scale = target_arr.std(axis=0)   # per-region std, shape (5,)
+group_scale = target_arr.std(axis=0)   # per-region std, shape (5,) # [934.79989887 764.82508826 813.94654259 796.40377067]
 obs_data = dict(data=target)
 
 # setup parameters
@@ -39,13 +39,11 @@ num_runs = 1
 
 # fixed parameters that are not fitted:
 gamma = 1./7.
-nu = 1./14.
-peaks = [0, 0, 0]
-sigmas = [50, 50, 50]
+nu = 1./149.
+peaks = [21, 37, 24]
+sigmas = [10, 15, 5]
 
 # Model function that gets parameters, runs simulation and returns result dictionary
-
-
 def model(parameters):
     res = run_regions(
         full_or_scaled, use_new_inf,
@@ -149,7 +147,7 @@ def weighted_quantiles(simulations, weights, qs):
     return result                                  # (k,) + out_shape
 
 
-def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_date, tmax, region, pop_size, region_name, age_group_to_index):
+def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_date, tmax, region, pop_size, group_to_index):
     """
     Plot simulated median + credible interval (and real data, if given) of
     new infections per 100,000 population, with one subplot per age group.
@@ -180,7 +178,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
         real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
         end_date = start_date + pd.Timedelta(days=tmax)
         real_df = real_df[(real_df["Datum"] >= start_date)
-                          & (real_df["Datum"] <= end_date) & (real_df["Region"] == region_name)]
+                          & (real_df["Datum"] <= end_date)]
 
     ncols = 3
     nrows = int(np.ceil(num_age_groups / ncols))
@@ -188,7 +186,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
         nrows, ncols, figsize=(6 * ncols, 5 * nrows), squeeze=False)
     axes = fig.axes
 
-    for ag, idx in age_group_to_index.items():
+    for g, idx in group_to_index.items():
         ax = axes[idx]
         lower = sim_output_matrix[0, :, idx] / pop_size[idx] * 100000
         median = sim_output_matrix[1, :, idx] / pop_size[idx] * 100000
@@ -200,11 +198,11 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
                         alpha=0.3, label='CrI')
 
         if real_df is not None:
-            ag_df = real_df[real_df["Altersgruppe"] == ag]
+            ag_df = real_df[real_df["Region"] == g]
             ax.scatter(ag_df["Datum"], ag_df["Inzidenz"],
                        marker='x', color='black', label='real')
 
-        ax.set_title(f"Age group {ag}")
+        ax.set_title(f"Region {g}")
         ax.set_xlabel("Date")
         ax.set_ylabel("Incidence")
         ax.set_xticks(dates[::8])
@@ -218,31 +216,35 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
     lines, labels = axes[0].get_legend_handles_labels()
     fig.legend(lines, labels, loc='upper center', ncol=3)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(save_dir + f"incidence_{region_name}_age_groups.png")
+    fig.savefig(save_dir + f"incidence_regions.png")
 
 
 if __name__ == "__main__":
-    dir_path = "/Users/julia/repos/fork/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
+    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output_regions/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
     run = True
+    load = False
     if (run):
         # Define the fitting problem
         abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
             300, mean_cv=0.05, max_population_size=1000))
 
-        abc.new(db_path, obs_data)
+        if(load):
+            abc.load(db_path, 1)
+        else:
+            abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=20, minimum_epsilon=0.1)
+        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1)
 
     else:
         history = pyabc.History(db_path, create=False)
 
     pop = history.get_population()
     best_particle = min(pop.particles, key=lambda p: p.distance)
-    output = pd.DataFrame({"Mean": best_particle.sum_stat["data"]})
+    output = pd.DataFrame({"Mean": [best_particle.sum_stat["data"][t, :] for t in range(best_particle.sum_stat["data"].shape[0])]})
     output.to_csv(dir_path + "new_infections_mean.csv")
 
     top10_particles = sorted(pop.particles, key=lambda p: p.distance)[:10]
@@ -273,12 +275,4 @@ if __name__ == "__main__":
         result_matrix, w, (0.05, 0.5, 0.95))  # (3, T, A)
 
     plot_new_infections_cis(weighted_results, dir_path, target_file, pd.Timestamp(
-        "2016-08-01"), 3*365-4, 0, 100000, "Bundesweit", age_group_to_index)
-
-    # trams_rate = 0.0000018
-    # I0 = 1000
-    # R0 = 20000
-    # peaks = [-10, -5, -5]
-    # rhos = [0.5, 0.7, 0.7]
-    # sigmas = [100, 100, 100]
-    # print()
+        "2016-08-01"), 3*365-4, 0, 100000, region_to_index)
