@@ -250,8 +250,7 @@ if __name__ == "__main__":
     load = False
     if (run):
         # Define the fitting problem
-        abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
-            500, mean_cv=0.05, max_population_size=3000))
+        abc = pyabc.ABCSMC(model, prior, distance, population_size=3000) #pyabc.populationstrategy.AdaptivePopulationSize( 500, mean_cv=0.05, max_population_size=3000)
         
         if(load):
             abc.load(db_path, 1)
