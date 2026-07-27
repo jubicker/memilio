@@ -19,7 +19,7 @@ def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_dat
 
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(sim_outputs["Date"], sim_outputs["Mean"],
-            marker='o', linestyle='-', color=colors['middle blue'], label='simulated')
+            marker='o', linestyle='-', color=colors['dark red'], label='simulated')
 
     if (real_data_file != ""):
         real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
@@ -60,9 +60,9 @@ def plot_infected_mean_std(sim_output_filepath, save_dir, start_date, region_nam
     fig, ax = plt.subplots(figsize=(12, 6))
         
     ax.plot(sim_outputs["Date"], sim_outputs["Mean"],
-            color=colors['dark red'], label=r'$\mu$', zorder=20)
+            color=colors['middle blue'], label=r'$\mu_I$', zorder=20)
     ax.fill_between(sim_outputs["Date"], sim_outputs["Mean"] - 2*sim_outputs["Std"], sim_outputs["Mean"] + 2*sim_outputs["Std"],
-                    color=colors['dark red'], alpha=0.5, label=r'$\mu \pm 2\sigma$', zorder=5)
+                    color=colors['middle blue'], alpha=0.5, label=r'$\mu_I \pm 2\sigma_I$', zorder=5)
     ax.set_xlabel("Date")
     ax.set_ylabel("Infected [#]")
     ax.set_xticks(sim_outputs["Date"].iloc[::interval])
@@ -70,6 +70,7 @@ def plot_infected_mean_std(sim_output_filepath, save_dir, start_date, region_nam
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     
     if (real_data_file != ""):
+        ax1 = ax.twinx()
         if(plot_new_inf):
             sim_outputs_new_inf = {"Date": [], "Mean": []}
             df = pd.read_csv(sim_output_filepath + "/new_infections_mean.csv")
@@ -80,9 +81,8 @@ def plot_infected_mean_std(sim_output_filepath, save_dir, start_date, region_nam
                 sim_outputs_new_inf["Mean"].append(incidence)
                 current_date += pd.Timedelta(days=7)
             sim_outputs_new_inf = pd.DataFrame(sim_outputs_new_inf)
-        ax1 = ax.twinx()
-        ax1.plot(sim_outputs_new_inf["Date"], sim_outputs_new_inf["Mean"],
-            marker='^', linestyle='-', color=colors['middle blue'], label='simulated incidence', zorder=10)
+            ax1.plot(sim_outputs_new_inf["Date"], sim_outputs_new_inf["Mean"],
+            marker='^', linestyle='-', color=colors['dark red'], label='simulated incidence', zorder=10)
         real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
         end_date = start_date + pd.Timedelta(days=tmax)
         filtered_df = real_df[(real_df["Datum"] >= start_date)
@@ -120,9 +120,9 @@ def plot_infected_percentiles(sim_output_filepath, save_dir, start_date, p_lower
     # Plot mean and percentiles
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(sim_outputs["Date"], sim_outputs["Mean"],
-            color=colors['dark red'], label=r'$\mu$')
+            color=colors['middle blue'], label=r'$\mu_I$')
     ax.fill_between(sim_outputs["Date"], sim_outputs["Lower"], sim_outputs["Upper"],
-                    color=colors['dark red'], alpha=0.5, label=r'$90$-quantile')
+                    color=colors['middle blue'], alpha=0.5, label=r'$90$-quantile')
     ax.set_xlabel("Date")
     ax.set_ylabel("Infected [#]")
     ax.set_xticks(sim_outputs["Date"].iloc[::interval])
