@@ -42,6 +42,7 @@ gamma = 1./7.
 nu = 1./149.
 peaks = [21, 37, 24]
 sigmas = [10, 15, 5]
+rhos = [0.79, 0.78, 0.77]
 
 # Model function that gets parameters, runs simulation and returns result dictionary
 def model(parameters):
@@ -57,9 +58,7 @@ def model(parameters):
         [parameters["R0_group_1"], parameters["R0_group_2"], parameters["R0_group_3"],
             parameters["R0_group_4"]],
         peaks,
-        [parameters["rhos_year_1"],
-         parameters["rhos_year_2"],
-         parameters["rhos_year_3"]],
+        rhos,
         sigmas)
     return {"data": res}
 
@@ -76,10 +75,7 @@ prior = pyabc.Distribution(
     R0_group_1=pyabc.RV("uniform", 0, 30000),
     R0_group_2=pyabc.RV("uniform", 0, 30000),
     R0_group_3=pyabc.RV("uniform", 0, 30000),
-    R0_group_4=pyabc.RV("uniform", 0, 30000),
-    rhos_year_1=pyabc.RV("uniform", 0, 1),
-    rhos_year_2=pyabc.RV("uniform", 0, 1),
-    rhos_year_3=pyabc.RV("uniform", 0, 1),
+    R0_group_4=pyabc.RV("uniform", 0, 30000)
 )
 
 
@@ -229,7 +225,7 @@ if __name__ == "__main__":
     if (run):
         # Define the fitting problem
         abc = pyabc.ABCSMC(model, prior, distance, population_size=pyabc.populationstrategy.AdaptivePopulationSize(
-            300, mean_cv=0.05, max_population_size=1000))
+            500, mean_cv=0.05, max_population_size=1000))
 
         if(load):
             abc.load(db_path, 1)
@@ -237,7 +233,7 @@ if __name__ == "__main__":
             abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1)
+        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1, min_acceptance_rate = 0.01)
 
     else:
         history = pyabc.History(db_path, create=False)

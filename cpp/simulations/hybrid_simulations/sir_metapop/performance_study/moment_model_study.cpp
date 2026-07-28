@@ -34,7 +34,8 @@
 #include <sstream>
 #include <vector>
 
-void write_parameter_csv(double I0, double R0, double lambda, std::string filename)
+void write_parameter_csv(double I_init_mean, double R_init_mean, double lambda, double R0_mean, double std_I_init,
+                         double std_R_init, std::string filename)
 {
     std::ofstream file(filename);
 
@@ -42,10 +43,11 @@ void write_parameter_csv(double I0, double R0, double lambda, std::string filena
         return;
 
     // Header
-    file << "I0,R0,lambda\n";
+    file << "I_init_mean,R_init_mean,lambda,R0_mean,std_I_init, std_R_init\n";
 
     // Data row
-    file << I0 << "," << R0 << "," << lambda << "\n";
+    file << I_init_mean << "," << R_init_mean << "," << lambda << "," << R0_mean << "," << std_I_init << ","
+         << std_R_init << "\n";
 
     file.close();
 }
@@ -107,10 +109,10 @@ int main()
         mio::log_error("Number of regions doesn't match number of regions in config.");
     }
 
-    size_t num_samples     = 1000;
+    size_t num_samples     = 4320;
     std::string save_file  = Config::SAVE_DIR + "Moments/";
     auto created_directory = mio::create_directory(save_file);
-    save_file += config.name;
+    save_file += config.name + std::to_string(int(init_time));
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -118,7 +120,7 @@ int main()
     }
     save_file += "/";
 
-    std::string init_dir_base = "/Users/julia/sim_outputs/output/SMM/performance_study_SIR/";
+    std::string init_dir_base = "/p/project1/loki/bicker1/memilio/output/SMM/performance_study_SIR/";
 
     for (size_t sample = 0; sample < num_samples; ++sample) {
         // Create sample directory
@@ -137,13 +139,7 @@ int main()
 
         auto params = read_parameter_csv(init_dir + "parameters.csv");
 
-        // Sample I0, R0 and lambda
-        config.I0s[0].second = params[0];
-        config.R0s[0].second = params[1];
-        config.lambdas[0]    = params[2];
-
-        write_parameter_csv(config.I0s[0].second, config.R0s[0].second, config.lambdas[0],
-                            save_file_sample + "parameters.csv");
+        config.lambdas[0] = params[2];
 
         // Read init expected values and moments
         auto expected_values_init = moment_helper::read_expected_values(file_expected_values, init_time);
@@ -155,6 +151,24 @@ int main()
 
         // Create simulation
         auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, init_time, config.dt);
+
+        // Write parameter to file
+        config.I0s[0].second = params[0];
+        config.R0s[0].second = params[1];
+
+        double I_init_mean = expected_values_init[static_cast<size_t>(mio::osir::InfectionState::Infected)];
+        double R_init_mean = expected_values_init[static_cast<size_t>(mio::osir::InfectionState::Recovered)];
+
+        size_t std_I_index = model.moments.flatten_index({0, 2, 0});
+        size_t std_R_index = model.moments.flatten_index({0, 0, 2});
+
+        double std_I_init = std::sqrt(moments_init[std_I_index]);
+        double std_R_init = std::sqrt(moments_init[std_R_index]);
+
+        write_parameter_csv(I_init_mean, R_init_mean, config.lambdas[0],
+                            config.lambdas[0] * (config.total_populations[0] - I_init_mean - R_init_mean) /
+                                config.gamma,
+                            std_I_init, std_R_init, save_file_sample + "parameters.csv");
 
         sim.get_integrator_core().get_dt_max() = config.dt;
         if (min_step_size > 0) {
