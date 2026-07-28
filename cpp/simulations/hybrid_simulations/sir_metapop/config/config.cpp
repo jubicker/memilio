@@ -482,9 +482,9 @@ Config get_config(ConfigType type)
         config.total_populations   = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
         config.season_peaks           = {21, 37, 24}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
-        config.seasonality_rhos       = {0.79, 0.78,
-                                         0.77}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
-        config.seasonality_sigmas     = {10, 15, 5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
+        config.seasonality_rhos = {0.79, 0.78,
+                                   0.77}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
+        config.seasonality_sigmas = {10, 15, 5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
@@ -614,6 +614,25 @@ Config get_config(ConfigType type)
             config.transition_rates.push_back({mio::osir::InfectionState::Recovered, mio::regions::Region(key.first),
                                                mio::regions::Region(key.second), val});
         }
+        return config;
+        break;
+    case ConfigType::ConfigTest:
+        config.name                   = "config_test";
+        config.num_regions            = 1;
+        config.t0                     = 0;
+        config.tmax                   = 3 * 365;
+        config.dt                     = 0.1;
+        config.lambdas                = {0.0000047};
+        config.influencing_regions    = {{{0, 1}}};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1 / 20.;
+        config.I0s                    = {{0, 1}};
+        config.R0s                    = {{0, 0}};
+        config.total_populations      = {100000};
+        config.first_season_start_day = -182;
+        config.season_peaks           = {0, 0, 0};
+        config.seasonality_rhos       = {0.5, 0.5, 0.5};
+        config.seasonality_sigmas     = {40, 40, 40};
         return config;
         break;
     }

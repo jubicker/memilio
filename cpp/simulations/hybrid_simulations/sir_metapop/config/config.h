@@ -30,7 +30,7 @@
 
 namespace Config
 {
-const std::string SAVE_DIR = "/hpc_data/bick_ju/TemporalHybrid/";
+const std::string SAVE_DIR = "/Users/julia/repos/fork/memilio/output/";
 //"/p/project1/loki/bicker1/memilio/output/"; //"/Users/julia/repos/fork/memilio/output/";//"/hpc_data/bick_ju/TemporalHybrid/";
 
 const std::vector<std::string> closure_string          = {"truncation", "pair_approx", "lognorm", "lognorm_zero_infl"};
@@ -93,7 +93,8 @@ enum class ConfigType
     ConfigInfluenzaAgeGroups,
     ConfigInfluenzaAgeGroups_full,
     ConfigInfluenzaRegions,
-    ConfigInfluenzaRegions_full
+    ConfigInfluenzaRegions_full,
+    ConfigTest
 };
 
 Config get_config(ConfigType type);
