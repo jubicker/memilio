@@ -493,7 +493,7 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 3 * 365 - 3;
         config.dt                     = 0.1;
-        config.lambdas                = {0.0000025145241};
+        config.lambdas                = {3.00862664e-9};
         config.influencing_regions    = {{{0, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 149.;
@@ -617,22 +617,22 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigTest:
-        config.name                   = "config_test";
+        config.name                   = "one_core_1000";
         config.num_regions            = 1;
         config.t0                     = 0;
-        config.tmax                   = 3 * 365;
+        config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.0000047};
+        config.lambdas                = {0.0003608};
         config.influencing_regions    = {{{0, 1}}};
         config.gamma                  = 1. / 7.;
-        config.nu                     = 1 / 20.;
-        config.I0s                    = {{0, 1}};
+        config.nu                     = 0; //1 / 20.;
+        config.I0s                    = {{0, 10}};
         config.R0s                    = {{0, 0}};
-        config.total_populations      = {100000};
-        config.first_season_start_day = -182;
-        config.season_peaks           = {0, 0, 0};
-        config.seasonality_rhos       = {0.5, 0.5, 0.5};
-        config.seasonality_sigmas     = {40, 40, 40};
+        config.total_populations      = {1000};
+        config.first_season_start_day = 0; //-182;
+        config.season_peaks           = {}; //{0, 0, 0};
+        config.seasonality_rhos       = {}; //{0.5, 0.5, 0.5};
+        config.seasonality_sigmas     = {}; //{40, 40, 40};
         return config;
         break;
     }
