@@ -5,7 +5,9 @@ import pandas as pd
 import numpy as np
 import cycler
 
-fontsize = 8
+plt.style.use('default')
+
+fontsize = 12
 plt.rcParams.update({
     'font.size': fontsize,
     'axes.titlesize': fontsize * 1,
@@ -16,11 +18,10 @@ plt.rcParams.update({
     'font.family': "Arial"
 })
 
-plt.style.use('default')
+dpi = 200
 
-dpi = 300
-
-colors = {"very dark blue": "#131747", "dark blue": "#2A2F8D", "middle blue": "#418EC1", "light blue": "#8FCAF1", "dark teal": "#1B3F3F", "teal": "#5AA18E", "light teal": "#AFE5DB", "very dark green": "#273D14", "dark green": "#3A6713", "middle green": "#8AA72B", "light green": "#BAE772", "purple": "#7F4390", "rose": "#D95E77", "red": "#C62A2A", "dark red": "#872C12", "brown": "#A3682A", "orange": "#EF8D25", "yellow": "#F9CD20", "light yellow": "#FBE960", "black": "#000000", "dark grey": "#656565", "middle grey": "#A4A4A4", "light grey": "#D7D7D7", "white": "#FFFFFF"}
+colors = {"very dark blue": "#131747", "dark blue": "#2A2F8D", "middle blue": "#418EC1", "light blue": "#8FCAF1", "dark teal": "#1B3F3F", "teal": "#5AA18E", "light teal": "#AFE5DB", "very dark green": "#273D14", "dark green": "#3A6713", "middle green": "#8AA72B", "light green": "#BAE772",
+          "purple": "#7F4390", "rose": "#D95E77", "red": "#C62A2A", "dark red": "#872C12", "brown": "#A3682A", "orange": "#EF8D25", "yellow": "#F9CD20", "light yellow": "#FBE960", "black": "#000000", "dark grey": "#656565", "middle grey": "#A4A4A4", "light grey": "#D7D7D7", "white": "#FFFFFF"}
 
 compartment_colors = {
     "S": [colors["dark grey"], colors["middle blue"], colors["middle grey"], colors["dark blue"], colors["light blue"]],
