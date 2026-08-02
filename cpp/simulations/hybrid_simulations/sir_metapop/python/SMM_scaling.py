@@ -2,7 +2,7 @@ from settings import *
 import matplotlib.pyplot as plt
 
 # dictionary has as first keys num agents and as second keys num runs
-smm_times_1_core = {
+smm_times_1_core_SIR = {
     1000: {
         1: [0.00422288, 0.00415508, 0.00418733, 0.00436674, 0.00417868, 0.0042291],
         100: [0.0387601,  0.0387705, 0.0387321, 0.0385351, 0.038685, 0.0387536],
@@ -29,8 +29,30 @@ smm_times_1_core = {
         1000: [1268.32, 1262.8, 1284.84, 1269.51, 1251.19, 1258.19],
     },
 }
+smm_times_1_core_SIRS = {
+    1000: {
+        1: [0.00235284, 0.00224043, 0.00227182, 0.00221876, 0.0022186, 0.00224294],
+        1000: [1.61145, 1.61674, 1.6168, 1.61356, 1.62268, 1.62141],
+    },
+    10000: {
+        1: [0.0137948, 0.0135915, 0.0133272, 0.0133507, 0.0130476, 0.0135499],
+        1000: [12.8582, 12.7138, 12.7483, 12.7284, 12.8161, 12.7937],
+    },
+    100000: {
+        1: [0.118815, 0.120006, 0.120212, 0.136644, 0.117747, 0.129988],
+        1000: [118.07, 124.992, 118.793, 118.186, 117.771, 118.046],
+    },
+    1000000: {
+        1: [1.05472, 1.10437, 1.11181, 1.1205, 1.10172, 1.07843],
+        1000: [1098.87, 1103.58, 1109.01, 1097.62, 1098.83, 1102.71],
+    },
+    10000000: {
+        1: [10.3642, 10.314, 10.5115, 10.4145, 10.3868, 10.3418],
+        1000: [10337.4],
+    },
+}
 # dictionary has as first key num agnets and as second key integrator settings
-moment_times_1_core = {
+moment_times_1_core_SIR = {
     1000: {
         r"adaptive $\Delta t$": [0.00179063, 0.00124788, 0.00118606, 0.0011651, 0.00119818, 0.00116157],
         r"adaptive $\Delta t_{max}=0.1$": [0.0259234, 0.0253203, 0.0254147, 0.0253381, 0.0249482, 0.0253664],
@@ -58,6 +80,29 @@ moment_times_1_core = {
     }
 }
 
+moment_times_1_core_SIRS = {
+    1000: {
+        r"adaptive $\Delta t$": [0.000965175, 0.000912255, 0.000898445, 0.000910435, 0.000906565, 0.000897986],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0215145, 0.0213532, 0.021674, 0.0214449, 0.0216336, 0.0215983],
+    },
+    10000: {
+        r"adaptive $\Delta t$": [0.00158296, 0.00113684, 0.00108351, 0.00111839, 0.00108809, 0.0010838],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0210945, 0.0215784, 0.0215448, 0.0216074, 0.0213278, 0.0215885],
+    },
+    100000: {
+        r"adaptive $\Delta t$": [0.0013486, 0.00130609, 0.00132178, 0.001292, 0.00130638, 0.00130805],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0226892, 0.0219435, 0.0216905, 0.0219941, 0.0221015, 0.022194],
+    },
+    1000000: {
+        r"adaptive $\Delta t$": [0.00147051, 0.00143203, 0.00143698, 0.00142414, 0.00143347, 0.00143784],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0219897, 0.0212882, 0.0215868, 0.0215646, 0.0214043, 0.0213693],
+    },
+    10000000: {
+        r"adaptive $\Delta t$": [0.00220207, 0.00168009, 0.0016345, 0.00164243, 0.00160726, 0.00168393],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0216463, 0.0214257, 0.0215064, 0.0214426, 0.0214875, 0.0216528],
+    }
+}
+
 
 def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig, ax = plt.subplots(figsize=figsize)
@@ -71,9 +116,9 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
         adaptive_restricted.append(
             np.mean(ode_dict[x_value][r"adaptive $\Delta t_{max}=0.1$"]))
     ax.plot(list(ode_dict.keys()), adaptive_full,
-            label=r"MoM full adaptive $\Delta t$", color=colors["dark blue"], marker="o")
+            label=r"MoM full adaptive $\Delta t$", color=colors["purple"], marker="o")
     ax.plot(list(ode_dict.keys()), adaptive_restricted,
-            label=r"MoM adaptive $\Delta t_{max}=0.1$", color=colors["middle blue"], marker="o")
+            label=r"MoM adaptive $\Delta t_{max}=0.1$", color=colors["rose"], marker="o")
     run1 = []
     runs1000 = []
     for x_value in stoch_dict.keys():
@@ -81,9 +126,9 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
         runs1000.append(
             np.mean(stoch_dict[x_value][1000]))
     ax.plot(list(stoch_dict.keys()), run1,
-            label=r"Stochastic $n_{sims}=1$", color=colors["dark green"], marker="^")
+            label=r"Stochastic $n_{sims}=1$", color=colors["dark teal"], marker="^")
     ax.plot(list(stoch_dict.keys()), runs1000,
-            label=r"Stochastic $n_{sims}=1000$", color=colors["middle green"], marker="^")
+            label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
     ax.set_yscale("log")
     ax.set_xscale("log")
     ax.set_xticks(list(ode_dict.keys()))
@@ -92,16 +137,16 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
             linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel("Population size [#]")
     ax.set_ylabel("Runtime [s]")
-    fig.subplots_adjust(left=0.15, bottom=0.18, top=0.98, right=0.98)
+    fig.subplots_adjust(left=0.16, bottom=0.18, top=0.98, right=0.98)
     fig.savefig(save_dir + "scaling.png", dpi=dpi)
     plt.close(fig)
     handles, labels = ax.get_legend_handles_labels()
     fig_leg = plt.figure(figsize=figsize)
-    fig_leg.legend(handles, labels, loc='center')
+    fig_leg.legend(handles, labels, loc='center', ncol=2)
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
-save_dir = "/Users/julia/sim_outputs/output/pop_scaling/OneCoreSIR/"
-fig_size = (5, 3)
-plot_scaling(ode_dict=moment_times_1_core,
-             stoch_dict=smm_times_1_core, save_dir=save_dir, figsize=fig_size)
+save_dir = "/Users/julia/sim_outputs/output/pop_scaling/OneCoreSIRS/"
+# fig_size = (5, 4)
+plot_scaling(ode_dict=moment_times_1_core_SIRS,
+             stoch_dict=smm_times_1_core_SIRS, save_dir=save_dir, figsize=(6.5, 4))
