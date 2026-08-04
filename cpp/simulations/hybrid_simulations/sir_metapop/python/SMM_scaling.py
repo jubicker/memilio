@@ -51,6 +51,29 @@ smm_times_1_core_SIRS = {
         1000: [10337.4],
     },
 }
+# dictionary has as first keys num regions and as second keys num runs
+smm_regions_1_core_SIR = {
+    1: {
+        1: [0.0181881, 0.0179115, 0.0175461],
+        1000: [16.8318, 17.0659, 16.8218],
+    },
+    2: {
+        1: [0.0758597, 0.0771048, 0.0762401],
+        1000: [74.8697, 74.4533, 74.2241],
+    },
+    4: {
+        1: [0.389559, 0.383875, 0.379288],
+        1000: [374.46, 374.454, 374.281],
+    },
+    8: {
+        1: [1.93076, 1.9472, 1.93119],
+        1000: [1787.84, 1787.89, 1791.8],
+    },
+    16: {
+        1: [11.3264, 11.3237, 11.3099],
+        1000: [10468.9, 10537.5, 10453.5],
+    },
+}
 # dictionary has as first key num agnets and as second key integrator settings
 moment_times_1_core_SIR = {
     1000: {
@@ -103,6 +126,30 @@ moment_times_1_core_SIRS = {
     }
 }
 
+# dictionary has as first key num regions and as second key integrator settings
+moment_regions_1_core_SIR = {
+    1: {
+        r"adaptive $\Delta t$": [0.00175172, 0.00120175, 0.00116055],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0224906, 0.0219943, 0.0222127],
+    },
+    2: {
+        r"adaptive $\Delta t$": [0.0109056, 0.0107577, 0.0107707],
+        r"adaptive $\Delta t_{max}=0.1$": [0.186444, 0.185511, 0.186899],
+    },
+    4: {
+        r"adaptive $\Delta t$": [0.127962, 0.129134, 0.128576],
+        r"adaptive $\Delta t_{max}=0.1$": [2.15922, 2.17243, 2.17413],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.45793, 2.45989, 2.45731],
+        r"adaptive $\Delta t_{max}=0.1$": [42.9197, 42.9597, 42.9653],
+    },
+    16: {
+        r"adaptive $\Delta t$": [29.897, 29.9512, 29.9179],
+        r"adaptive $\Delta t_{max}=0.1$": [521.651, 519.436, 520.208],
+    }
+}
+
 
 def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig, ax = plt.subplots(figsize=figsize)
@@ -146,7 +193,49 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
-save_dir = "/Users/julia/sim_outputs/output/pop_scaling/OneCoreSIRS/"
+def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize):
+    fig, ax = plt.subplots(figsize=figsize)
+    adaptive_full = []
+    adaptive_restricted = []
+    x_labels = []
+    for x_value in ode_dict.keys():
+        x_labels.append(str(int(np.log2(x_value))))
+        adaptive_full.append(
+            np.mean(ode_dict[x_value][r"adaptive $\Delta t$"]))
+        adaptive_restricted.append(
+            np.mean(ode_dict[x_value][r"adaptive $\Delta t_{max}=0.1$"]))
+    ax.plot(list(ode_dict.keys()), adaptive_full,
+            label=r"MoM full adaptive $\Delta t$", color=colors["purple"], marker="o")
+    ax.plot(list(ode_dict.keys()), adaptive_restricted,
+            label=r"MoM adaptive $\Delta t_{max}=0.1$", color=colors["rose"], marker="o")
+    run1 = []
+    runs1000 = []
+    for x_value in stoch_dict.keys():
+        run1.append(np.mean(stoch_dict[x_value][1]))
+        runs1000.append(
+            np.mean(stoch_dict[x_value][1000]))
+    ax.plot(list(stoch_dict.keys()), run1,
+            label=r"Stochastic $n_{sims}=1$", color=colors["dark teal"], marker="^")
+    ax.plot(list(stoch_dict.keys()), runs1000,
+            label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
+    ax.set_yscale("log")
+    ax.set_xscale("log")
+    ax.set_xticks(list(ode_dict.keys()))
+    ax.set_xticklabels([rf"$2^{{{label}}}$" for label in x_labels])
+    ax.grid(visible=True, color=colors["middle grey"],
+            linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.set_xlabel("Regions [#]")
+    ax.set_ylabel("Runtime [s]")
+    fig.subplots_adjust(left=0.16, bottom=0.18, top=0.98, right=0.98)
+    fig.savefig(save_dir + "scaling.png", dpi=dpi)
+    plt.close(fig)
+    handles, labels = ax.get_legend_handles_labels()
+    fig_leg = plt.figure(figsize=figsize)
+    fig_leg.legend(handles, labels, loc='center', ncol=2)
+    fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
+
+
+save_dir = "/Users/julia/sim_outputs/output/region_scaling/OneCoreSIR/"
 # fig_size = (5, 4)
-plot_scaling(ode_dict=moment_times_1_core_SIRS,
-             stoch_dict=smm_times_1_core_SIRS, save_dir=save_dir, figsize=(6.5, 4))
+plot_region_scaling(ode_dict=moment_regions_1_core_SIR,
+                    stoch_dict=smm_regions_1_core_SIR, save_dir=save_dir, figsize=(5, 4))
