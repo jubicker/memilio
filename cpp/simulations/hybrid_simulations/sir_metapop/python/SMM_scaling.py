@@ -74,6 +74,29 @@ smm_regions_1_core_SIR = {
         1000: [10468.9, 10537.5, 10453.5],
     },
 }
+smm_regions_1_core_SIRS = {
+    1: {
+        1: [0.117373, 0.12181, 0.118487],
+        1000: [119.134, 118.22, 118.145],
+    },
+    2: {
+        1: [0.480712, 0.485542, 0.477801],
+        1000: [479.407, 480.724, 483.322],
+    },
+    4: {
+        1: [2.40026, 2.38976, 2.35469],
+        1000: [2368.63, 2400.13, 2380.06],
+    },
+    8: {
+        1: [11.6073, 11.5991, 11.6333],
+        1000: [11533.2, 11483.6, 11481.4],
+    },
+    16: {
+        1: [67.234, 67.3805, 67.3359],
+        1000: [66385.1],
+    },
+}
+
 # dictionary has as first key num agnets and as second key integrator settings
 moment_times_1_core_SIR = {
     1000: {
@@ -147,6 +170,29 @@ moment_regions_1_core_SIR = {
     16: {
         r"adaptive $\Delta t$": [29.897, 29.9512, 29.9179],
         r"adaptive $\Delta t_{max}=0.1$": [521.651, 519.436, 520.208],
+    }
+}
+
+moment_regions_1_core_SIRS = {
+    1: {
+        r"adaptive $\Delta t$": [0.00175003,  0.00127667, 0.00128534],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0226239, 0.0221367, 0.022219],
+    },
+    2: {
+        r"adaptive $\Delta t$": [0.0132247, 0.012701, 0.0127133],
+        r"adaptive $\Delta t_{max}=0.1$": [0.18866, 0.187676, 0.187194],
+    },
+    4: {
+        r"adaptive $\Delta t$": [0.14912, 0.146246, 0.147061],
+        r"adaptive $\Delta t_{max}=0.1$": [2.17958, 2.19909, 2.19778],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.83246, 2.8339, 2.83812],
+        r"adaptive $\Delta t_{max}=0.1$": [43.0892, 43.0761, 43.0599],
+    },
+    16: {
+        r"adaptive $\Delta t$": [34.3173, 34.3332, 34.2922],
+        r"adaptive $\Delta t_{max}=0.1$": [518.441, 519.019, 517.825],
     }
 }
 
@@ -235,7 +281,7 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
-save_dir = "/Users/julia/sim_outputs/output/region_scaling/OneCoreSIR/"
+save_dir = "/Users/julia/sim_outputs/output/region_scaling/OneCoreSIRS/"
 # fig_size = (5, 4)
-plot_region_scaling(ode_dict=moment_regions_1_core_SIR,
-                    stoch_dict=smm_regions_1_core_SIR, save_dir=save_dir, figsize=(5, 4))
+plot_region_scaling(ode_dict=moment_regions_1_core_SIRS,
+                    stoch_dict=smm_regions_1_core_SIRS, save_dir=save_dir, figsize=(6.5, 4))
