@@ -908,7 +908,7 @@ private:
         if (min_step_size > 0) {
             sim.get_integrator_core().get_dt_min() = min_step_size;
         }
-        sim.get_integrator_core().get_dt_max() = m_config->dt;
+        sim.get_integrator_core().get_dt_max() = m_dt;
         return sim;
     }
 

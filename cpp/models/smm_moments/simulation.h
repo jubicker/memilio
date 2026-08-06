@@ -29,6 +29,7 @@
 #include "memilio/utils/time_series.h"
 #include <cassert>
 #include <cstddef>
+#include <limits>
 #include <numeric>
 #include <string>
 #include <utility>
@@ -156,12 +157,12 @@ public:
     std::vector<ScalarType> get_last_var_gradients()
     {
         std::vector<ScalarType> vars_gradient(static_cast<size_t>(osir::InfectionState::Count) * NumRegions);
-        auto last_tp = Base::get_result().get_last_time();
-        auto y_last  = Base::get_result().get_last_value();
-        auto second_last_tp =
-            Base::get_result().get_num_time_points() > 1 ? Base::get_result().get_num_time_points() - 2 : last_tp;
-        auto y_second_last =
-            Base::get_result().get_num_time_points() > 1 ? Base::get_result().get_value(second_last_tp) : y_last;
+        const bool has_gradient = Base::get_result().get_num_time_points() > 1;
+        auto last_tp            = Base::get_result().get_last_time();
+        auto y_last             = Base::get_result().get_last_value();
+        auto second_last_tp_index = has_gradient ? Base::get_result().get_num_time_points() - 2 : 0;
+        auto second_last_tp       = has_gradient ? Base::get_result().get_time(second_last_tp_index) : last_tp;
+        auto y_second_last        = has_gradient ? Base::get_result().get_value(second_last_tp_index) : y_last;
         for (size_t i = 0; i < y_last.size() - Base::get_model().populations.get_num_compartments(); i++) {
             auto multi_idx = Base::get_model().moments.unflatten_index(i);
             bool is_var    = std::count(multi_idx.begin(), multi_idx.end(), 2) == 1 &&
@@ -169,13 +170,37 @@ public:
             if (!is_var) {
                 continue;
             }
-            size_t index         = std::distance(multi_idx.begin(), std::find(multi_idx.begin(), multi_idx.end(), 2));
-            vars_gradient[index] = (y_last[Base::get_model().populations.get_num_compartments() + i] -
-                                    y_second_last[Base::get_model().populations.get_num_compartments() + i]) /
-                                   (last_tp - second_last_tp);
+            size_t index = std::distance(multi_idx.begin(), std::find(multi_idx.begin(), multi_idx.end(), 2));
+            // If there is only one time point, the gradient is set to max double value to ensure that it is above any reasonable threshold for switching conditions
+            vars_gradient[index] = has_gradient ? (y_last[Base::get_model().populations.get_num_compartments() + i] -
+                                                   y_second_last[Base::get_model().populations.get_num_compartments() + i]) /
+                                                      (last_tp - second_last_tp)
+                                                 : std::numeric_limits<double>::max();
         }
 
         return vars_gradient;
+    }
+
+    /**
+     * @brief Extracts the last gradient of all means from simulation result.
+     * @return Vector of all mean gradients.
+     */
+    std::vector<ScalarType> get_last_mean_gradients()
+    {
+        std::vector<ScalarType> means_gradient(static_cast<size_t>(osir::InfectionState::Count) * NumRegions);
+        const bool has_gradient = Base::get_result().get_num_time_points() > 1;
+        auto last_tp            = Base::get_result().get_last_time();
+        auto y_last             = Base::get_result().get_last_value();
+        auto second_last_tp_index = has_gradient ? Base::get_result().get_num_time_points() - 2 : 0;
+        auto second_last_tp       = has_gradient ? Base::get_result().get_time(second_last_tp_index) : last_tp;
+        auto y_second_last        = has_gradient ? Base::get_result().get_value(second_last_tp_index) : y_last;
+        for (size_t i = 0; i < Base::get_model().populations.get_num_compartments(); i++) {
+            // If there is only one time point, the gradient is set to max double value to ensure that it is above any reasonable threshold for switching conditions
+            means_gradient[i] = has_gradient ? (y_last[i] - y_second_last[i]) / (last_tp - second_last_tp)
+                                              : std::numeric_limits<double>::max();
+        }
+
+        return means_gradient;
     }
 
     /**

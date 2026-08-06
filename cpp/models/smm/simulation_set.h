@@ -393,6 +393,36 @@ public:
     }
 
     /**
+     * @brief Get last gradient of all means.
+     */
+    std::vector<double> get_last_mean_gradients()
+    {
+        std::vector<double> means_gradient(static_cast<size_t>(osir::InfectionState::Count) * regions);
+        const bool has_gradient = m_means.get_num_time_points() > 1;
+        if (!has_gradient) {
+            // If there is only one time point, the gradient is set to max double value to ensure that it is above any reasonable threshold for switching conditions
+            std::fill(means_gradient.begin(), means_gradient.end(), std::numeric_limits<double>::max());
+            return means_gradient;
+        }
+        auto last_tp              = m_means.get_last_time();
+        auto y_last               = m_means.get_last_value();
+        auto second_last_tp_index = m_means.get_num_time_points() - 2;
+        auto second_last_tp       = m_means.get_time(second_last_tp_index);
+        auto y_second_last        = m_means.get_value(second_last_tp_index);
+        const double dt           = last_tp - second_last_tp;
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+        for (size_t r = 0; r < regions; ++r) {
+            for (size_t s = 0; s < static_cast<size_t>(Status::Count); ++s) {
+                size_t idx          = r * static_cast<size_t>(Status::Count) + s;
+                means_gradient[idx] = (y_last[idx] - y_second_last[idx]) / dt;
+            }
+        }
+        return means_gradient;
+    }
+
+    /**
      * @brief Get moment names.
      */
     std::vector<std::string> get_moment_names()

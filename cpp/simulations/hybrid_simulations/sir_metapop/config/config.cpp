@@ -39,7 +39,7 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.00000572, 0.00000572, 0.00000572, 0.00000572}; //R0~4
+        config.lambdas                = {0.00000286, 0.00000286, 0.00000286, 0.00000286}; //R0~2
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 0; // unused for SIR
@@ -58,7 +58,7 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.00000572, 0.00000572, 0.00000572, 0.00000572}; //R0~4
+        config.lambdas                = {0.00000286, 0.00000286, 0.00000286, 0.00000286}; //R0~2
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 0; // unused for SIR
@@ -617,22 +617,37 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigTest:
-        config.name                   = "one_core_1000";
-        config.num_regions            = 1;
+        config.name                   = "eight_regions";
+        config.num_regions            = 8;
         config.t0                     = 0;
         config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.0003608};
-        config.influencing_regions    = {{{0, 1}}};
+        config.lambdas                = {0.000003608, 0.000003608, 0.000003608, 0.000003608, 0.000003608, 0.000003608, 0.000003608, 0.000003608}; //R0~2.5
+        config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}, {{4, 1}}, {{5, 1}}, {{6, 1}}, {{7, 1}}};
         config.gamma                  = 1. / 7.;
-        config.nu                     = 0; //1 / 20.;
-        config.I0s                    = {{0, 10}};
-        config.R0s                    = {{0, 0}};
-        config.total_populations      = {1000};
+        config.nu                     = 1 / 20.;
+        config.I0s                    = {{0, 10}, {1, 10}, {2, 10}, {3, 10}, {4, 10}, {5, 10}, {6, 10}, {7, 10}};
+        config.total_populations      = {100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000};
         config.first_season_start_day = 0; //-182;
         config.season_peaks           = {}; //{0, 0, 0};
         config.seasonality_rhos       = {}; //{0.5, 0.5, 0.5};
         config.seasonality_sigmas     = {}; //{40, 40, 40};
+        transition_rate               = 0.00001;
+        for (size_t region_from = 0; region_from < config.num_regions; ++region_from) {
+            for (size_t region_to = 0; region_to < config.num_regions; ++region_to) {
+                if (region_from != region_to) {
+                    config.transition_rates.push_back({mio::osir::InfectionState::Susceptible,
+                                                       mio::regions::Region(region_from),
+                                                       mio::regions::Region(region_to), transition_rate});
+                    config.transition_rates.push_back({mio::osir::InfectionState::Infected,
+                                                       mio::regions::Region(region_from),
+                                                       mio::regions::Region(region_to), transition_rate});
+                    config.transition_rates.push_back({mio::osir::InfectionState::Recovered,
+                                                       mio::regions::Region(region_from),
+                                                       mio::regions::Region(region_to), transition_rate});
+                }
+            }
+        }
         return config;
         break;
     }
