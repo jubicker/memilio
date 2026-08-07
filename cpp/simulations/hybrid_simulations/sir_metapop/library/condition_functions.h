@@ -42,6 +42,7 @@ class SwitchingCondition
     inline static double m_var_gradient_threshold          = 0;
     inline static double m_mean_gradient_threshold          = 0;
     inline static double m_timepoint_threshold             = 0;
+    inline static double m_R0_threshold = 1.0;
     inline static std::unique_ptr<Config::Config> m_config = nullptr;
 
 public:
@@ -80,6 +81,11 @@ public:
     static void set_timepoint_threshold(double value)
     {
         m_timepoint_threshold = value;
+    }
+
+    static void set_R0_threshold(double value)
+    {
+        m_R0_threshold = value;
     }
 
     static bool rel_threshold_condition(std::vector<double>& result_smm, std::vector<double>& result_moments,
@@ -342,7 +348,7 @@ public:
             double R0          = m_config->lambdas[region] / m_config->gamma *
                         current_means[region * (int)mio::osir::InfectionState::Count +
                                       (int)mio::osir::InfectionState::Susceptible];
-            if (R0 < 1.0) {
+            if (R0 < m_R0_threshold) {
                 return true;
             }
             return false;
@@ -352,7 +358,7 @@ public:
             double R0          = m_config->lambdas[region] / m_config->gamma *
                         current_means[region * (int)mio::osir::InfectionState::Count +
                                       (int)mio::osir::InfectionState::Susceptible];
-            if (R0 > 1.0) {
+            if (R0 > m_R0_threshold) {
                 return true;
             }
             return false;
@@ -394,7 +400,7 @@ public:
                                       (int)mio::osir::InfectionState::Susceptible];
             if (((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
                 0) && (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
-                m_mean_stddev_relation)) || (R0 < 1.0)) {
+                m_mean_stddev_relation)) || (R0 < m_R0_threshold)) {
                 return true;
             }
             return false;
@@ -407,7 +413,7 @@ public:
                                       (int)mio::osir::InfectionState::Susceptible];
             if (((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <=
                 0) || (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                m_mean_stddev_relation)) && (R0 > 1.0)) {
+                m_mean_stddev_relation)) && (R0 > m_R0_threshold)) {
                 return true;
             }
             return false;
