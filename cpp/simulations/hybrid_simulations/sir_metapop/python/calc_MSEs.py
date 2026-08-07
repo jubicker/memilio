@@ -18,7 +18,7 @@ sample_end = 4319
 
 data = {"I_init_mean": [], "R_init_mean": [], "lambda": [], "R0_mean": [], "std_I_init": [],
         "std_R_init": [], "std_I_init_norm": [], "std_R_init_norm": [], "sMAPE_mean": [], "sMAPE_var": [],
-        "NaN_mean": [], "NaN_var": []}
+        "MSE_mean": [], "MSE_var": [], "NaN_mean": [], "NaN_var": []}
 
 base_folder = "/Users/julia/sim_outputs/output/"
 smm_folder = base_folder + "SMM/performance_study_SIR/"
@@ -57,9 +57,10 @@ for f in subfolder:
         # Get first an last time point of ODE model
         first_tp = ODE_mean.Time.iloc[0]
         last_tp = ODE_mean.Time.iloc[-1]
-        # Add NaN value or sMAPE for mean
+        # Add NaN value or sMAPE/MSE for mean
         if (ODE_mean.C2.isna().any()):
             data["sMAPE_mean"].append(np.nan)
+            data["MSE_mean"].append(np.nan)
             data["NaN_mean"].append(True)
         else:
             smm_values = SMM_mean[(SMM_mean.Time >= first_tp) & (
@@ -69,10 +70,14 @@ for f in subfolder:
             error = scaled_mean_percentage_error(
                 np.array(smm_values), np.array(ode_values))
             data["sMAPE_mean"].append(error)
+            mse = mean_squared_error(
+                np.array(ode_values), np.array(smm_values))
+            data["MSE_mean"].append(mse)
             data["NaN_mean"].append(False)
-        # Add NaN value or sMAPE for var
+        # Add NaN value or sMAPE/MSE for var
         if (ODE_moments["M020"].isna().any()):
             data["sMAPE_var"].append(np.nan)
+            data["MSE_var"].append(np.nan)
             data["NaN_var"].append(True)
         else:
             smm_values = SMM_moments[(SMM_moments.Time >= first_tp) & (
@@ -82,6 +87,9 @@ for f in subfolder:
             error = scaled_mean_percentage_error(
                 np.array(smm_values), np.array(ode_values))
             data["sMAPE_var"].append(error)
+            mse = mean_squared_error(
+                np.array(ode_values), np.array(smm_values))
+            data["MSE_var"].append(mse)
             data["NaN_var"].append(False)
 
 
