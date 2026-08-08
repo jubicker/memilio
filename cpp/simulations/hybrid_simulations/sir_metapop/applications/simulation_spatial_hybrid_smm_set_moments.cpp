@@ -39,7 +39,7 @@
 int main()
 {
     mio::set_log_level(mio::LogLevel::err);
-    const size_t num_runs      = 50000;
+    const size_t num_runs      = 10000;
     double dt_exchange         = 1.;
     const size_t closure_order = 3;
     const auto config          = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
@@ -51,7 +51,7 @@ int main()
     }
 
     // INPUT - SIR/SIRS
-    std::string save_file  = Config::SAVE_DIR + "Spatial-Hybrid2/test/";
+    std::string save_file  = Config::SAVE_DIR + "Spatial-Hybrid2/";
     auto created_directory = mio::create_directory(save_file);
     save_file += config.name;
 
@@ -61,7 +61,7 @@ int main()
         return -1;
     }
 
-    save_file += "/combined_relation_var_gradient_condition_region";
+    save_file += "/combined_region";
     created_directory = mio::create_directory(save_file);
     if (!created_directory) {
         printf("%s\n", created_directory.error().formatted_message().c_str());
@@ -91,14 +91,14 @@ int main()
     // Create switching condition - INPUT: threshold value etc. for condition
     mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
     Condition.set_config(config);
-    Condition.set_mean_stddev_relation(0.3);
-    Condition.set_var_gradient_threshold(1e-10);
-    Condition.set_timepoint_threshold(0.3 * config.tmax);
-    Condition.set_absolute_switch_threshold(1000.);
+    Condition.set_mean_stddev_relation(0.7);
+    Condition.set_absolute_switch_threshold(10.);
+    Condition.set_mean_gradient_threshold(0);
+    Condition.set_R0_threshold(1.0);
 
     mio::timing::BasicTimer timer;
     timer.start();
-    spatial_hybrid_sim.advance(config.tmax, Condition.combined_relation_var_gradient_condition_region, true);
+    spatial_hybrid_sim.advance(config.tmax, Condition.combined_region, true);
     timer.stop();
 
     // Save stochastic outputs
