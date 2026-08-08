@@ -32,7 +32,7 @@
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0Exchange);
+    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
     const size_t closure_order = 3;
     const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
@@ -106,7 +106,7 @@ int main()
     // Create simulation
     auto sim = mio::smm_moments::Simulation<num_regions, closure_order>(model, init_time, config.dt);
 
-    sim.get_integrator_core().get_dt_max() = config.dt;
+    // sim.get_integrator_core().get_dt_max() = config.dt;
     if (min_step_size > 0) {
         sim.get_integrator_core().get_dt_min() = min_step_size;
     }
@@ -137,6 +137,9 @@ int main()
     mio::TimeSeries<double> total_time(1);
     total_time.add_time_point(0., time);
     auto finished_time = total_time.export_csv(save_file + "total_time.csv", {"Runtime"});
+
+    std::cout << "Moments Elapsed time: " << mio::timing::time_in_seconds(timer.get_elapsed_time()) << std::endl
+              << std::flush;
 
     return 0;
 }
