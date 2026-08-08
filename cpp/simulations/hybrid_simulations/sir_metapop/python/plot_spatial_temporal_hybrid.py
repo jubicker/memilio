@@ -5,6 +5,56 @@ import numpy as np
 from matplotlib.patches import Patch
 from settings import *
 
+
+def _collect_unique_legend_entries(axes_list):
+    """Collect legend handles/labels from multiple axes, deduplicated by label
+    (first occurrence wins) and preserving order of first appearance."""
+    handles, labels = [], []
+    seen = set()
+    for ax in axes_list:
+        h, l = ax.get_legend_handles_labels()
+        for hi, li in zip(h, l):
+            if li not in seen:
+                seen.add(li)
+                handles.append(hi)
+                labels.append(li)
+    return handles, labels
+
+
+def _order_legend_entries_by_condition(handles, labels, base_labels):
+    """Reorder legend handles/labels so that, for each base label (e.g. a
+    condition name), its deterministic ("... (ODE)") entry is immediately
+    followed by its stochastic ("... (stochastic)") entry. Entries not tied
+    to any base label keep their original position."""
+    label_to_handle = dict(zip(labels, handles))
+    emitted = set()
+    ordered_labels = []
+
+    for lbl in labels:
+        if lbl in emitted:
+            continue
+
+        base = next(
+            (b for b in base_labels if lbl in (
+                b + " (ODE)", b + " (stochastic)")),
+            None,
+        )
+
+        if base is None:
+            ordered_labels.append(lbl)
+            emitted.add(lbl)
+            continue
+
+        for suffix in (" (ODE)", " (stochastic)"):
+            paired = base + suffix
+            if paired in label_to_handle and paired not in emitted:
+                ordered_labels.append(paired)
+                emitted.add(paired)
+
+    ordered_handles = [label_to_handle[l] for l in ordered_labels]
+    return ordered_handles, ordered_labels
+
+
 def get_shaded_intervals(mask_time, mask_vals):
     intervals = []
     start = None
@@ -23,6 +73,7 @@ def get_shaded_intervals(mask_time, mask_vals):
         intervals.append((start, mask_time[-1]))
 
     return intervals
+
 
 def _plot_segmented_line_interval(
     ax,
@@ -48,7 +99,7 @@ def _plot_segmented_line_interval(
 
         if len(idx) == 0:
             continue
-        
+
         if color != base_color:
             label = "Hybrid (ODE)"
         lbl = label if not first_label_used else None
@@ -84,9 +135,8 @@ def _plot_segmented_line_interval(
                     s=7
                 )
 
-def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_index, comp, num_regions, num_rows, num_cols, figsize, hybrid_label, hybrid_color, plot_smm=True, colname="", ylabel = r"$\mu_I$"):
-    R0_values = [r"$R_0\approx 4$", r"$R_0\approx 4$", r"$R_0\approx 4$", r"$R_0\approx 4$"]
-    I0_values = [r"$I_0=0$", r"$I_0=1$", r"$I_0=10$", r"$I_0=100$"]
+
+def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_index, comp, num_regions, num_rows, num_cols, figsize, hybrid_label, hybrid_color, plot_smm=True, colname="", ylabel=r"$\mu_I$"):
     fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
     for r in range(num_regions):
         if num_regions == 1:
@@ -97,29 +147,33 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
             ax = axes[r // num_cols, r % num_cols]
 
         # Extract data
-        if(colname != ""):
+        if (colname != ""):
             col_name = colname
-            moment_index = [0 for _ in range(len(compartment_names) * num_regions)]
+            moment_index = [0 for _ in range(
+                len(compartment_names) * num_regions)]
             moment_index[comp_index + r * len(compartment_names)] = 2
             for m in moment_index:
                 col_name += f"{m}"
             y_hybrid = np.sqrt(mean_data[col_name].iloc[:].values)
         else:
-            y_hybrid = mean_data.iloc[:, 1 + comp_index + r * len(compartment_names)].values
-            
+            y_hybrid = mean_data.iloc[:, 1 + comp_index +
+                                      r * len(compartment_names)].values
+
         region_mask = model_used_ts.iloc[:, 1 + r].values
 
         # Plot SMM
         if plot_smm and mean_smm is not None:
-            if(colname != ""):
+            if (colname != ""):
                 col_name = colname
-                moment_index = [0 for _ in range(len(compartment_names) * num_regions)]
+                moment_index = [0 for _ in range(
+                    len(compartment_names) * num_regions)]
                 moment_index[comp_index + r * len(compartment_names)] = 2
                 for m in moment_index:
                     col_name += f"{m}"
                 y_smm = np.sqrt(mean_smm[col_name].iloc[:].values)
             else:
-                y_smm = mean_smm.iloc[:, 1 + comp_index + r * len(compartment_names)].values
+                y_smm = mean_smm.iloc[:, 1 + comp_index +
+                                      r * len(compartment_names)].values
             ax.plot(
                 mean_smm.Time,
                 y_smm,
@@ -141,7 +195,7 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
             hybrid_color,
             label=hybrid_label,
         )
-        
+
         # Plot shaded grey background where ODE is used
         mask_time = model_used_ts.iloc[:, 0].values
         mask_vals = model_used_ts.iloc[:, 1 + r].values
@@ -158,7 +212,6 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
                 linewidth=0,
             )
 
-
         # Axis formatting
         if r % num_cols == 0:
             ax.set_ylabel(ylabel)
@@ -170,9 +223,8 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
         else:
             ax.set_xticks([])
 
-        ax.set_title(f"Region {r}, " + I0_values[r] + ", " + R0_values[r])
-        if r==1:
-            ax.set_ylim(bottom = -1000, top = 30000)
+        # if r == 1:
+        #     ax.set_ylim(bottom=-1000, top=30000)
 
     # Legend (only once)
     if num_regions == 1:
@@ -185,7 +237,8 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
     handles, labels = ax.get_legend_handles_labels()
 
     # Add explanation for loosely dotted segments
-    handles.append(plt.Line2D([0], [0], color=colors["orange"], linestyle="solid"))
+    handles.append(plt.Line2D(
+        [0], [0], color=colors["orange"], linestyle="solid"))
     labels.append("Hybrid (ODE)")
     # handles.append(Patch(facecolor="lightgrey", alpha=0.5, label="ODE used"))
     # labels.append("ODE used")
@@ -205,7 +258,8 @@ def mean_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, dir
 
     mean_hybrid = pd.read_csv(hybrid_dir + "/joint_mean.csv")
     mean_hybrid_stochastic = pd.read_csv(hybrid_dir + "/stochastic_mean.csv")
-    mean_hybrid_deterministic = pd.read_csv(hybrid_dir + "/deterministic_mean.csv")
+    mean_hybrid_deterministic = pd.read_csv(
+        hybrid_dir + "/deterministic_mean.csv")
     time_vals = mean_hybrid.iloc[:, 0].values
 
     mean_smm = pd.read_csv(dir_smm + "/means.csv") if dir_smm != "" else None
@@ -264,7 +318,8 @@ def mean_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, dir
         hybrid_label="Hybrid(deterministic)",
         hybrid_color=compartment_colors[comp][0],
     )
-    
+
+
 def std_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, dir_smm):
     comp = list(compartment_colors.keys())[comp_index]
 
@@ -272,11 +327,14 @@ def std_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, dir_
     model_used_ts = pd.read_csv(hybrid_dir + "/model_used.csv")
 
     moments_hybrid = pd.read_csv(hybrid_dir + "/joint_moments.csv")
-    moments_hybrid_stochastic = pd.read_csv(hybrid_dir + "/stochastic_moments.csv")
-    moments_hybrid_deterministic = pd.read_csv(hybrid_dir + "/deterministic_moments.csv")
+    moments_hybrid_stochastic = pd.read_csv(
+        hybrid_dir + "/stochastic_moments.csv")
+    moments_hybrid_deterministic = pd.read_csv(
+        hybrid_dir + "/deterministic_moments.csv")
     time_vals = moments_hybrid.iloc[:, 0].values
 
-    moments_smm = pd.read_csv(dir_smm + "/moments.csv") if dir_smm != "" else None
+    moments_smm = pd.read_csv(
+        dir_smm + "/moments.csv") if dir_smm != "" else None
 
     # Layout calculation
     num_cols = int(np.ceil(np.sqrt(num_regions)))
@@ -333,6 +391,7 @@ def std_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, dir_
         hybrid_color=compartment_colors[comp][0], colname=f"M", ylabel=r"$\sigma_I$"
     )
 
+
 def _plot_segmented_line_interval_multi(
     ax,
     hybrid_time,
@@ -343,6 +402,7 @@ def _plot_segmented_line_interval_multi(
     color_solid,
     label,
     override_linestyle,
+    solid_linestyle="solid",
 ):
     label_stochastic_used = False
     label_ode_used = False
@@ -351,7 +411,7 @@ def _plot_segmented_line_interval_multi(
         t1 = mask_time[i + 1] if i < len(mask_time) - 1 else hybrid_time[-1]
 
         is_dotted = mask[i] == 1
-        linestyle = override_linestyle if is_dotted else "solid"
+        linestyle = override_linestyle if is_dotted else solid_linestyle
         lbl = None
         if is_dotted and not label_ode_used:
             lbl = label + " (ODE)"
@@ -404,6 +464,7 @@ def _plot_segmented_line_interval_multi(
                     s=7
                 )
 
+
 def _plot_figure_multi(
     save_path,
     time_vals,
@@ -415,18 +476,21 @@ def _plot_figure_multi(
     figsize,
     dir_smm,
     colname="",
-    ylabel = r"$\mu_I$",
+    ylabel=r"$\mu_I$",
     plot_smm=True,
+    region_titles=None,
 ):
     # conditions_info: list of dicts with keys:
     #   name, hybrid_dir, ode_color, stoch_color
     fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
-    
+    region_axes = []
+
     filename_smm = "means" if colname == "" else "moments"
     filename_hybrid = "mean" if colname == "" else "moments"
 
     # Load SMM once if requested
-    smm = pd.read_csv(dir_smm + "/" + filename_smm + ".csv") if (dir_smm != "" and plot_smm) else None
+    smm = pd.read_csv(dir_smm + "/" + filename_smm +
+                      ".csv") if (dir_smm != "" and plot_smm) else None
 
     # For each condition load its files
     loaded = []
@@ -434,8 +498,10 @@ def _plot_figure_multi(
         hybrid_dir = cond["hybrid_dir"]
         model_used_ts = pd.read_csv(hybrid_dir + "/model_used.csv")
         hybrid = pd.read_csv(hybrid_dir + "/joint_" + filename_hybrid + ".csv")
-        hybrid_stochastic = pd.read_csv(hybrid_dir + "/stochastic_" + filename_hybrid + ".csv")
-        hybrid_deterministic = pd.read_csv(hybrid_dir + "/deterministic_" + filename_hybrid + ".csv")
+        hybrid_stochastic = pd.read_csv(
+            hybrid_dir + "/stochastic_" + filename_hybrid + ".csv")
+        hybrid_deterministic = pd.read_csv(
+            hybrid_dir + "/deterministic_" + filename_hybrid + ".csv")
         loaded.append({
             "name": cond["name"],
             "model_used_ts": model_used_ts,
@@ -453,20 +519,23 @@ def _plot_figure_multi(
             ax = axes[r]
         else:
             ax = axes[r // num_cols, r % num_cols]
-            
+        region_axes.append(ax)
+
         max = 100000
 
         # Plot SMM (once)
         if plot_smm and smm is not None:
             if colname != "":
                 col_name = colname
-                moment_index = [0 for _ in range(len(compartment_names) * num_regions)]
+                moment_index = [0 for _ in range(
+                    len(compartment_names) * num_regions)]
                 moment_index[comp_index + r * len(compartment_names)] = 2
                 for m in moment_index:
                     col_name += f"{m}"
                 y_smm = np.sqrt(smm[col_name].iloc[:].values)
             else:
-                y_smm = smm.iloc[:, 1 + comp_index + r * len(compartment_names)].values
+                y_smm = smm.iloc[:, 1 + comp_index +
+                                 r * len(compartment_names)].values
             ax.plot(
                 smm.Time,
                 y_smm,
@@ -485,13 +554,15 @@ def _plot_figure_multi(
             # stochastic part
             if colname != "":
                 col_name = colname
-                moment_index = [0 for _ in range(len(compartment_names) * num_regions)]
+                moment_index = [0 for _ in range(
+                    len(compartment_names) * num_regions)]
                 moment_index[comp_index + r * len(compartment_names)] = 2
                 for m in moment_index:
                     col_name += f"{m}"
                 y = np.sqrt(cond["hybrid"][col_name].iloc[:].values)
             else:
-                y = cond["hybrid"].iloc[:, 1 + comp_index + r * len(compartment_names)].values
+                y = cond["hybrid"].iloc[:, 1 + comp_index +
+                                        r * len(compartment_names)].values
 
             # stochastic (solid)
             _plot_segmented_line_interval_multi(
@@ -507,6 +578,8 @@ def _plot_figure_multi(
             )
 
         # Axis formatting
+        if region_titles is not None:
+            ax.set_title(region_titles[r])
         if r % num_cols == 0:
             ax.set_ylabel(ylabel)
 
@@ -514,43 +587,36 @@ def _plot_figure_multi(
             ax.set_xlabel("Time [days]")
         else:
             ax.set_xticks([])
-        if r==1:
-            ax.set_ylim(bottom = -1000, top = max)
+        if r == 1:
+            ax.set_ylim(bottom=-1000, top=max)
 
-        I0_values = [r"$I_0=0$", r"$I_0=1$", r"$I_0=10$", r"$I_0=100$"]
-        R0_values = [r"$R_0\approx 4$"] * 4
-        ax.set_title(f"Region {r}, " + I0_values[r] + ", " + R0_values[r])
-
-    # Legend
-    if num_regions == 1:
-        ax = axes
-    elif num_rows == 1:
-        ax = axes[0]
-    else:
-        ax = axes[num_rows-1, num_cols-1]
-
-    #ax.legend(handles, labels, loc="upper right")
-
+    # Legend (aggregate across all region subplots, since a given condition's
+    # ODE/stochastic segment may not appear in every region)
     fig.tight_layout()
     fig.savefig(save_path, dpi=dpi)
     plt.close(fig)
-    
-    handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=figsize)                   
-    fig_leg.legend(handles, labels, loc='center')      
+
+    handles, labels = _collect_unique_legend_entries(region_axes)
+    handles, labels = _order_legend_entries_by_condition(
+        handles, labels, [cond["name"] for cond in conditions_info])
+    fig_leg = plt.figure(figsize=figsize)
+    fig_leg.legend(handles, labels, loc='center')
     fig_leg.tight_layout()
-    fig_leg.savefig(save_path + f"_legend.png", dpi=dpi, bbox_inches='tight', transparent=True)
+    fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
+                    bbox_inches='tight', transparent=True)
     plt.close(fig_leg)
 
 
-def mean_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm=""):
+def mean_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm="", region_titles=None):
     """
     conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
+    region_titles: optional list of titles, one per region, used as subplot titles
     """
     comp = list(compartment_colors.keys())[comp_index]
 
     # use time from first condition
-    first_hybrid = pd.read_csv(conditions_info[0]["hybrid_dir"] + "/joint_mean.csv")
+    first_hybrid = pd.read_csv(
+        conditions_info[0]["hybrid_dir"] + "/joint_mean.csv")
     time_vals = first_hybrid.iloc[:, 0].values
 
     # Layout
@@ -569,13 +635,18 @@ def mean_multiple_conditions(save_dir, conditions_info, comp_index, num_regions,
         dir_smm,
         colname="",
         ylabel=r"$\mu_I$",
+        region_titles=region_titles,
     )
 
 
-def std_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm=""):
+def std_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm="", region_titles=None):
+    """
+    region_titles: optional list of titles, one per region, used as subplot titles
+    """
     comp = list(compartment_colors.keys())[comp_index]
 
-    first_hybrid = pd.read_csv(conditions_info[0]["hybrid_dir"] + "/joint_moments.csv")
+    first_hybrid = pd.read_csv(
+        conditions_info[0]["hybrid_dir"] + "/joint_moments.csv")
     time_vals = first_hybrid.iloc[:, 0].values
 
     # Layout
@@ -594,39 +665,504 @@ def std_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, 
         dir_smm,
         colname="M",
         ylabel=r"$\sigma_I$",
+        region_titles=region_titles,
     )
 
- 
+
+def _plot_figure_multi_error(
+    save_path,
+    time_vals,
+    conditions_info,
+    comp_index,
+    num_regions,
+    num_rows,
+    num_cols,
+    figsize,
+    dir_smm,
+    colname="",
+    ylabel=r"$|\Delta\mu_I|$",
+    region_titles=None,
+    num_runs=None,
+):
+    # conditions_info: list of dicts with keys:
+    #   name, hybrid_dir, ode_color, stoch_color
+    #
+    # Plots (on a log scale) the absolute error between each condition's
+    # hybrid result and the stochastic (SMM) result. If colname == "" (mean)
+    # and num_runs is given, also plots the standard error of the hybrid mean
+    # (std/sqrt(num_runs)) as a black line.
+    assert dir_smm != "", "dir_smm is required to compute errors against the stochastic model"
+
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
+    region_axes = []
+
+    filename_smm = "means" if colname == "" else "moments"
+    filename_hybrid = "mean" if colname == "" else "moments"
+
+    smm = pd.read_csv(dir_smm + "/" + filename_smm + ".csv")
+    smm_moments = None
+    if colname == "" and num_runs is not None:
+        smm_moments = pd.read_csv(dir_smm + "/moments.csv")
+
+    # For each condition load its files
+    loaded = []
+    for cond in conditions_info:
+        hybrid_dir = cond["hybrid_dir"]
+        model_used_ts = pd.read_csv(hybrid_dir + "/model_used.csv")
+        hybrid = pd.read_csv(hybrid_dir + "/joint_" + filename_hybrid + ".csv")
+        entry = {
+            "name": cond["name"],
+            "model_used_ts": model_used_ts,
+            "hybrid": hybrid,
+            "ode_color": cond["ode_color"],
+            "stoch_color": cond["stoch_color"],
+        }
+        loaded.append(entry)
+
+    for r in range(num_regions):
+        if num_regions == 1:
+            ax = axes
+        elif num_rows == 1:
+            ax = axes[r]
+        else:
+            ax = axes[r // num_cols, r % num_cols]
+        region_axes.append(ax)
+
+        moment_index = [0 for _ in range(
+            len(compartment_names) * num_regions)]
+        moment_index[comp_index + r * len(compartment_names)] = 2
+        moment_col = "M" + "".join(str(m) for m in moment_index)
+
+        if colname != "":
+            y_smm = np.sqrt(smm[moment_col].iloc[:].values)
+        else:
+            y_smm = smm.iloc[:, 1 + comp_index +
+                             r * len(compartment_names)].values
+
+        if colname == "" and num_runs is not None:
+            std_smm = np.sqrt(smm_moments[moment_col].iloc[:].values)
+            time_vals_se = time_vals
+            if (len(std_smm) != len(time_vals_se)):
+                min_len = min(len(std_smm), len(time_vals_se))
+                std_smm = std_smm[:min_len]
+                time_vals_se = time_vals[:min_len]
+            se = std_smm / np.sqrt(num_runs)
+            ax.plot(
+                time_vals_se,
+                se,
+                color="black",
+                linestyle="dotted",
+                label="Standard Error",
+            )
+
+        for cond in loaded:
+            model_used_ts = cond["model_used_ts"]
+            mask_time = model_used_ts.iloc[:, 0].values
+            region_mask = model_used_ts.iloc[:, 1 + r].values
+
+            if colname != "":
+                y_hybrid = np.sqrt(cond["hybrid"][moment_col].iloc[:].values)
+            else:
+                y_hybrid = cond["hybrid"].iloc[:, 1 + comp_index +
+                                               r * len(compartment_names)].values
+            if (len(y_hybrid) != len(y_smm)):
+                min_len = min(len(y_hybrid), len(y_smm))
+                y_hybrid = y_hybrid[:min_len]
+                y_smm = y_smm[:min_len]
+            y_error = np.abs(y_hybrid - y_smm)
+
+            if np.isnan(y_error).any():
+                continue
+
+            _plot_segmented_line_interval_multi(
+                ax,
+                time_vals,
+                y_error,
+                mask_time,
+                region_mask,
+                cond["ode_color"],
+                cond["stoch_color"],
+                label=f"{cond['name']}",
+                override_linestyle="solid",
+            )
+
+        # Axis formatting
+        ax.set_yscale("log")
+        if region_titles is not None:
+            ax.set_title(region_titles[r])
+        if r % num_cols == 0:
+            ax.set_ylabel(ylabel)
+
+        if r // num_cols == num_rows - 1:
+            ax.set_xlabel("Time [days]")
+        else:
+            ax.set_xticks([])
+
+    # Legend (aggregate across all region subplots, since a given condition's
+    # ODE/stochastic segment may not appear in every region)
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=dpi)
+    plt.close(fig)
+
+    handles, labels = _collect_unique_legend_entries(region_axes)
+    handles, labels = _order_legend_entries_by_condition(
+        handles, labels, [cond["name"] for cond in conditions_info])
+    fig_leg = plt.figure(figsize=figsize)
+    fig_leg.legend(handles, labels, loc='center')
+    fig_leg.tight_layout()
+    fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
+                    bbox_inches='tight', transparent=True)
+    plt.close(fig_leg)
+
+
+def mean_error_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, num_runs, dir_smm="", region_titles=None):
+    """
+    Plots the absolute error between the hybrid mean and the stochastic (SMM)
+    mean (on a log scale), with the standard error of the hybrid mean
+    (std/sqrt(num_runs)) plotted as a black line.
+
+    conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
+    region_titles: optional list of titles, one per region, used as subplot titles
+    """
+    comp = list(compartment_colors.keys())[comp_index]
+
+    # use time from first condition
+    first_hybrid = pd.read_csv(
+        conditions_info[0]["hybrid_dir"] + "/joint_mean.csv")
+    time_vals = first_hybrid.iloc[:, 0].values
+
+    # Layout
+    num_cols = int(np.ceil(np.sqrt(num_regions)))
+    num_rows = int(np.ceil(num_regions / num_cols))
+
+    _plot_figure_multi_error(
+        f"{save_dir}/mean_error_{compartment_names[comp]}_multiple_conditions_all_regions",
+        time_vals,
+        conditions_info,
+        comp_index,
+        num_regions,
+        num_rows,
+        num_cols,
+        figsize,
+        dir_smm,
+        colname="",
+        ylabel=r"$|\Delta\mu_I|$",
+        region_titles=region_titles,
+        num_runs=num_runs,
+    )
+    plt.close("all")
+
+
+def std_error_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm="", region_titles=None):
+    """
+    Plots (on a log scale) the absolute error between the hybrid std and the
+    stochastic (SMM) std.
+
+    conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
+    region_titles: optional list of titles, one per region, used as subplot titles
+    """
+    comp = list(compartment_colors.keys())[comp_index]
+
+    first_hybrid = pd.read_csv(
+        conditions_info[0]["hybrid_dir"] + "/joint_moments.csv")
+    time_vals = first_hybrid.iloc[:, 0].values
+
+    # Layout
+    num_cols = int(np.ceil(np.sqrt(num_regions)))
+    num_rows = int(np.ceil(num_regions / num_cols))
+
+    _plot_figure_multi_error(
+        f"{save_dir}/std_error_{compartment_names[comp]}_multiple_conditions_all_regions",
+        time_vals,
+        conditions_info,
+        comp_index,
+        num_regions,
+        num_rows,
+        num_cols,
+        figsize,
+        dir_smm,
+        colname="M",
+        ylabel=r"$|\Delta\sigma_I|$",
+        region_titles=region_titles,
+    )
+    plt.close("all")
+
+
+def _plot_figure_r0_std_mean_ratio_multi(
+    save_path,
+    time_vals,
+    conditions_info,
+    comp_index,
+    num_regions,
+    num_rows,
+    num_cols,
+    figsize,
+    lamdas,
+    gamma,
+    dir_smm="",
+    plot_smm=True,
+    region_titles=None,
+    r0_ylabel=r"$R_0$",
+    ratio_ylabel=r"$\sigma/\mu$",
+):
+    # conditions_info: list of dicts with keys:
+    #   name, hybrid_dir, ode_color, stoch_color
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
+
+    n_comp = len(compartment_names)
+
+    # Load SMM once if requested
+    smm_mean = pd.read_csv(
+        dir_smm + "/means.csv") if (dir_smm != "" and plot_smm) else None
+    smm_moments = pd.read_csv(
+        dir_smm + "/moments.csv") if (dir_smm != "" and plot_smm) else None
+
+    # For each condition load its files
+    loaded = []
+    for cond in conditions_info:
+        hybrid_dir = cond["hybrid_dir"]
+        model_used_ts = pd.read_csv(hybrid_dir + "/model_used.csv")
+        mean_df = pd.read_csv(hybrid_dir + "/joint_mean.csv")
+        moments_df = pd.read_csv(hybrid_dir + "/joint_moments.csv")
+        loaded.append({
+            "name": cond["name"],
+            "model_used_ts": model_used_ts,
+            "mean": mean_df,
+            "moments": moments_df,
+            "ode_color": cond["ode_color"],
+            "stoch_color": cond["stoch_color"],
+        })
+
+    region_axes = []
+    for r in range(num_regions):
+        if num_regions == 1:
+            ax = axes
+        elif num_rows == 1:
+            ax = axes[r]
+        else:
+            ax = axes[r // num_cols, r % num_cols]
+
+        ax2 = ax.twinx()
+        region_axes.append((ax, ax2))
+
+        base = 1 + r * n_comp
+
+        moment_index = [0 for _ in range(n_comp * num_regions)]
+        moment_index[comp_index + r * n_comp] = 2
+        col_name = "M" + "".join(str(m) for m in moment_index)
+
+        # Plot SMM (once)
+        if plot_smm and smm_mean is not None and smm_moments is not None:
+            S = smm_mean.iloc[:, base + 0].values
+            I = smm_mean.iloc[:, base + 1].values
+            R = smm_mean.iloc[:, base + 2].values
+            y_r0_smm = lamdas[r] * (S) / gamma
+
+            std_smm = np.sqrt(smm_moments[col_name].iloc[:].values)
+            mean_smm_comp = smm_mean.iloc[:, 1 +
+                                          comp_index + r * n_comp].values
+            y_ratio_smm = std_smm / mean_smm_comp
+
+            ax.plot(smm_mean.Time, y_r0_smm, color="black",
+                    linestyle="solid", label=r"Stochastic ($R_0$)")
+            ax2.plot(smm_moments.Time, y_ratio_smm, color="black",
+                     linestyle="dashed", label=r"Stochastic ($\sigma/\mu$)")
+
+        # For each condition overlay R0 (left axis) and std/mean (right axis)
+        for cond in loaded:
+            model_used_ts = cond["model_used_ts"]
+            mask_time = model_used_ts.iloc[:, 0].values
+            region_mask = model_used_ts.iloc[:, 1 + r].values
+
+            mean_df = cond["mean"]
+            moments_df = cond["moments"]
+
+            S = mean_df.iloc[:, base + 0].values
+            y_r0 = lamdas[r] * (S) / gamma
+
+            std = np.sqrt(moments_df[col_name].iloc[:].values)
+            mean_comp = mean_df.iloc[:, 1 + comp_index + r * n_comp].values
+            y_ratio = std / mean_comp
+
+            _plot_segmented_line_interval_multi(
+                ax,
+                time_vals,
+                y_r0,
+                mask_time,
+                region_mask,
+                cond["ode_color"],
+                cond["stoch_color"],
+                label=f"{cond['name']} ($R_0$)",
+                override_linestyle="solid",
+                solid_linestyle="solid",
+            )
+
+            _plot_segmented_line_interval_multi(
+                ax2,
+                time_vals,
+                y_ratio,
+                mask_time,
+                region_mask,
+                cond["ode_color"],
+                cond["stoch_color"],
+                label=fr"{cond['name']} ($\sigma/\mu$)",
+                override_linestyle="dashed",
+                solid_linestyle="dashed",
+            )
+
+        # Reference lines
+        ax.axhline(1.0, color=colors['dark red'], linestyle="solid",
+                   linewidth=1, label=r"$R_0=1$")
+        ax2.axhline(0.7, color=colors['dark red'], linestyle="dashed",
+                    linewidth=1, label=r"$\sigma/\mu=0.7$")
+        # ax2.axhline(0.4, color=colors['red'], linestyle="dashed",
+        #             linewidth=1, label=r"$\sigma/\mu=0.4$")
+
+        # Axis formatting
+        if region_titles is not None:
+            ax.set_title(region_titles[r])
+        if r % num_cols == 0:
+            ax.set_ylabel(r0_ylabel)
+        if (r + 1) % num_cols == 0 or r == num_regions - 1:
+            ax2.set_ylabel(ratio_ylabel)
+
+        if r // num_cols == num_rows - 1:
+            ax.set_xlabel("Time [days]")
+        else:
+            ax.set_xticks([])
+
+    # Legend (aggregate both axes of every subplot, since a given condition's
+    # ODE/stochastic segment may not appear in every region)
+    all_axes = [ax for pair in region_axes for ax in pair]
+    handles, labels = _collect_unique_legend_entries(all_axes)
+    base_labels = [
+        base
+        for cond in loaded
+        for base in (f"{cond['name']} ($R_0$)", fr"{cond['name']} ($\sigma/\mu$)")
+    ]
+    handles, labels = _order_legend_entries_by_condition(
+        handles, labels, base_labels)
+
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=dpi)
+    plt.close(fig)
+
+    fig_leg = plt.figure(figsize=figsize)
+    fig_leg.legend(handles, labels, loc='center')
+    fig_leg.tight_layout()
+    fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
+                    bbox_inches='tight', transparent=True)
+    plt.close(fig_leg)
+
+
+def r0_std_mean_ratio_multiple_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, lamdas, gamma, dir_smm="", region_titles=None):
+    """
+    conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
+    region_titles: optional list of titles, one per region, used as subplot titles
+
+    For each region plots, over time:
+      - R0(t) = lamdas[r] * (S - I - R) / gamma on the left y-axis
+      - the std/mean ratio (sigma/mu) of the `comp_index` compartment on the right y-axis
+    Two y-axes are used since both quantities can have very different scales.
+    """
+    comp = list(compartment_colors.keys())[comp_index]
+
+    if conditions_info:
+        # use time from first condition
+        first_hybrid = pd.read_csv(
+            conditions_info[0]["hybrid_dir"] + "/joint_mean.csv")
+        time_vals = first_hybrid.iloc[:, 0].values
+    else:
+        # no conditions: fall back to the stochastic (SMM) time axis
+        assert dir_smm != "", "dir_smm is required when conditions_info is empty"
+        time_vals = pd.read_csv(dir_smm + "/means.csv").iloc[:, 0].values
+
+    # Layout
+    num_cols = int(np.ceil(np.sqrt(num_regions)))
+    num_rows = int(np.ceil(num_regions / num_cols))
+
+    _plot_figure_r0_std_mean_ratio_multi(
+        f"{save_dir}/R0_std_mean_ratio_{compartment_names[comp]}_multiple_conditions_all_regions",
+        time_vals,
+        conditions_info,
+        comp_index,
+        num_regions,
+        num_rows,
+        num_cols,
+        figsize,
+        lamdas,
+        gamma,
+        dir_smm,
+        region_titles=region_titles,
+    )
+
+
 if __name__ == "__main__":
     figsize = (7, 5)
-    dir = "V:/bick_ju/TemporalHybrid"
-    save_dir = "H:/Documents/TemporalHybridModel"
+    dir = "/Users/julia/sim_outputs/output"
+    save_dir = "/Users/julia/sim_outputs/output"
     hybrid_model = "Spatial-Hybrid2"
     config = "config_SIR_I0_0_1_10_100_no_exchange"
     num_regions = 4
-    condition = "fixed_tp_region"
+    condition = "combined_relation_var_gradient_condition_region"
     closure_method = "truncation"
     closure_order = "closure_order_3"
     color_smm = colors['dark grey']
     tmin = 0
     condition_name = ""
-    
+    region_titles = [f"Region {i+1}" for i in range(num_regions)]
+    gamma = 1/7.
+    lamdas = [0.00000286, 0.00000286, 0.00000286, 0.00000286]
+    num_runs = 10000
+
     smm_dir = f"{dir}/SMM/{config}"
     hybrid_dir = f"{dir}/{hybrid_model}/{config}/{condition}/{closure_method}/{closure_order}"
-    save_dir = f"{save_dir}/{hybrid_model}/{config}/{condition}/{closure_method}/{closure_order}"
+    # save_dir = f"{save_dir}/{hybrid_model}/{config}/{condition}/{closure_method}/{closure_order}"
+    save_dir = f"{save_dir}/{hybrid_model}/{config}"
     os.makedirs(save_dir, exist_ok=True)
-    
+
     comp_index = 1
-    
-    # mean_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, smm_dir)
-    # std_all_regions(save_dir, hybrid_dir, comp_index, num_regions, figsize, smm_dir)
-    
-    conditions_info = [
-        {"name": "pure_ode", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/pure_ode/{closure_method}/{closure_order}", "ode_color": colors['orange'], "stoch_color": colors['brown']},
-        {"name": "fixed_tp", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/fixed_tp_region/{closure_method}/{closure_order}", "ode_color": colors['rose'], "stoch_color": colors['purple']},
-        {"name": "abs_threshold", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_condition_region/{closure_method}/{closure_order}", "ode_color": colors['middle blue'], "stoch_color": colors['dark blue']},
-        {"name": "relation_var_gradient", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_relation_var_gradient_condition_region/{closure_method}/{closure_order}", "ode_color": colors['middle green'], "stoch_color": colors['dark green']}
+
+    # mean_all_regions(save_dir, hybrid_dir, comp_index,
+    #                  num_regions, figsize, smm_dir)
+    # std_all_regions(save_dir, hybrid_dir, comp_index,
+    #                 num_regions, figsize, smm_dir)
+
+    conditions1 = [
+        {"name": "abs_threshold_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_region/{closure_method}/{closure_order}",
+            "ode_color": colors['rose'], "stoch_color": colors['purple']},
+        {"name": "combined_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
+            "ode_color": colors['middle blue'], "stoch_color": colors['dark blue']},
+        {"name": "mean_stddev_relation_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/mean_stddev_relation_region/{closure_method}/{closure_order}",
+            "ode_color": colors['orange'], "stoch_color": colors['brown']},
+        {"name": "R0_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/R0_region/{closure_method}/{closure_order}",
+            "ode_color": colors['light teal'], "stoch_color": colors['teal']},
     ]
-    
-    mean_multiple_conditions(f"H:/Documents/TemporalHybridModel/Spatial-Hybrid2/{config}", conditions_info, comp_index, num_regions, figsize, smm_dir)
-    std_multiple_conditions(f"H:/Documents/TemporalHybridModel/Spatial-Hybrid2/{config}", conditions_info, comp_index, num_regions, figsize, smm_dir)
+
+    conditions2 = [
+        {"name": "pure_ode", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/pure_ode/{closure_method}/{closure_order}",
+            "ode_color": colors['orange'], "stoch_color": colors['brown']},
+        {"name": "pure_stochastic", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/pure_stochastic/{closure_method}/{closure_order}",
+            "ode_color": colors['rose'], "stoch_color": colors['purple']}
+    ]
+
+    mean_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    std_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_error_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    std_error_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+
+    mean_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    std_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_error_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    std_error_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+
+    r0_std_mean_ratio_multiple_conditions(
+        save_dir, [], comp_index, num_regions, figsize, lamdas, gamma, smm_dir, region_titles=region_titles)

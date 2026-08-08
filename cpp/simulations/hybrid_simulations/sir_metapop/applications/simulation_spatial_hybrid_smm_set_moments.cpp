@@ -102,17 +102,16 @@ int main()
     timer.stop();
 
     // Save stochastic outputs
-    double result_dt = 0.1;
-    auto done        = spatial_hybrid_sim.get_stochastic_mean(result_dt).export_csv(save_file + "stochastic_mean.csv");
-    auto moments     = spatial_hybrid_sim.get_stochastic_moments(result_dt);
-    done             = moments.first.export_csv(save_file + "stochastic_moments.csv", moments.second);
+    auto done    = spatial_hybrid_sim.get_stochastic_mean(config.dt).export_csv(save_file + "stochastic_mean.csv");
+    auto moments = spatial_hybrid_sim.get_stochastic_moments(config.dt);
+    done         = moments.first.export_csv(save_file + "stochastic_moments.csv", moments.second);
     // Save deterministic outputs
-    done    = spatial_hybrid_sim.get_deterministic_mean(result_dt).export_csv(save_file + "deterministic_mean.csv");
-    moments = spatial_hybrid_sim.get_deterministic_moments(result_dt);
+    done    = spatial_hybrid_sim.get_deterministic_mean(config.dt).export_csv(save_file + "deterministic_mean.csv");
+    moments = spatial_hybrid_sim.get_deterministic_moments(config.dt);
     done    = moments.first.export_csv(save_file + "deterministic_moments.csv", moments.second);
     // Save joint outputs
-    done    = spatial_hybrid_sim.get_joint_mean(result_dt).export_csv(save_file + "joint_mean.csv");
-    moments = spatial_hybrid_sim.get_joint_moments(result_dt);
+    done    = spatial_hybrid_sim.get_joint_mean(config.dt).export_csv(save_file + "joint_mean.csv");
+    moments = spatial_hybrid_sim.get_joint_moments(config.dt);
     done    = moments.first.export_csv(save_file + "joint_moments.csv", moments.second);
     // Save model used
     done = spatial_hybrid_sim.get_model_used_ts().export_csv(save_file + "model_used.csv");

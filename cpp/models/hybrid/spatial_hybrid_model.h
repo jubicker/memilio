@@ -238,8 +238,8 @@ public:
     {
         auto moment_ts = m_moment_simulation.get_moment_time_series(closure_order);
         int num_steps  = static_cast<int>((moment_ts.first.get_last_time() - moment_ts.first.get_time(0)) /
-                                         interpolation_step_size) +
-                        1;
+                                          interpolation_step_size) +
+                         1;
         std::vector<double> interpolation_tps(num_steps);
 
         for (int i = 0; i < num_steps; ++i) {
@@ -473,7 +473,7 @@ private:
                         double l_new    = lambda(-new_params.first / new_params.second);
                         double new_m    = new_params.first + new_params.second * l_new;
                         double new_s    = new_params.second * new_params.second *
-                                       (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                                          (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
                         if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
                             mean = new_params.first;
                         }
@@ -672,7 +672,7 @@ private:
                             double l_new    = lambda(-new_params.first / new_params.second);
                             double new_m    = new_params.first + new_params.second * l_new;
                             double new_s    = new_params.second * new_params.second *
-                                           (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                                              (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
                             if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
                                 mean = new_params.first;
                             }
@@ -908,7 +908,7 @@ private:
         if (min_step_size > 0) {
             sim.get_integrator_core().get_dt_min() = min_step_size;
         }
-        sim.get_integrator_core().get_dt_max() = m_dt;
+        sim.get_integrator_core().get_dt_max() = m_config->dt;
         return sim;
     }
 

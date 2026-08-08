@@ -40,9 +40,9 @@ class SwitchingCondition
     inline static double m_absolute_switch_threshold       = 100.;
     inline static double m_mean_stddev_relation            = 0.6;
     inline static double m_var_gradient_threshold          = 0;
-    inline static double m_mean_gradient_threshold          = 0;
+    inline static double m_mean_gradient_threshold         = 0;
     inline static double m_timepoint_threshold             = 0;
-    inline static double m_R0_threshold = 1.0;
+    inline static double m_R0_threshold                    = 1.0;
     inline static std::unique_ptr<Config::Config> m_config = nullptr;
 
 public:
@@ -220,8 +220,9 @@ public:
         if (stochastic_used) {
             auto relations = current_smm_relations(stochastic_model, 0.);
             if ((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                0) && (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
-                m_mean_stddev_relation)) {
+                 0) &&
+                (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
+                 m_mean_stddev_relation)) {
                 return true;
             }
             return false;
@@ -229,8 +230,9 @@ public:
         else {
             auto relations = current_moment_relations(deterministic_model, 0.);
             if ((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <=
-                0) || (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                m_mean_stddev_relation)) {
+                 0) ||
+                (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                 m_mean_stddev_relation)) {
                 return true;
             }
             return false;
@@ -314,8 +316,8 @@ public:
             auto relations     = current_smm_relations(stochastic_model, 0.);
             auto current_means = current_smm_means(stochastic_model, 0.);
             double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
+                                 current_means[region * (int)mio::osir::InfectionState::Count +
+                                               (int)mio::osir::InfectionState::Susceptible];
             if ((R0 < 1.0 || R0 > 3.0) &&
                 (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
                  m_mean_stddev_relation)) {
@@ -327,8 +329,8 @@ public:
             auto relations     = current_moment_relations(deterministic_model, 0.);
             auto current_means = current_moment_means(deterministic_model, 0.);
             double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
+                                 current_means[region * (int)mio::osir::InfectionState::Count +
+                                               (int)mio::osir::InfectionState::Susceptible];
             if ((R0 >= 1.0 && R0 <= 3.0) &&
                 relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
                     1.1 * m_mean_stddev_relation) {
@@ -338,27 +340,31 @@ public:
         }
     }
 
-    static bool R0_region(
-        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
-        mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
-        size_t region)
+    static bool
+    R0_region(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+              mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
+              size_t region)
     {
         if (stochastic_used) {
             auto current_means = current_smm_means(stochastic_model, 0.);
-            double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
-            if (R0 < m_R0_threshold) {
+            double R0          = m_config->lambdas[region] *
+                                 (current_means[region * (int)mio::osir::InfectionState::Count +
+                                                (int)mio::osir::InfectionState::Susceptible]) /
+                                 m_config->gamma;
+            if (R0 < m_R0_threshold || current_means[region * (int)mio::osir::InfectionState::Count +
+                                                     (int)mio::osir::InfectionState::Infected] < 1) {
                 return true;
             }
             return false;
         }
         else {
             auto current_means = current_moment_means(deterministic_model, 0.);
-            double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
-            if (R0 > m_R0_threshold) {
+            double R0          = m_config->lambdas[region] *
+                                 (current_means[region * (int)mio::osir::InfectionState::Count +
+                                                (int)mio::osir::InfectionState::Susceptible]) /
+                                 m_config->gamma;
+            if (R0 > m_R0_threshold && current_means[region * (int)mio::osir::InfectionState::Count +
+                                                     (int)mio::osir::InfectionState::Infected] > 1) {
                 return true;
             }
             return false;
@@ -387,33 +393,45 @@ public:
         }
     }
 
-    static bool combined_region(
-        mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
-        mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
-        size_t region)
+    static bool
+    combined_region(mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>& stochastic_model,
+                    mio::smm_moments::Simulation<num_regions, closure_order>& deterministic_model, bool stochastic_used,
+                    size_t region)
     {
         if (stochastic_used) {
-            auto relations = current_smm_relations(stochastic_model, 0.);
+            auto relations     = current_smm_relations(stochastic_model, 0.);
             auto current_means = current_smm_means(stochastic_model, 0.);
             double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
-            if (((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                0) && (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <
-                m_mean_stddev_relation)) || (R0 < m_R0_threshold)) {
+                                 current_means[region * (int)mio::osir::InfectionState::Count +
+                                               (int)mio::osir::InfectionState::Susceptible];
+            if ((((relations[region * (int)mio::osir::InfectionState::Count +
+                             (int)mio::osir::InfectionState::Infected] > 0) &&
+                  (relations[region * (int)mio::osir::InfectionState::Count +
+                             (int)mio::osir::InfectionState::Infected] < m_mean_stddev_relation) &&
+                  (current_means[region * (int)mio::osir::InfectionState::Count +
+                                 (int)mio::osir::InfectionState::Infected] > m_absolute_switch_threshold)) ||
+                 (R0 < m_R0_threshold) ||
+                 (current_means[region * (int)mio::osir::InfectionState::Count +
+                                (int)mio::osir::InfectionState::Infected] < 1))) {
                 return true;
             }
             return false;
         }
         else {
-            auto relations = current_moment_relations(deterministic_model, 0.);
+            auto relations     = current_moment_relations(deterministic_model, 0.);
             auto current_means = current_moment_means(deterministic_model, 0.);
             double R0          = m_config->lambdas[region] / m_config->gamma *
-                        current_means[region * (int)mio::osir::InfectionState::Count +
-                                      (int)mio::osir::InfectionState::Susceptible];
-            if (((relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] <=
-                0) || (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
-                m_mean_stddev_relation)) && (R0 > m_R0_threshold)) {
+                                 current_means[region * (int)mio::osir::InfectionState::Count +
+                                               (int)mio::osir::InfectionState::Susceptible];
+            if (((relations[region * (int)mio::osir::InfectionState::Count +
+                            (int)mio::osir::InfectionState::Infected] <= 0) ||
+                 (relations[region * (int)mio::osir::InfectionState::Count + (int)mio::osir::InfectionState::Infected] >
+                  m_mean_stddev_relation) ||
+                 (current_means[region * (int)mio::osir::InfectionState::Count +
+                                (int)mio::osir::InfectionState::Infected] < m_absolute_switch_threshold)) &&
+                (R0 > m_R0_threshold) &&
+                (current_means[region * (int)mio::osir::InfectionState::Count +
+                               (int)mio::osir::InfectionState::Infected] >= 1)) {
                 return true;
             }
             return false;
