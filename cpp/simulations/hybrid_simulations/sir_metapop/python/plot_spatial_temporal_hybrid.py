@@ -680,7 +680,7 @@ def _plot_figure_multi_error(
     figsize,
     dir_smm,
     colname="",
-    ylabel=r"$|\Delta\mu_I|$",
+    ylabel=r"$|\mu_I-\mu_I^{(stochastic)}|$",
     region_titles=None,
     num_runs=None,
 ):
@@ -752,7 +752,7 @@ def _plot_figure_multi_error(
                 se,
                 color="black",
                 linestyle="dotted",
-                label="Standard Error",
+                label="standard error",
             )
 
         for cond in loaded:
@@ -846,7 +846,7 @@ def mean_error_multiple_conditions(save_dir, conditions_info, comp_index, num_re
         figsize,
         dir_smm,
         colname="",
-        ylabel=r"$|\Delta\mu_I|$",
+        ylabel=r"err$(\mu_I)$",
         region_titles=region_titles,
         num_runs=num_runs,
     )
@@ -882,7 +882,7 @@ def std_error_multiple_conditions(save_dir, conditions_info, comp_index, num_reg
         figsize,
         dir_smm,
         colname="M",
-        ylabel=r"$|\Delta\sigma_I|$",
+        ylabel=r"err$(\sigma_I)$",
         region_titles=region_titles,
     )
     plt.close("all")
@@ -1129,13 +1129,13 @@ if __name__ == "__main__":
     #                 num_regions, figsize, smm_dir)
 
     conditions1 = [
-        {"name": "abs_threshold_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_region/{closure_method}/{closure_order}",
+        {"name": r"$\tau_{\mu_I}$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_region/{closure_method}/{closure_order}",
             "ode_color": colors['rose'], "stoch_color": colors['purple']},
-        {"name": "combined_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
+        {"name": "combined", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
             "ode_color": colors['middle blue'], "stoch_color": colors['dark blue']},
-        {"name": "mean_stddev_relation_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/mean_stddev_relation_region/{closure_method}/{closure_order}",
+        {"name": r"$\sigma_I/\mu_I$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/mean_stddev_relation_region/{closure_method}/{closure_order}",
             "ode_color": colors['orange'], "stoch_color": colors['brown']},
-        {"name": "R0_region", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/R0_region/{closure_method}/{closure_order}",
+        {"name": r"$R_0(\mu_I)$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/R0_region/{closure_method}/{closure_order}",
             "ode_color": colors['light teal'], "stoch_color": colors['teal']},
     ]
 
