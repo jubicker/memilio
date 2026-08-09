@@ -545,7 +545,7 @@ Config get_config(ConfigType type)
         config.total_populations      = {100000, 100000, 100000, 100000, 100000};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.5, 0.65, 0.1};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77};
         config.seasonality_sigmas     = {10, 15, 5};
         return config;
         break;
@@ -588,7 +588,7 @@ Config get_config(ConfigType type)
         config.total_populations      = {3700607, 7919288, 18770235, 28077512, 25109498};
         config.first_season_start_day = -53;
         config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.5, 0.65, 0.1};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77};
         config.seasonality_sigmas     = {10, 15, 5};
         return config;
         break;
@@ -607,7 +607,7 @@ Config get_config(ConfigType type)
         config.total_populations      = {100000, 100000, 100000, 100000};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.5, 0.65, 0.1};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77};
         config.seasonality_sigmas     = {10, 15, 5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
@@ -639,7 +639,7 @@ Config get_config(ConfigType type)
         config.total_populations      = {13531452, 16093905, 24494826, 29456957};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.5, 0.65, 0.1};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77};
         config.seasonality_sigmas     = {10, 15, 5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
