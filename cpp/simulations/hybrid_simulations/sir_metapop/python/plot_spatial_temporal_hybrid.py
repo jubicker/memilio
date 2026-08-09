@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import os
 import numpy as np
 from matplotlib.patches import Patch
@@ -177,7 +178,7 @@ def _plot_figure(save_path, time_vals, model_used_ts, mean_smm, mean_data, comp_
             ax.plot(
                 mean_smm.Time,
                 y_smm,
-                color="black",
+                color=colors["dark grey"],
                 linestyle="dashed",
                 label="Stochastic",
             )
@@ -539,11 +540,11 @@ def _plot_figure_multi(
             ax.plot(
                 smm.Time,
                 y_smm,
-                color="black",
+                color=colors["dark grey"],
                 linestyle="dashed",
                 label="Stochastic",
             )
-            max = y_smm.max() * 1.5
+            max = y_smm.max() * 1.2
 
         # For each condition overlay stochastic and deterministic parts
         for cond in loaded:
@@ -579,7 +580,7 @@ def _plot_figure_multi(
 
         # Axis formatting
         if region_titles is not None:
-            ax.set_title(region_titles[r])
+            ax.set_title(region_titles[r], pad=11)
         if r % num_cols == 0:
             ax.set_ylabel(ylabel)
 
@@ -589,6 +590,10 @@ def _plot_figure_multi(
             ax.set_xticks([])
         if r == 1:
             ax.set_ylim(bottom=-1000, top=max)
+
+        # if colname == "":
+        #     ax.axhline(y=10, color=colors["dark red"],
+        #                linestyle="dashed", linewidth=1)
 
     # Legend (aggregate across all region subplots, since a given condition's
     # ODE/stochastic segment may not appear in every region)
@@ -600,7 +605,7 @@ def _plot_figure_multi(
     handles, labels = _order_legend_entries_by_condition(
         handles, labels, [cond["name"] for cond in conditions_info])
     fig_leg = plt.figure(figsize=figsize)
-    fig_leg.legend(handles, labels, loc='center')
+    fig_leg.legend(handles, labels, loc='center', ncol=1)
     fig_leg.tight_layout()
     fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
                     bbox_inches='tight', transparent=True)
@@ -690,7 +695,7 @@ def _plot_figure_multi_error(
     # Plots (on a log scale) the absolute error between each condition's
     # hybrid result and the stochastic (SMM) result. If colname == "" (mean)
     # and num_runs is given, also plots the standard error of the hybrid mean
-    # (std/sqrt(num_runs)) as a black line.
+    # (std/sqrt(num_runs)) as a dark grey line.
     assert dir_smm != "", "dir_smm is required to compute errors against the stochastic model"
 
     fig, axes = plt.subplots(num_rows, num_cols, figsize=figsize)
@@ -750,7 +755,7 @@ def _plot_figure_multi_error(
             ax.plot(
                 time_vals_se,
                 se,
-                color="black",
+                color=colors["dark grey"],
                 linestyle="dotted",
                 label="standard error",
             )
@@ -789,7 +794,7 @@ def _plot_figure_multi_error(
         # Axis formatting
         ax.set_yscale("log")
         if region_titles is not None:
-            ax.set_title(region_titles[r])
+            ax.set_title(region_titles[r], pad=11)
         if r % num_cols == 0:
             ax.set_ylabel(ylabel)
 
@@ -819,7 +824,7 @@ def mean_error_multiple_conditions(save_dir, conditions_info, comp_index, num_re
     """
     Plots the absolute error between the hybrid mean and the stochastic (SMM)
     mean (on a log scale), with the standard error of the hybrid mean
-    (std/sqrt(num_runs)) plotted as a black line.
+    (std/sqrt(num_runs)) plotted as a dark grey line.
 
     conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
     region_titles: optional list of titles, one per region, used as subplot titles
@@ -888,6 +893,98 @@ def std_error_multiple_conditions(save_dir, conditions_info, comp_index, num_reg
     plt.close("all")
 
 
+def mean_error_mean_std_bar_conditions(save_dir, conditions_info, comp_index, num_regions, figsize, dir_smm):
+    """
+    For each condition in conditions_info, computes the absolute error between
+    the hybrid mean and the stochastic (SMM) mean, and the absolute error
+    between the hybrid std and the stochastic (SMM) std, aggregated over all
+    regions and all time steps, and plots the mean of each error as a grouped
+    bar chart (one group per condition, one bar for the mean error and one
+    for the std error).
+
+    conditions_info: list of dicts: {"name":..., "hybrid_dir":..., "ode_color":..., "stoch_color":...}
+    """
+    assert dir_smm != "", "dir_smm is required to compute errors against the stochastic model"
+
+    comp = list(compartment_colors.keys())[comp_index]
+    n_comp = len(compartment_names)
+
+    smm_mean = pd.read_csv(dir_smm + "/means.csv")
+    smm_moments = pd.read_csv(dir_smm + "/moments.csv")
+
+    names = []
+    mean_errors = []
+    std_errors = []
+    bar_colors = []
+
+    for cond in conditions_info:
+        hybrid_mean = pd.read_csv(cond["hybrid_dir"] + "/joint_mean.csv")
+        hybrid_moments = pd.read_csv(cond["hybrid_dir"] + "/joint_moments.csv")
+
+        mean_errors_r = []
+        std_errors_r = []
+        for r in range(num_regions):
+            y_hybrid = hybrid_mean.iloc[:, 1 + comp_index + r * n_comp].values
+            y_smm = smm_mean.iloc[:, 1 + comp_index + r * n_comp].values
+            min_len = min(len(y_hybrid), len(y_smm))
+            mean_errors_r.append(
+                np.abs(y_hybrid[:min_len] - y_smm[:min_len]))
+
+            moment_index = [0 for _ in range(n_comp * num_regions)]
+            moment_index[comp_index + r * n_comp] = 2
+            moment_col = "M" + "".join(str(m) for m in moment_index)
+
+            y_hybrid_std = np.sqrt(hybrid_moments[moment_col].iloc[:].values)
+            y_smm_std = np.sqrt(smm_moments[moment_col].iloc[:].values)
+            min_len = min(len(y_hybrid_std), len(y_smm_std))
+            std_errors_r.append(
+                np.abs(y_hybrid_std[:min_len] - y_smm_std[:min_len]))
+
+        mean_errors_r = np.concatenate(mean_errors_r)
+        mean_errors_r = mean_errors_r[~np.isnan(mean_errors_r)]
+        std_errors_r = np.concatenate(std_errors_r)
+        std_errors_r = std_errors_r[~np.isnan(std_errors_r)]
+
+        names.append(cond["name"])
+        mean_errors.append(mean_errors_r.mean())
+        std_errors.append(std_errors_r.mean())
+        bar_colors.append(cond.get("stoch_color", colors["dark grey"]))
+
+    x = np.arange(len(names))
+    width = 0.35
+
+    # Faded fill for the std bars, but keep the hatch lines drawn in the
+    # full-opacity bar color (patch alpha would otherwise fade those too).
+    std_face_colors = [mcolors.to_rgba(c, alpha=0.5) for c in bar_colors]
+
+    fig, ax1 = plt.subplots(figsize=figsize)
+    ax2 = ax1.twinx()
+
+    ax1.bar(x - width / 2, mean_errors, width,
+            color=bar_colors, edgecolor=bar_colors)
+    ax2.bar(x + width / 2, std_errors, width,
+            color=std_face_colors, hatch="//", edgecolor=bar_colors)
+
+    ax1.set_ylabel(r"err$(\mu_I)$")
+    ax2.set_ylabel(r"err$(\sigma_I)$")
+    ax1.set_yscale("log")
+    ax2.set_yscale("log")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(names)
+
+    legend_handles = [
+        Patch(facecolor="grey", edgecolor="grey", label=r"$\mu_I$"),
+        Patch(facecolor="grey", alpha=0.5, hatch="//",
+              edgecolor="grey", label=r"$\sigma_I$"),
+    ]
+    ax1.legend(handles=legend_handles, loc="upper right")
+
+    fig.tight_layout()
+    fig.savefig(
+        f"{save_dir}/mean_error_mean_std_{compartment_names[comp]}_bar_conditions.png", dpi=dpi)
+    plt.close(fig)
+
+
 def _plot_figure_r0_std_mean_ratio_multi(
     save_path,
     time_vals,
@@ -902,8 +999,8 @@ def _plot_figure_r0_std_mean_ratio_multi(
     dir_smm="",
     plot_smm=True,
     region_titles=None,
-    r0_ylabel=r"$R_0$",
-    ratio_ylabel=r"$\sigma/\mu$",
+    r0_ylabel=r"$R_0(\mu)$",
+    ratio_ylabel=r"$\sigma_I/\mu_I$",
 ):
     # conditions_info: list of dicts with keys:
     #   name, hybrid_dir, ode_color, stoch_color
@@ -963,10 +1060,11 @@ def _plot_figure_r0_std_mean_ratio_multi(
                                           comp_index + r * n_comp].values
             y_ratio_smm = std_smm / mean_smm_comp
 
-            ax.plot(smm_mean.Time, y_r0_smm, color="black",
-                    linestyle="solid", label=r"Stochastic ($R_0$)")
-            ax2.plot(smm_moments.Time, y_ratio_smm, color="black",
-                     linestyle="dashed", label=r"Stochastic ($\sigma/\mu$)")
+            ax.plot(smm_mean.Time, y_r0_smm, color=colors["dark grey"],
+                    linestyle="solid", label=r"Stochastic $R_0(\mu)$")
+            ax.set_ylim(bottom=0, top=4.1)
+            ax2.plot(smm_moments.Time, y_ratio_smm, color=colors["dark grey"],
+                     linestyle="dashed", label=r"Stochastic $\sigma_I/\mu_I$")
 
         # For each condition overlay R0 (left axis) and std/mean (right axis)
         for cond in loaded:
@@ -992,7 +1090,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
                 region_mask,
                 cond["ode_color"],
                 cond["stoch_color"],
-                label=f"{cond['name']} ($R_0$)",
+                label=f"{cond['name']} ($R_0(\mu)$)",
                 override_linestyle="solid",
                 solid_linestyle="solid",
             )
@@ -1005,7 +1103,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
                 region_mask,
                 cond["ode_color"],
                 cond["stoch_color"],
-                label=fr"{cond['name']} ($\sigma/\mu$)",
+                label=fr"{cond['name']} ($\sigma_I/\mu_I$)",
                 override_linestyle="dashed",
                 solid_linestyle="dashed",
             )
@@ -1014,13 +1112,13 @@ def _plot_figure_r0_std_mean_ratio_multi(
         ax.axhline(1.0, color=colors['dark red'], linestyle="solid",
                    linewidth=1, label=r"$R_0=1$")
         ax2.axhline(0.7, color=colors['dark red'], linestyle="dashed",
-                    linewidth=1, label=r"$\sigma/\mu=0.7$")
+                    linewidth=1, label=r"$\sigma_I/\mu_I=0.7$")
         # ax2.axhline(0.4, color=colors['red'], linestyle="dashed",
         #             linewidth=1, label=r"$\sigma/\mu=0.4$")
 
         # Axis formatting
         if region_titles is not None:
-            ax.set_title(region_titles[r])
+            ax.set_title(region_titles[r], pad=11)
         if r % num_cols == 0:
             ax.set_ylabel(r0_ylabel)
         if (r + 1) % num_cols == 0 or r == num_regions - 1:
@@ -1048,7 +1146,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
     plt.close(fig)
 
     fig_leg = plt.figure(figsize=figsize)
-    fig_leg.legend(handles, labels, loc='center')
+    fig_leg.legend(handles, labels, loc='center', ncol=2)
     fig_leg.tight_layout()
     fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
                     bbox_inches='tight', transparent=True)
@@ -1110,9 +1208,12 @@ if __name__ == "__main__":
     color_smm = colors['dark grey']
     tmin = 0
     condition_name = ""
-    region_titles = [f"Region {i+1}" for i in range(num_regions)]
+    # region_titles = [r"Region 1 - $I_{init}=0$, $R_0\approx2$", r"Region 2 - $I_{init}=1$, $R_0\approx2$",
+    #                  r"Region 3 - $I_{init}=10$, $R_0\approx2$", r"Region 4 - $I_{init}=100$, $R_0\approx2$"]
+    region_titles = [r"$I_{init}^{(1)}=10$, $R_0^{(1)}\approx1$", r"$I_{init}^{(2)}=10$, $R_0^{(2)}\approx1.5$",
+                     r"$I_{init}^{(3)}=10$, $R_0^{(3)}\approx2$", r"$I_{init}^{(4)}=10$, $R_0^{(4)}\approx4$"]
     gamma = 1/7.
-    lamdas = [0.00000286, 0.00000286, 0.00000286, 0.00000286]
+    lamdas = [0.000001432, 0.00000215, 0.00000286, 0.00000572]
     num_runs = 10000
 
     smm_dir = f"{dir}/SMM/{config}"
@@ -1129,6 +1230,8 @@ if __name__ == "__main__":
     #                 num_regions, figsize, smm_dir)
 
     conditions1 = [
+        {"name": "Deterministic", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/pure_ode/{closure_method}/{closure_order}",
+         "ode_color": colors['middle green'], "stoch_color": colors['middle green']},
         {"name": r"$\tau_{\mu_I}$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_region/{closure_method}/{closure_order}",
             "ode_color": colors['rose'], "stoch_color": colors['purple']},
         {"name": "combined", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
@@ -1146,23 +1249,25 @@ if __name__ == "__main__":
             "ode_color": colors['rose'], "stoch_color": colors['purple']}
     ]
 
-    mean_multiple_conditions(
-        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    std_multiple_conditions(
-        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    mean_error_multiple_conditions(
-        save_dir, conditions2, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
-    std_error_multiple_conditions(
-        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # mean_multiple_conditions(
+    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # std_multiple_conditions(
+    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # mean_error_multiple_conditions(
+    #     save_dir, conditions2, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    # std_error_multiple_conditions(
+    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
 
-    mean_multiple_conditions(
-        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    std_multiple_conditions(
-        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    mean_error_multiple_conditions(
-        save_dir, conditions1, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
-    std_error_multiple_conditions(
-        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # mean_multiple_conditions(
+    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # std_multiple_conditions(
+    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    # mean_error_multiple_conditions(
+    #     save_dir, conditions1, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    # std_error_multiple_conditions(
+    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_error_mean_std_bar_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir)
 
-    r0_std_mean_ratio_multiple_conditions(
-        save_dir, [], comp_index, num_regions, figsize, lamdas, gamma, smm_dir, region_titles=region_titles)
+    # r0_std_mean_ratio_multiple_conditions(
+    #     save_dir, [], comp_index, num_regions, figsize, lamdas, gamma, smm_dir, region_titles=region_titles)
