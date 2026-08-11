@@ -147,7 +147,7 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.00000572, 0.00000572, 0.00000572, 0.00000572}; //R0~4
+        config.lambdas                = {0.00000286, 0.00000286, 0.00000286, 0.00000286}; //R0~2
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 20.;
@@ -166,7 +166,7 @@ Config get_config(ConfigType type)
         config.t0                     = 0;
         config.tmax                   = 200;
         config.dt                     = 0.1;
-        config.lambdas                = {0.00000572, 0.00000572, 0.00000572, 0.00000572}; //R0~4
+        config.lambdas                = {0.00000286, 0.00000286, 0.00000286, 0.00000286}; //R0~2
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 20.;
@@ -471,7 +471,7 @@ Config get_config(ConfigType type)
         config.name                = "config_influenza_germany";
         config.num_regions         = 1;
         config.t0                  = 0;
-        config.tmax                = 3 * 365 - 3; // From 1st August 2016 to 29th July 2019
+        config.tmax                = 4 * 365 - 4; // From 1st August 2016 to 27th July 2020
         config.dt                  = 0.1;
         config.lambdas             = {0.0000025145241}; // manual: 0.0000018, top: 0.0000025145241, mean: 0.000002390025
         config.influencing_regions = {{{0, 1}}};
@@ -481,10 +481,10 @@ Config get_config(ConfigType type)
         config.R0s                 = {{0, 23718}}; // manual: 20000, top: 23718, mean: 16920
         config.total_populations   = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
-        config.season_peaks           = {21, 37, 24}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
-        config.seasonality_rhos = {0.79, 0.78,
+        config.season_peaks     = {21, 37, 24, 24}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
+        config.seasonality_rhos = {0.79, 0.78, 0.77,
                                    0.77}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
-        config.seasonality_sigmas = {10, 15, 5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
+        config.seasonality_sigmas = {10, 15, 5, 5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
