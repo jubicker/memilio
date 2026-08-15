@@ -471,7 +471,7 @@ Config get_config(ConfigType type)
         config.name                = "config_influenza_germany";
         config.num_regions         = 1;
         config.t0                  = 0;
-        config.tmax                = 4 * 365 - 4; // From 1st August 2016 to 27th July 2020
+        config.tmax                = 5 * 365 - 4; // From 1st August 2016 to 27th July 2020
         config.dt                  = 0.1;
         config.lambdas             = {0.0000025145241}; // manual: 0.0000018, top: 0.0000025145241, mean: 0.000002390025
         config.influencing_regions = {{{0, 1}}};
@@ -481,10 +481,11 @@ Config get_config(ConfigType type)
         config.R0s                 = {{0, 23718}}; // manual: 20000, top: 23718, mean: 16920
         config.total_populations   = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
-        config.season_peaks     = {21, 37, 24, 24}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
-        config.seasonality_rhos = {0.79, 0.78, 0.77,
-                                   0.77}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
-        config.seasonality_sigmas = {10, 15, 5, 5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
+        config.season_peaks = {21, 37, 24, 26, 22}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
+        config.seasonality_rhos = {
+            0.79, 0.78, 0.77, 0.75,
+            0.775}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
+        config.seasonality_sigmas = {10, 15, 5, 5, 7.5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
@@ -507,41 +508,42 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigInfluenzaAgeGroups:
-        config.name                   = "config_influenza_agegroups";
-        config.num_regions            = 5; // 0-4, 5-14, 15-34, 35-59, 60+
-        config.t0                     = 0;
-        config.tmax                   = 3 * 365 - 3;
-        config.dt                     = 0.1;
-        config.lambdas                = {0.000005139, 0.000003012, 0.0000007951, 0.00000055898, 0.00000032836};
-        config.influencing_regions    = {{{0, 0.0016821903018872},
-                                          {1, 0.0835973041131203},
-                                          {2, 0.0594331854564333},
-                                          {3, 0.6255548648395776},
-                                          {4, 0.8325660776336196}},
-                                         {{0, 0.0835973041131203},
-                                          {1, 0.1090796848279727},
-                                          {2, 0.5430772129054124},
-                                          {3, 0.5387381290770932},
-                                          {4, 0.3142973941728622}},
-                                         {{0, 0.0594331854564333},
-                                          {1, 0.5430772129054124},
-                                          {2, 0.7980979140492013},
-                                          {3, 0.918715326407079},
-                                          {4, 0.8406336169560021}},
-                                         {{0, 0.6255548648395776},
-                                          {1, 0.5387381290770932},
-                                          {2, 0.918715326407079},
-                                          {3, 0.2952636345929488},
-                                          {4, 0.78904291699207}},
-                                         {{0, 0.8325660776336196},
-                                          {1, 0.3142973941728622},
-                                          {2, 0.8406336169560021},
-                                          {3, 0.78904291699207},
-                                          {4, 0.5242714373201034}}};
+        config.name        = "config_influenza_agegroups";
+        config.num_regions = 5; // 0-4, 5-14, 15-34, 35-59, 60+
+        config.t0          = 0;
+        config.tmax        = 3 * 365 - 3;
+        config.dt          = 0.1;
+        config.lambdas     = {0.00001288089301181601, 1.19954495503683e-6, 1.115361116626335e-6, 8.44593364010281e-7,
+                              9.793771309493856e-7};
+        config.influencing_regions    = {{{0, 0.0310993759369821},
+                                          {1, 0.3220221286967569},
+                                          {2, 0.6114921106569616},
+                                          {3, 0.617696650073716},
+                                          {4, 0.2638556578331692}},
+                                         {{0, 0.0154584335258646},
+                                          {1, 0.8357863483840422},
+                                          {2, 0.7343745784912392},
+                                          {3, 0.6873489020412964},
+                                          {4, 0.5982126107792187}},
+                                         {{0, 0.0035934065966545},
+                                          {1, 0.5790198909973192},
+                                          {2, 0.3920762942506107},
+                                          {3, 0.6179550746528993},
+                                          {4, 0.4955227268650907}},
+                                         {{0, 0.004435413822006},
+                                          {1, 0.7726787052175906},
+                                          {2, 0.6331439884923853},
+                                          {3, 0.1787871207107431},
+                                          {4, 0.5657142406035242}},
+                                         {{0, 0.0044687206750555},
+                                          {1, 0.1949804086187295},
+                                          {2, 0.9156397710855608},
+                                          {3, 0.4809696098819842},
+                                          {4, 0.0777360459261227}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 149.;
-        config.I0s                    = {{0, 1575}, {1, 576}, {2, 176}, {3, 522}, {4, 169}};
-        config.R0s                    = {{0, 26678}, {1, 28116}, {2, 23260}, {3, 25506}, {4, 23303}};
+        config.I0s                    = {{0, 2181}, {1, 471}, {2, 98}, {3, 98}, {4, 177}};
+        config.R0s                    = {{0, 9268}, {1, 29065}, {2, 25507}, {3, 29961}, {4, 13832}};
         config.total_populations      = {100000, 100000, 100000, 100000, 100000};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24};
@@ -596,7 +598,7 @@ Config get_config(ConfigType type)
         config.name                   = "config_influenza_regions";
         config.num_regions            = 4; // Norden (West), Osten, Sueden, Mitte (West)
         config.t0                     = 0;
-        config.tmax                   = 3 * 365 - 3;
+        config.tmax                   = 5 * 365 - 3;
         config.dt                     = 0.1;
         config.lambdas                = {4.17489e-6, 3.161967e-6, 2.1127735e-6, 1.6121749e-6};
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
@@ -606,9 +608,9 @@ Config get_config(ConfigType type)
         config.R0s                    = {{0, 28602}, {1, 29626}, {2, 19516}, {3, 19166}};
         config.total_populations      = {100000, 100000, 100000, 100000};
         config.first_season_start_day = -153;
-        config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.79, 0.78, 0.77};
-        config.seasonality_sigmas     = {10, 15, 5};
+        config.season_peaks           = {21, 37, 24, 26, 22};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.75, 0.775};
+        config.seasonality_sigmas     = {10, 15, 5, 5, 7.5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
                  {{1, 2}, 0.0028037943556893123}, {{1, 3}, 0.001536233748117688},  {{2, 1}, 0.0018421849577539354},
