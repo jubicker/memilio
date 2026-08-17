@@ -67,7 +67,7 @@ public:
                            bool stochastic_used, size_t region)>;
 
     SpatialHybridSimulation(
-        const Config::Config& config, size_t num_runs, double min_step_size, double dt,
+        Config::Config& config, size_t num_runs, double min_step_size, double dt,
         ClosureFunctionType closure_func = &mio::smm_moments::truncation_closure<num_regions, closure_order>)
         : m_config(std::make_shared<Config::Config>(config))
         , m_stochastic_simulation(initialize_stochastic_model(num_runs))
@@ -238,8 +238,8 @@ public:
     {
         auto moment_ts = m_moment_simulation.get_moment_time_series(closure_order);
         int num_steps  = static_cast<int>((moment_ts.first.get_last_time() - moment_ts.first.get_time(0)) /
-                                          interpolation_step_size) +
-                         1;
+                                         interpolation_step_size) +
+                        1;
         std::vector<double> interpolation_tps(num_steps);
 
         for (int i = 0; i < num_steps; ++i) {
@@ -270,6 +270,33 @@ public:
     TimeSeries<int> get_model_used_ts()
     {
         return m_model_used;
+    }
+
+    void apply_dampings(std::vector<double>& damping_vec)
+    {
+        if (damping_vec.size() != num_regions) {
+            mio::log_error("Number of damping factors doesn't match number of regions in model.");
+        }
+        for (size_t region = 0; region < num_regions; ++region) {
+            m_moment_simulation.get_model()
+                .parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(region)] *=
+                damping_vec[region];
+            m_config->lambdas[region] *= damping_vec[region];
+#ifdef MEMILIO_ENABLE_OPENMP
+#pragma omp parallel for
+#endif
+            for (size_t sim = 0; sim < m_stochastic_simulation.get_simulations().size(); ++sim) {
+                auto& sim_model = m_stochastic_simulation.get_simulations()[sim].get_model();
+                for (auto& rate :
+                     sim_model.parameters.template get<mio::smm::AdoptionRates<double, mio::osir::InfectionState>>()) {
+                    if (rate.region == mio::regions::Region(region)) {
+                        if (rate.from == mio::osir::InfectionState::Susceptible) {
+                            rate.factor *= damping_vec[region];
+                        }
+                    }
+                }
+            }
+        }
     }
 
 private:
@@ -473,7 +500,7 @@ private:
                         double l_new    = lambda(-new_params.first / new_params.second);
                         double new_m    = new_params.first + new_params.second * l_new;
                         double new_s    = new_params.second * new_params.second *
-                                          (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                                       (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
                         if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
                             mean = new_params.first;
                         }
@@ -672,7 +699,7 @@ private:
                             double l_new    = lambda(-new_params.first / new_params.second);
                             double new_m    = new_params.first + new_params.second * l_new;
                             double new_s    = new_params.second * new_params.second *
-                                              (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
+                                           (1 + (-new_params.first / new_params.second) * l_new - l_new * l_new);
                             if (std::abs(mean - old_m) > std::abs(mean - new_m)) {
                                 mean = new_params.first;
                             }

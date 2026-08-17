@@ -471,7 +471,7 @@ Config get_config(ConfigType type)
         config.name                = "config_influenza_germany";
         config.num_regions         = 1;
         config.t0                  = 0;
-        config.tmax                = 5 * 365 - 4; // From 1st August 2016 to 27th July 2020
+        config.tmax                = 4 * 365 - 137; // From 1st August 2016 to 27th July 2020
         config.dt                  = 0.1;
         config.lambdas             = {0.0000025145241}; // manual: 0.0000018, top: 0.0000025145241, mean: 0.000002390025
         config.influencing_regions = {{{0, 1}}};
@@ -481,11 +481,11 @@ Config get_config(ConfigType type)
         config.R0s                 = {{0, 23718}}; // manual: 20000, top: 23718, mean: 16920
         config.total_populations   = {100000};
         config.first_season_start_day = -153; // First season starts at 1st August of the previous year
-        config.season_peaks = {21, 37, 24, 26, 22}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
+        config.season_peaks = {21, 37, 24, 24, 24}; // manual: {-10, -25, -20}, top: {21, 37, 24}, mean: {22, 38, 26}
         config.seasonality_rhos = {
-            0.79, 0.78, 0.77, 0.75,
+            0.79, 0.78, 0.77, 0.76,
             0.775}; // manual: {0.5, 0.65, 0.1}, top: {0.79, 0.78, 0.77}, mean: {0.78, 0.78, 0.77}
-        config.seasonality_sigmas = {10, 15, 5, 5, 7.5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
+        config.seasonality_sigmas = {10, 15, 5, 7, 8.5}; // manual: {100, 105, 130}, top: {10, 15, 5}, mean: {9, 15, 6}
         return config;
         break;
     case ConfigType::ConfigInfluenzaGermany_full:
@@ -511,7 +511,7 @@ Config get_config(ConfigType type)
         config.name        = "config_influenza_agegroups";
         config.num_regions = 5; // 0-4, 5-14, 15-34, 35-59, 60+
         config.t0          = 0;
-        config.tmax        = 3 * 365 - 3;
+        config.tmax        = 1 * 365 - 3;
         config.dt          = 0.1;
         config.lambdas     = {0.00001288089301181601, 1.19954495503683e-6, 1.115361116626335e-6, 8.44593364010281e-7,
                               9.793771309493856e-7};
@@ -595,10 +595,10 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigInfluenzaRegions:
-        config.name                   = "config_influenza_regions";
+        config.name                   = "config_influenza_regions_regional_strict";
         config.num_regions            = 4; // Norden (West), Osten, Sueden, Mitte (West)
         config.t0                     = 0;
-        config.tmax                   = 5 * 365 - 3;
+        config.tmax                   = 5 * 365 - 4;
         config.dt                     = 0.1;
         config.lambdas                = {4.17489e-6, 3.161967e-6, 2.1127735e-6, 1.6121749e-6};
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
@@ -608,9 +608,9 @@ Config get_config(ConfigType type)
         config.R0s                    = {{0, 28602}, {1, 29626}, {2, 19516}, {3, 19166}};
         config.total_populations      = {100000, 100000, 100000, 100000};
         config.first_season_start_day = -153;
-        config.season_peaks           = {21, 37, 24, 26, 22};
-        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.75, 0.775};
-        config.seasonality_sigmas     = {10, 15, 5, 5, 7.5};
+        config.season_peaks           = {21, 37, 24, 24, 24};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.76, 0.775};
+        config.seasonality_sigmas     = {10, 15, 5, 7, 8.5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
                  {{1, 2}, 0.0028037943556893123}, {{1, 3}, 0.001536233748117688},  {{2, 1}, 0.0018421849577539354},

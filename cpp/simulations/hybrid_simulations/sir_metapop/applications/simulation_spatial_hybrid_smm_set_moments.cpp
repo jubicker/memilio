@@ -39,10 +39,10 @@
 int main()
 {
     mio::set_log_level(mio::LogLevel::err);
-    const size_t num_runs      = 10000;
+    const size_t num_runs      = 1000;
     double dt_exchange         = 1.;
     const size_t closure_order = 3;
-    const auto config          = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    auto config                = Config::get_config(Config::ConfigType::ConfigInfluenzaRegions);
     const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
 
@@ -91,13 +91,31 @@ int main()
     // Create switching condition - INPUT: threshold value etc. for condition
     mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
     Condition.set_config(config);
-    Condition.set_mean_stddev_relation(0.7);
-    Condition.set_absolute_switch_threshold(10.);
+    Condition.set_mean_stddev_relation(0.3);
+    Condition.set_absolute_switch_threshold(50.);
     Condition.set_mean_gradient_threshold(0);
     Condition.set_R0_threshold(1.0);
+    std::vector<double> damping_vec1 = {0.7, 0.7, 0.6, 0.7};
+    std::vector<double> damping_vec2 = {19. / 14., 19. / 14., 19. / 12., 19. / 14.};
+    std::vector<double> damping_vec3 = {16. / 19., 16. / 19., 14. / 19., 16. / 19.};
+    std::vector<double> damping_vec4 = {7. / 8., 7. / 8., 5. / 7., 7. / 8.};
+    std::vector<double> damping_vec5 = {0.85 / 0.7, 0.85 / 0.7, 0.85 / 0.5, 0.85 / 0.7};
+    std::vector<double> damping_vec6 = {1. / 0.85, 1. / 0.85, 1. / 0.85, 1. / 0.85};
 
     mio::timing::BasicTimer timer;
     timer.start();
+    spatial_hybrid_sim.advance(1323, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec1);
+    spatial_hybrid_sim.advance(1353, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec2);
+    spatial_hybrid_sim.advance(1554, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec3);
+    spatial_hybrid_sim.advance(1577, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec4);
+    spatial_hybrid_sim.advance(1680, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec5);
+    spatial_hybrid_sim.advance(1736, Condition.combined_region, true);
+    spatial_hybrid_sim.apply_dampings(damping_vec6);
     spatial_hybrid_sim.advance(config.tmax, Condition.combined_region, true);
     timer.stop();
 
@@ -110,9 +128,9 @@ int main()
     moments = spatial_hybrid_sim.get_deterministic_moments(config.dt);
     done    = moments.first.export_csv(save_file + "deterministic_moments.csv", moments.second);
     // Save joint outputs
-    done    = spatial_hybrid_sim.get_joint_mean(config.dt).export_csv(save_file + "joint_mean.csv");
+    done    = spatial_hybrid_sim.get_joint_mean(config.dt).export_csv(save_file + "means.csv");
     moments = spatial_hybrid_sim.get_joint_moments(config.dt);
-    done    = moments.first.export_csv(save_file + "joint_moments.csv", moments.second);
+    done    = moments.first.export_csv(save_file + "moments.csv", moments.second);
     // Save model used
     done = spatial_hybrid_sim.get_model_used_ts().export_csv(save_file + "model_used.csv");
     // Save runtime
