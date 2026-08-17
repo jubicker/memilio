@@ -8,20 +8,21 @@ import matplotlib.dates as mdates
 import os
 
 # Load fitting data
-target_file = "/p/project1/loki/bicker1/memilio/ILI_df_Germany.csv"
+target_file = "/home/bick_ju/fork/memilio/ILI_df_Germany.csv"
 
 start_date = pd.to_datetime("2016-08-01")
 num_days = 4 * 365 - 4
+pop_size = int(835771.40)
 
 real_df = pd.read_csv(target_file, parse_dates=["Datum"])
 end_date = start_date + pd.Timedelta(days=num_days)
 filtered_df = real_df[(real_df["Datum"] >= start_date)
                       & (real_df["Datum"] < end_date)]
-target = np.array(filtered_df.Inzidenz)
+target = np.array(filtered_df.Inzidenz)/100000*pop_size
 obs_data = dict(data=target)
 
 # setup parameters
-full_or_scaled = 0
+full_or_scaled = 1
 use_new_inf = True
 num_runs = 1
 
@@ -168,7 +169,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
     median_curve = {"Date": [], "Mean": []}
     current_date = start_date
     for week in range(0, len(sim_output_matrix[1])):
-        incidence = (sim_output_matrix[1][week]) / pop_size * 100000
+        incidence = (sim_output_matrix[1][week])
         median_curve["Date"].append(current_date)
         median_curve["Mean"].append(incidence)
         current_date += pd.Timedelta(days=7)
@@ -180,7 +181,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
     lower_curve = {"Date": [], "Mean": []}
     current_date = start_date
     for week in range(0, len(sim_output_matrix[0])):
-        incidence = (sim_output_matrix[0][week]) / pop_size * 100000
+        incidence = (sim_output_matrix[0][week])
         lower_curve["Date"].append(current_date)
         lower_curve["Mean"].append(incidence)
         current_date += pd.Timedelta(days=7)
@@ -189,7 +190,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
     upper_curve = {"Date": [], "Mean": []}
     current_date = start_date
     for week in range(0, len(sim_output_matrix[2])):
-        incidence = (sim_output_matrix[2][week]) / pop_size * 100000
+        incidence = (sim_output_matrix[2][week])
         upper_curve["Date"].append(current_date)
         upper_curve["Mean"].append(incidence)
         current_date += pd.Timedelta(days=7)
@@ -201,7 +202,8 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
         end_date = start_date + pd.Timedelta(days=tmax)
         filtered_df = real_df[(real_df["Datum"] >= start_date)
                               & (real_df["Datum"] < end_date) & (real_df["Region"] == region_name)]
-        ax.scatter(filtered_df["Datum"], filtered_df["Inzidenz"],
+        scaled_incidence =  filtered_df["Inzidenz"]/ 100000 * pop_size
+        ax.scatter(filtered_df["Datum"], scaled_incidence,
                    marker='x', color='black', label='real')
     ax.set_xlabel("Date")
     ax.set_ylabel("Incidence")
@@ -217,7 +219,7 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output2/"
+    dir_path = "/home/bick_ju/fork/memilio/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
@@ -269,4 +271,4 @@ if __name__ == "__main__":
     weighted_results = weighted_quantiles(result_matrix, w, (0.05, 0.5, 0.95))
 
     plot_new_infections_cis(weighted_results, dir_path, target_file, pd.Timestamp(
-        "2016-08-01"), num_days, 0, 100000, "Bundesweit")
+        "2016-08-01"), num_days, 0, pop_size, "Bundesweit")
