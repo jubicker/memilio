@@ -595,7 +595,7 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigInfluenzaRegions:
-        config.name                   = "config_influenza_regions_regional_strict";
+        config.name                   = "config_influenza_regions_regional_no_64cores";
         config.num_regions            = 4; // Norden (West), Osten, Sueden, Mitte (West)
         config.t0                     = 0;
         config.tmax                   = 5 * 365 - 4;
@@ -627,22 +627,22 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigInfluenzaRegions_full:
-        config.name                   = "config_influenza_regions_full";
-        config.num_regions            = 4; // Norden (West), Osten, Sueden, Mitte (West)
-        config.t0                     = 0;
-        config.tmax                   = 3 * 365 - 3;
-        config.dt                     = 0.1;
-        config.lambdas                = {3.085323e-8, 1.964985e-8, 8.625387e-9, 5.472985e-9};
+        config.name        = "config_influenza_regions_full_global_64cores";
+        config.num_regions = 4; // Norden (West), Osten, Sueden, Mitte (West)
+        config.t0          = 0;
+        config.tmax        = 4 * 365 - 4;
+        config.dt          = 0.1;
+        config.lambdas     = {3.085322994162e-8, 1.9646984370791302e-8, 8.625386847001893e-9, 5.472985210251e-9};
         config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 149.;
         config.I0s                    = {{0, 3518}, {1, 9656}, {2, 158971}, {3, 224756}};
-        config.R0s                    = {{0, 3870265}, {1, 4767980}, {2, 4780401}, {3, 5645720}};
+        config.R0s                    = {{0, 3870265}, {1, 4767980}, {2, 4780410}, {3, 5645720}};
         config.total_populations      = {13531452, 16093905, 24494826, 29456957};
         config.first_season_start_day = -153;
-        config.season_peaks           = {21, 37, 24};
-        config.seasonality_rhos       = {0.79, 0.78, 0.77};
-        config.seasonality_sigmas     = {10, 15, 5};
+        config.season_peaks           = {21, 37, 24, 24, 24};
+        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.76, 0.775};
+        config.seasonality_sigmas     = {10, 15, 5, 7, 8.5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
                  {{1, 2}, 0.0028037943556893123}, {{1, 3}, 0.001536233748117688},  {{2, 1}, 0.0018421849577539354},
