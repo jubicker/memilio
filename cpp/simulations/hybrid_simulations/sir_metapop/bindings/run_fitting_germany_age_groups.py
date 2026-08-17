@@ -28,7 +28,8 @@ for date in filtered_df.Datum.unique():
     target.append(ag_values)
 
 target_arr = np.array(target)          # shape (T, 5)
-group_scale = target_arr.std(axis=0)   # per-age-group std, shape (5,)
+group_scale = target_arr.std(axis=0)   # per-age-group std, shape (5,) [3357.54833717 1430.01343807  733.04838466  704.65690342  558.20451202]
+print(group_scale)
 obs_data = dict(data=target)
 
 # setup parameters
@@ -106,7 +107,7 @@ prior = pyabc.Distribution(
 def distance(x, x0):
     sim = np.asarray(x["data"])
     obs = np.asarray(x0["data"])
-    return np.mean(((sim - obs) / group_scale) ** 2)
+    return np.mean(((sim - obs)) ** 2) #np.mean(((sim - obs) / group_scale) ** 2)
 
 
 def weighted_quantiles(simulations, weights, qs):
@@ -242,8 +243,8 @@ if __name__ == "__main__":
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
-    run = True
-    load = False
+    run = False
+    load = True
     if (run):
         # Define the fitting problem
         abc = pyabc.ABCSMC(model, prior, distance, population_size=4000) #pyabc.populationstrategy.AdaptivePopulationSize( 500, mean_cv=0.05, max_population_size=3000)
@@ -254,7 +255,7 @@ if __name__ == "__main__":
             abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1, min_acceptance_rate=0.01)
+        history = abc.run(max_nr_populations=100, minimum_epsilon=0.1, min_acceptance_rate=0.01)
 
     else:
         history = pyabc.History(db_path, create=False)

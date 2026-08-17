@@ -18,8 +18,6 @@ end_date = start_date + pd.Timedelta(days=num_days)
 filtered_df = real_df[(real_df["Datum"] >= start_date)
                       & (real_df["Datum"] < end_date)]
 target = np.array(filtered_df.Inzidenz)
-print("Target:")
-print(len(target))
 obs_data = dict(data=target)
 
 # setup parameters
@@ -39,78 +37,78 @@ sigmas = [10, 15, 5]
 
 
 # Model function that gets parameters, runs simulation and returns result dictionary
-# def model(parameters):
-#     res = run_germany(
-#         full_or_scaled, use_new_inf,
-#         num_runs,
-#         10**(-1*parameters["trams_rate"]),
-#         gamma,
-#         1./parameters["T_R"],
-#         parameters["I0"],
-#         parameters["R0"],
-#         [parameters["peaks_year_1"],
-#          parameters["peaks_year_2"],
-#          parameters["peaks_year_3"],
-#          parameters["peaks_year_4"]],
-#         [parameters["rhos_year_1"],
-#          parameters["rhos_year_2"],
-#          parameters["rhos_year_3"],
-#          parameters["rhos_year_4"]],
-#         [parameters["sigmas_year_1"],
-#          parameters["sigmas_year_2"],
-#          parameters["sigmas_year_3"],
-#          parameters["sigmas_year_4"]])
-#     # We only use one region, so we can directly simplify the data
-#     return {"data": np.array([week[0] for week in res])}
-
 def model(parameters):
     res = run_germany(
         full_or_scaled, use_new_inf,
         num_runs,
-        transm_rate,
+        10**(-1*parameters["trams_rate"]),
         gamma,
-        nu,
-        I0,
-        R0,
-        [peaks[0],
-         peaks[1],
-         peaks[2],
+        1./parameters["T_R"],
+        parameters["I0"],
+        parameters["R0"],
+        [parameters["peaks_year_1"],
+         parameters["peaks_year_2"],
+         parameters["peaks_year_3"],
          parameters["peaks_year_4"]],
-        [rhos[0],
-         rhos[1],
-         rhos[2],
+        [parameters["rhos_year_1"],
+         parameters["rhos_year_2"],
+         parameters["rhos_year_3"],
          parameters["rhos_year_4"]],
-        [sigmas[0],
-         sigmas[1],
-         sigmas[2],
+        [parameters["sigmas_year_1"],
+         parameters["sigmas_year_2"],
+         parameters["sigmas_year_3"],
          parameters["sigmas_year_4"]])
     # We only use one region, so we can directly simplify the data
     return {"data": np.array([week[0] for week in res])}
 
-# prior = pyabc.Distribution(
-#     trams_rate=pyabc.RV("uniform", 4, 2),
-#     T_R=pyabc.RV("uniform", 10, 355),
-#     I0=pyabc.RV("uniform", 0, 3000),
-#     R0=pyabc.RV("uniform", 0, 30000),
-#     peaks_year_1=pyabc.RV("norm", loc=0, scale=20),
-#     peaks_year_2=pyabc.RV("norm", loc=0, scale=20),
-#     peaks_year_3=pyabc.RV("norm", loc=0, scale=20),
-#     peaks_year_4=pyabc.RV("norm", loc=0, scale=20),
-#     rhos_year_1=pyabc.RV("uniform", 0, 1),
-#     rhos_year_2=pyabc.RV("uniform", 0, 1),
-#     rhos_year_3=pyabc.RV("uniform", 0, 1),
-#     rhos_year_4=pyabc.RV("uniform", 0, 1),
-#     sigmas_year_1=pyabc.RV("uniform", 0, 200),
-#     sigmas_year_2=pyabc.RV("uniform", 0, 200),
-#     sigmas_year_3=pyabc.RV("uniform", 0, 200),
-#     sigmas_year_4=pyabc.RV("uniform", 0, 200),
-# )
+# def model(parameters):
+#     res = run_germany(
+#         full_or_scaled, use_new_inf,
+#         num_runs,
+#         transm_rate,
+#         gamma,
+#         nu,
+#         I0,
+#         R0,
+#         [peaks[0],
+#          peaks[1],
+#          peaks[2],
+#          parameters["peaks_year_4"]],
+#         [rhos[0],
+#          rhos[1],
+#          rhos[2],
+#          parameters["rhos_year_4"]],
+#         [sigmas[0],
+#          sigmas[1],
+#          sigmas[2],
+#          parameters["sigmas_year_4"]])
+#     # We only use one region, so we can directly simplify the data
+#     return {"data": np.array([week[0] for week in res])}
 
 prior = pyabc.Distribution(
+    trams_rate=pyabc.RV("uniform", 4, 2),
+    T_R=pyabc.RV("uniform", 10, 355),
+    I0=pyabc.RV("uniform", 0, 3000),
+    R0=pyabc.RV("uniform", 0, 30000),
+    peaks_year_1=pyabc.RV("norm", loc=0, scale=20),
+    peaks_year_2=pyabc.RV("norm", loc=0, scale=20),
+    peaks_year_3=pyabc.RV("norm", loc=0, scale=20),
     peaks_year_4=pyabc.RV("norm", loc=0, scale=20),
+    rhos_year_1=pyabc.RV("uniform", 0, 1),
+    rhos_year_2=pyabc.RV("uniform", 0, 1),
+    rhos_year_3=pyabc.RV("uniform", 0, 1),
     rhos_year_4=pyabc.RV("uniform", 0, 1),
+    sigmas_year_1=pyabc.RV("uniform", 0, 200),
+    sigmas_year_2=pyabc.RV("uniform", 0, 200),
+    sigmas_year_3=pyabc.RV("uniform", 0, 200),
     sigmas_year_4=pyabc.RV("uniform", 0, 200),
 )
+
+# prior = pyabc.Distribution(
+#     peaks_year_4=pyabc.RV("norm", loc=0, scale=20),
+#     rhos_year_4=pyabc.RV("uniform", 0, 1),
+#     sigmas_year_4=pyabc.RV("uniform", 0, 200),
+# )
 
 
 def distance(x, x0):
@@ -219,11 +217,11 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output/"
+    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output2/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
-    run = False
+    run = True
     load = False
     if (run):
         # Define the fitting problem
@@ -235,7 +233,7 @@ if __name__ == "__main__":
             abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1)
+        history = abc.run(max_nr_populations=100, minimum_epsilon=0.1)
 
     else:
         history = pyabc.History(db_path, create=False)

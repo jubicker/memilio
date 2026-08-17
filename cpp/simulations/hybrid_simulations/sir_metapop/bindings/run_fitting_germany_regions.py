@@ -13,13 +13,13 @@ region_to_index = {'Norden (West)': 0, 'Osten': 1,
                    'Sueden': 2, 'Mitte (West)': 3}
 
 start_date = pd.to_datetime("2016-08-01")
-num_days = 3 * 365 - 4
+num_days = 4 * 365 - 4
 
 real_df = pd.read_csv(target_file, parse_dates=["Datum"])
 end_date = start_date + pd.Timedelta(days=num_days)
 target = []  # For every time point one list with one value for each region
 filtered_df = real_df[(real_df["Datum"] >= start_date)
-                      & (real_df["Datum"] <= end_date)]
+                      & (real_df["Datum"] < end_date)]
 for date in filtered_df.Datum.unique():
     region_values = []
     for region in region_to_index.keys():
@@ -40,9 +40,9 @@ num_runs = 1
 # fixed parameters that are not fitted:
 gamma = 1./7.
 nu = 1./149.
-peaks = [21, 37, 24]
-sigmas = [10, 15, 5]
-rhos = [0.79, 0.78, 0.77]
+peaks = [21, 37, 24, -33]
+sigmas = [10, 15, 5, 113]
+rhos = [0.79, 0.78, 0.77, 0.65]
 
 # Model function that gets parameters, runs simulation and returns result dictionary
 def model(parameters):
@@ -271,4 +271,4 @@ if __name__ == "__main__":
         result_matrix, w, (0.05, 0.5, 0.95))  # (3, T, A)
 
     plot_new_infections_cis(weighted_results, dir_path, target_file, pd.Timestamp(
-        "2016-08-01"), 3*365-4, 0, 100000, region_to_index)
+        "2016-08-01"), 4*365-4, 0, 100000, region_to_index)

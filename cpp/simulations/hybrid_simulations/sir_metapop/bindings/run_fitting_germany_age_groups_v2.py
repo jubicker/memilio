@@ -1,4 +1,4 @@
-from _simulation_stochastic import run_age_groups
+#from _simulation_stochastic import run_age_groups
 import pandas as pd
 import pyabc
 import numpy as np
@@ -248,11 +248,11 @@ def plot_new_infections_cis(sim_output_matrix, save_dir, real_data_file, start_d
 
 
 if __name__ == "__main__":
-    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output_ag/"
+    dir_path = "/p/project1/loki/bicker1/memilio/cpp/simulations/hybrid_simulations/sir_metapop/bindings/output_ag2/"
     os.makedirs(dir_path, exist_ok=True)
     # Create a database
     db_path = "sqlite:///" + dir_path + "influenca_fitting3.db"
-    run = True
+    run = False
     load = False
     if (run):
         # Define the fitting problem
@@ -264,7 +264,7 @@ if __name__ == "__main__":
             abc.new(db_path, obs_data)
 
         # Run the fitting
-        history = abc.run(max_nr_populations=50, minimum_epsilon=0.1, min_acceptance_rate=0.01)
+        history = abc.run(max_nr_populations=100, minimum_epsilon=0.1, min_acceptance_rate=0.01)
 
     else:
         history = pyabc.History(db_path, create=False)
