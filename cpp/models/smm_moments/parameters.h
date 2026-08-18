@@ -58,12 +58,13 @@ struct InfluencingRegions {
     using Type = mio::CustomIndexArray<std::vector<std::pair<size_t, double>>, mio::regions::Region>;
     static Type get_default(mio::regions::Region size)
     {
-        std::vector<std::pair<size_t, double>> default_vec(static_cast<size_t>(size));
+        // By default, each region is only influenced by itself.
+        std::vector<std::vector<std::pair<size_t, double>>> default_vec(static_cast<size_t>(size));
         for (size_t i = 0; i < default_vec.size(); i++) {
-            default_vec[i] = std::make_pair(i, 1.);
+            default_vec[i] = {std::make_pair(i, 1.)};
         }
 
-        return Type(size, default_vec);
+        return Type(size, default_vec.begin(), default_vec.end());
     }
     static std::string name()
     {

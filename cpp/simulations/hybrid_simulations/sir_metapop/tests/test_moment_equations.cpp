@@ -490,9 +490,160 @@ void test_two_regions()
     }
 }
 
+namespace multi_influence_params
+{
+const double lambda0    = 0.0003;
+const double lambda1    = 0.0002;
+const double w00        = 0.7; // weight of region 0 influencing region 0 (self)
+const double w01        = 0.3; // weight of region 1 influencing region 0
+const double w10        = 0.25; // weight of region 0 influencing region 1
+const double w11        = 0.75; // weight of region 1 influencing region 1 (self)
+const double gamma0     = 1. / 6.;
+const double gamma1     = 1. / 5.;
+const double total_pop0 = 8000;
+const double total_pop1 = 12000;
+const double I0         = 15;
+const double I1         = 8;
+} // namespace multi_influence_params
+
+namespace
+{
+using MultiIndex6 = std::array<int, 6>;
+
+/// @brief One reaction of the underlying CTMC: propensity (rate) and stoichiometric change (nu).
+struct Reaction {
+    double rate;
+    MultiIndex6 nu;
+};
+
+MultiIndex6 one_hot(size_t pos)
+{
+    MultiIndex6 idx{};
+    idx[pos] = 1;
+    return idx;
+}
+
+/**
+ * @brief Returns prod_i nu[i]^m[i] (with 0^0 := 1), i.e. the contribution of a single jump nu to the
+ * monomial x^m.
+ */
+double jump_monomial(const MultiIndex6& nu, const MultiIndex6& m)
+{
+    double val = 1.;
+    for (size_t i = 0; i < m.size(); ++i) {
+        if (m[i] == 0) {
+            continue;
+        }
+        if (nu[i] == 0) {
+            return 0.;
+        }
+        if (nu[i] < 0 && (m[i] % 2 != 0)) {
+            val *= -1.;
+        }
+    }
+    return val;
+}
+
+/**
+ * @brief The generator of a jump process gives d/dt E[f(X)] = sum_R a_R(x) * E[f(x+nu_R) - f(x)].
+ * Starting from a deterministic (delta) distribution, all central moments are zero, so for f(x) = (x-mu)^m
+ * this reduces to d/dt M_m|_{t=0} = sum_R a_R(x0) * prod_i (nu_R[i])^{m[i]}, independent of the closure
+ * used. This gives a simple, closed-form reference for the moment equations that avoids hand-deriving
+ * the (much more involved) formulas that hold away from a delta start.
+ */
+double expected_derivative(const std::vector<Reaction>& reactions, const MultiIndex6& m)
+{
+    double result = 0.;
+    for (auto&& r : reactions) {
+        result += r.rate * jump_monomial(r.nu, m);
+    }
+    return result;
+}
+} // namespace
+
+/**
+ * @brief Tests the moment equations for two regions where each region has two influencing regions:
+ * itself and the other region. Region 0's transmission is driven by a weighted combination of I0 and I1,
+ * and analogously for region 1. This specifically exercises the parts of Model::get_rhs_for_moment that
+ * loop over InfluencingRegions[l] more than once per region.
+ *
+ * The reference derivatives are computed independently of the model's internal formulas: starting from a
+ * deterministic (delta) initial distribution, the derivative of every mean and central moment at t=0 has
+ * the simple closed form given by expected_derivative() above, for the CTMC with reactions
+ *   S_l -> I_l with rate lambda_l * w_lk * S_l * I_k  for every (k, w_lk) in InfluencingRegions[l],
+ *   I_l -> R_l with rate gamma_l.
+ */
+void test_two_regions_multiple_influences()
+{
+    std::cerr << "Running test two regions with multiple influences..." << std::endl;
+    using namespace multi_influence_params;
+
+    mio::smm_moments::Model<2, 4> model;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Susceptible}] = total_pop0 - I0;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Infected}]    = I0;
+    model.populations[{mio::regions::Region(0), mio::osir::InfectionState::Recovered}]   = 0.0;
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Susceptible}] = total_pop1 - I1;
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Infected}]    = I1;
+    model.populations[{mio::regions::Region(1), mio::osir::InfectionState::Recovered}]   = 0.0;
+
+    model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(0)] = lambda0;
+    model.parameters.template get<mio::smm_moments::TransmissionRate>()[mio::regions::Region(1)] = lambda1;
+    model.parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(0)]     = gamma0;
+    model.parameters.template get<mio::smm_moments::RecoveryRate>()[mio::regions::Region(1)]     = gamma1;
+    // Region 0 is influenced by itself and by region 1; region 1 is influenced by itself and region 0.
+    model.parameters.template get<mio::smm_moments::InfluencingRegions>()[mio::regions::Region(0)] = {
+        {0, w00}, {1, w01}};
+    model.parameters.template get<mio::smm_moments::InfluencingRegions>()[mio::regions::Region(1)] = {
+        {0, w10}, {1, w11}};
+
+    // Deterministic (delta) initial distribution: all central moments are zero, only M000...0 = 1.
+    Eigen::VectorX<ScalarType> y = model.get_initial_values();
+    double S0 = y[0], I0v = y[1], S1 = y[3], I1v = y[4];
+
+    std::vector<Reaction> reactions = {
+        {lambda0 * w00 * S0 * I0v, {-1, 1, 0, 0, 0, 0}}, // local transmission region 0
+        {lambda0 * w01 * S0 * I1v, {-1, 1, 0, 0, 0, 0}}, // cross transmission region 0 <- region 1
+        {lambda1 * w11 * S1 * I1v, {0, 0, 0, -1, 1, 0}}, // local transmission region 1
+        {lambda1 * w10 * S1 * I0v, {0, 0, 0, -1, 1, 0}}, // cross transmission region 1 <- region 0
+        {gamma0 * I0v, {0, -1, 1, 0, 0, 0}}, // recovery region 0
+        {gamma1 * I1v, {0, 0, 0, 0, -1, 1}}, // recovery region 1
+    };
+
+    Eigen::VectorX<ScalarType> dydt = Eigen::VectorX<ScalarType>::Zero(y.size());
+    model.get_derivatives(y, 0.0, dydt);
+
+    double tol = 1e-8;
+    // Mean values (S0, I0, R0, S1, I1, R1).
+    for (size_t j = 0; j < model.populations.get_num_compartments(); ++j) {
+        double expected = expected_derivative(reactions, one_hot(j));
+        if (std::abs(dydt[j] - expected) > tol) {
+            std::cerr << "Discrepancy found at index " << j << ": " << dydt[j] << " vs " << expected << std::endl;
+        }
+    }
+    // Central moments of order 2 and 3 (the orders that get their own ODE for ClosureOrder 4).
+    auto& moment_indices = model.moments.get_indices();
+    for (size_t flat = 0; flat < moment_indices.size(); ++flat) {
+        size_t order = model.moments.order(flat);
+        if (order < 2 || order > 3) {
+            continue;
+        }
+        double expected = expected_derivative(reactions, moment_indices[flat]);
+        size_t i         = flat + model.populations.get_num_compartments();
+        if (std::abs(dydt[i] - expected) > tol) {
+            std::cerr << "Discrepancy found at index " << i << ": " << dydt[i] << " vs " << expected
+                      << " corresponding to moment M_";
+            for (auto&& idx : moment_indices[flat]) {
+                std::cerr << idx;
+            }
+            std::cerr << std::endl;
+        }
+    }
+}
+
 int main()
 {
     test_one_region();
     test_two_regions();
+    test_two_regions_multiple_influences();
     return 0;
 }
