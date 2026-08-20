@@ -42,7 +42,7 @@ int main()
     const size_t num_runs      = 1000;
     double dt_exchange         = 1.;
     const size_t closure_order = 3;
-    auto config                = Config::get_config(Config::ConfigType::ConfigInfluenzaRegions);
+    auto config                = Config::get_config(Config::ConfigType::ConfigInfluenzaRegions_full);
     const size_t num_regions   = 4;
     double min_step_size       = 0.0001;
 
@@ -92,15 +92,27 @@ int main()
     mio::hybrid::SwitchingCondition<num_regions, closure_order> Condition;
     Condition.set_config(config);
     Condition.set_mean_stddev_relation(0.3);
-    Condition.set_absolute_switch_threshold(50.);
+    Condition.set_absolute_switch_threshold(100.);
     Condition.set_mean_gradient_threshold(0);
     Condition.set_R0_threshold(1.0);
-    std::vector<double> damping_vec1 = {0.7, 0.7, 0.6, 0.7};
-    std::vector<double> damping_vec2 = {19. / 14., 19. / 14., 19. / 12., 19. / 14.};
-    std::vector<double> damping_vec3 = {16. / 19., 16. / 19., 14. / 19., 16. / 19.};
-    std::vector<double> damping_vec4 = {7. / 8., 7. / 8., 5. / 7., 7. / 8.};
-    std::vector<double> damping_vec5 = {0.85 / 0.7, 0.85 / 0.7, 0.85 / 0.5, 0.85 / 0.7};
-    std::vector<double> damping_vec6 = {1. / 0.85, 1. / 0.85, 1. / 0.85, 1. / 0.85};
+    double first                     = 0.4;
+    double first_bav                 = 0.3;
+    double second                    = 0.95;
+    double second_bav                = 0.95;
+    double third                     = 0.8;
+    double third_bav                 = 0.7;
+    double fourth                    = 0.7;
+    double fourth_bav                = 0.6;
+    double fifth                     = 0.85;
+    double fifth_bav                 = 0.85;
+    double sixth                     = 0.85;
+    double sixth_bav                 = 0.85;
+    std::vector<double> damping_vec1 = {first, first, first_bav, first};
+    std::vector<double> damping_vec2 = {second / first, second / first, second_bav / first_bav, second / first};
+    std::vector<double> damping_vec3 = {third / second, third / second, third_bav / second_bav, third / second};
+    std::vector<double> damping_vec4 = {fourth / third, fourth / third, fourth_bav / third_bav, fourth / third};
+    std::vector<double> damping_vec5 = {fifth / fourth, fifth / fourth, fifth_bav / fourth_bav, fifth / fourth};
+    std::vector<double> damping_vec6 = {sixth / fifth, sixth / fifth, sixth_bav / fifth_bav, sixth / fifth};
 
     mio::timing::BasicTimer timer;
     timer.start();
