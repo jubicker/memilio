@@ -492,26 +492,26 @@ Config get_config(ConfigType type)
         config.name                   = "config_influenza_germany_full";
         config.num_regions            = 1;
         config.t0                     = 0;
-        config.tmax                   = 3 * 365 - 3;
+        config.tmax                   = 4 * 365 - 137;
         config.dt                     = 0.1;
-        config.lambdas                = {3.008628081137058e-7};
+        config.lambdas                = {2.908628081137058e-6};
         config.influencing_regions    = {{{0, 1}}};
         config.gamma                  = 1. / 7.;
         config.nu                     = 1 / 149.;
-        config.I0s                    = {{0, int(4287.50)}};
-        config.R0s                    = {{0, int(198228.26)}};
-        config.total_populations      = {int(835771.40)};
+        config.I0s                    = {{0, int(440.750)}};
+        config.R0s                    = {{0, int(19822.826)}};
+        config.total_populations      = {int(83577.140)};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24, 24, 24};
-        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.76, 0.775};
-        config.seasonality_sigmas     = {10, 15, 5, 7, 8.5};
+        config.seasonality_rhos       = {0.79, 0.81, 0.77, 0.76, 0.775};
+        config.seasonality_sigmas     = {40, 15, 10, 10, 8.5};
         return config;
         break;
     case ConfigType::ConfigInfluenzaAgeGroups:
         config.name        = "config_influenza_agegroups";
         config.num_regions = 5; // 0-4, 5-14, 15-34, 35-59, 60+
         config.t0          = 0;
-        config.tmax        = 1 * 365 - 3;
+        config.tmax        = 3 * 365 - 4;
         config.dt          = 0.1;
         config.lambdas     = {0.00001288089301181601, 1.19954495503683e-6, 1.115361116626335e-6, 8.44593364010281e-7,
                               9.793771309493856e-7};
@@ -627,22 +627,22 @@ Config get_config(ConfigType type)
         return config;
         break;
     case ConfigType::ConfigInfluenzaRegions_full:
-        config.name        = "config_influenza_regions_full_global_64cores";
+        config.name        = "config_influenza_regions_full";
         config.num_regions = 4; // Norden (West), Osten, Sueden, Mitte (West)
         config.t0          = 0;
-        config.tmax        = 4 * 365 - 4;
+        config.tmax        = 5 * 365 - 4;
         config.dt          = 0.1;
-        config.lambdas     = {3.085322994162e-6, 1.9646984370791302e-6, 8.625386847001893e-7, 5.472985210251e-7};
-        config.influencing_regions = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
-        config.gamma               = 1. / 7.;
-        config.nu                  = 1 / 149.;
-        config.I0s                 = {{0, int(35.18)}, {1, int(96.56)}, {2, int(1589.71)}, {3, int(2247.56)}};
-        config.R0s                 = {{0, int(38702.65)}, {1, int(47679.80)}, {2, int(47804.10)}, {3, int(56457.20)}};
-        config.total_populations   = {int(135314.52), int(160939.05), int(244948.26), int(294569.57)};
+        config.lambdas = {0.0000179924907097591, 0.00001531772435903319, 9.7867373864923955e-6, 8.152123248521465e-6};
+        config.influencing_regions    = {{{0, 1}}, {{1, 1}}, {{2, 1}}, {{3, 1}}};
+        config.gamma                  = 1. / 7.;
+        config.nu                     = 1 / 149.;
+        config.I0s                    = {{0, int(32)}, {1, int(100)}, {2, int(140)}, {3, int(100)}};
+        config.R0s                    = {{0, int(5000)}, {1, int(4022)}, {2, int(4185)}, {3, int(3770)}};
+        config.total_populations      = {int(13531.452), int(16093.905), int(24494.826), int(29456.957)};
         config.first_season_start_day = -153;
         config.season_peaks           = {21, 37, 24, 24, 24};
-        config.seasonality_rhos       = {0.79, 0.78, 0.77, 0.76, 0.775};
-        config.seasonality_sigmas     = {10, 15, 5, 7, 8.5};
+        config.seasonality_rhos       = {0.81, 0.83, 0.8, 0.78, 0.805};
+        config.seasonality_sigmas     = {20, 15, 10, 10, 12.5};
         // Fill transition rates - work counts
         rates = {{{0, 1}, 0.006735419081411219},  {{0, 3}, 0.011836497664847793},  {{1, 0}, 0.0056630134202979325},
                  {{1, 2}, 0.0028037943556893123}, {{1, 3}, 0.001536233748117688},  {{2, 1}, 0.0018421849577539354},
