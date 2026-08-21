@@ -605,7 +605,7 @@ def _plot_figure_multi(
     handles, labels = _order_legend_entries_by_condition(
         handles, labels, [cond["name"] for cond in conditions_info])
     fig_leg = plt.figure(figsize=figsize)
-    fig_leg.legend(handles, labels, loc='center', ncol=1)
+    fig_leg.legend(handles, labels, loc='center', ncol=2)
     fig_leg.tight_layout()
     fig_leg.savefig(save_path + f"_legend.png", dpi=dpi,
                     bbox_inches='tight', transparent=True)
@@ -915,7 +915,8 @@ def mean_error_mean_std_bar_conditions(save_dir, conditions_info, comp_index, nu
     names = []
     mean_errors = []
     std_errors = []
-    bar_colors = []
+    ode_bar_colors = []
+    stoch_bar_colors = []
 
     for cond in conditions_info:
         hybrid_mean = pd.read_csv(cond["hybrid_dir"] + "/joint_mean.csv")
@@ -948,22 +949,32 @@ def mean_error_mean_std_bar_conditions(save_dir, conditions_info, comp_index, nu
         names.append(cond["name"])
         mean_errors.append(mean_errors_r.mean())
         std_errors.append(std_errors_r.mean())
-        bar_colors.append(cond.get("stoch_color", colors["dark grey"]))
+        ode_bar_colors.append(cond.get("ode_color", colors["dark grey"]))
+        stoch_bar_colors.append(cond.get("stoch_color", colors["dark grey"]))
 
     x = np.arange(len(names))
     width = 0.35
+    edge_width = 0
 
-    # Faded fill for the std bars, but keep the hatch lines drawn in the
-    # full-opacity bar color (patch alpha would otherwise fade those too).
-    std_face_colors = [mcolors.to_rgba(c, alpha=0.5) for c in bar_colors]
+    # Both bars carry both colors: ode_color as the face fill, stoch_color as
+    # a thick edge, so the pair reads as the whole hybrid error rather than
+    # only its stochastic part. The std bars additionally get a faded face
+    # and a hatch (still drawn in stoch_color) to distinguish them from the
+    # mean bars.
+    std_face_colors = [mcolors.to_rgba(c, alpha=0.5) for c in ode_bar_colors]
 
     fig, ax1 = plt.subplots(figsize=figsize)
     ax2 = ax1.twinx()
 
+    # ax1.bar(x - width / 2, mean_errors, width,
+    #         color=ode_bar_colors, edgecolor=stoch_bar_colors, linewidth=edge_width)
+    # ax2.bar(x + width / 2, std_errors, width,
+    #         color=std_face_colors, hatch="//", edgecolor=stoch_bar_colors, linewidth=edge_width)
+
     ax1.bar(x - width / 2, mean_errors, width,
-            color=bar_colors, edgecolor=bar_colors)
+            color=colors['dark red'], edgecolor=colors['dark red'], linewidth=edge_width)
     ax2.bar(x + width / 2, std_errors, width,
-            color=std_face_colors, hatch="//", edgecolor=bar_colors)
+            color=mcolors.to_rgba(colors['dark red'], alpha=0.5), hatch="//", edgecolor=colors['dark red'], linewidth=edge_width)
 
     ax1.set_ylabel(r"err$(\mu_I)$")
     ax2.set_ylabel(r"err$(\sigma_I)$")
@@ -972,10 +983,17 @@ def mean_error_mean_std_bar_conditions(save_dir, conditions_info, comp_index, nu
     ax1.set_xticks(x)
     ax1.set_xticklabels(names)
 
+    # legend_handles = [
+    #     Patch(facecolor="grey", edgecolor="black",
+    #           linewidth=edge_width, label=r"$\mu_I$"),
+    #     Patch(facecolor="grey", alpha=0.5, hatch="//",
+    #           edgecolor="black", linewidth=edge_width, label=r"$\sigma_I$"),
+    # ]
     legend_handles = [
-        Patch(facecolor="grey", edgecolor="grey", label=r"$\mu_I$"),
-        Patch(facecolor="grey", alpha=0.5, hatch="//",
-              edgecolor="grey", label=r"$\sigma_I$"),
+        Patch(facecolor=colors['dark red'], edgecolor=colors['dark red'],
+              linewidth=edge_width, label=r"$\mu_I$"),
+        Patch(facecolor=colors['dark red'], alpha=0.5, hatch="//",
+              edgecolor=colors['dark red'], linewidth=edge_width, label=r"$\sigma_I$"),
     ]
     ax1.legend(handles=legend_handles, loc="upper right")
 
@@ -1200,7 +1218,7 @@ if __name__ == "__main__":
     dir = "/Users/julia/sim_outputs/output"
     save_dir = "/Users/julia/sim_outputs/output"
     hybrid_model = "Spatial-Hybrid2"
-    config = "config_SIR_I0_0_1_10_100_no_exchange"
+    config = "config_SIR_R0_1_1.5_2_4_exchange"
     num_regions = 4
     condition = "combined_relation_var_gradient_condition_region"
     closure_method = "truncation"
@@ -1249,25 +1267,25 @@ if __name__ == "__main__":
             "ode_color": colors['rose'], "stoch_color": colors['purple']}
     ]
 
-    # mean_multiple_conditions(
-    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    # std_multiple_conditions(
-    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    # mean_error_multiple_conditions(
-    #     save_dir, conditions2, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
-    # std_error_multiple_conditions(
-    #     save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    std_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_error_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    std_error_multiple_conditions(
+        save_dir, conditions2, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
 
-    # mean_multiple_conditions(
-    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    # std_multiple_conditions(
-    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
-    # mean_error_multiple_conditions(
-    #     save_dir, conditions1, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
-    # std_error_multiple_conditions(
-    #     save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    std_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
+    mean_error_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, num_runs, smm_dir, region_titles=region_titles)
+    std_error_multiple_conditions(
+        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir, region_titles=region_titles)
     mean_error_mean_std_bar_conditions(
-        save_dir, conditions1, comp_index, num_regions, figsize, smm_dir)
+        save_dir, conditions1, comp_index, num_regions, (1.3*figsize[0], 0.8*figsize[1]), smm_dir)
 
-    # r0_std_mean_ratio_multiple_conditions(
-    #     save_dir, [], comp_index, num_regions, figsize, lamdas, gamma, smm_dir, region_titles=region_titles)
+    r0_std_mean_ratio_multiple_conditions(
+        save_dir, [], comp_index, num_regions, figsize, lamdas, gamma, smm_dir, region_titles=region_titles)
