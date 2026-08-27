@@ -22,11 +22,31 @@ def bin_labels(edges):
     ]
 
 
+def cross_out_cells(ax, empty_mask, xedges, yedges, color="0.5", lw=1.0):
+    """Draw an X over 2D grid cells that contain no data points.
+
+    empty_mask must have shape (len(yedges) - 1, len(xedges) - 1).
+    """
+    for jj, ii in zip(*np.where(empty_mask)):
+        x0, x1 = xedges[ii], xedges[ii + 1]
+        y0, y1 = yedges[jj], yedges[jj + 1]
+        ax.plot([x0, x1], [y0, y1], color=color, lw=lw, zorder=5)
+        ax.plot([x0, x1], [y1, y0], color=color, lw=lw, zorder=5)
+
+
+def cross_out_bars(ax, empty_mask, edges, ybottom, ytop, color="0.5", lw=1.0):
+    """Draw an X over 1D bins that contain no data points."""
+    for ii in np.where(empty_mask)[0]:
+        x0, x1 = edges[ii], edges[ii + 1]
+        ax.plot([x0, x1], [ybottom, ytop], color=color, lw=lw, zorder=5)
+        ax.plot([x0, x1], [ytop, ybottom], color=color, lw=lw, zorder=5)
+
+
 def plot_parameter_distributions(df, save_path, figsize):
     params = ["I_init_mean", "R_init_mean", "lambda",
               "R0_mean", "std_I_init", "std_R_init", "std_I_init_norm"]
     param_names = [r"$\mu_I(t_{init})$", r"$\mu_R(t_{init})$", r"$\lambda$",
-                   r"$R_0(\mu(t_{init}))$", r"$\sigma_I(t_{init})$", r"$\sigma_R(t_{init})$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
+                   r"$R_{eff}(\mu(t_{init}))$", r"$\sigma_I(t_{init})$", r"$\sigma_R(t_{init})$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
 
     # per-parameter bin edges; use -np.inf / np.inf for open-ended bins
     bin_edges = {
@@ -71,7 +91,7 @@ def plot_parameter_distributions(df, save_path, figsize):
 def plot_parameter_nan_grid(df, save_path, figsize, quantity):
     params = ["I_init_mean", "R_init_mean", "R0_mean", "std_I_init_norm"]
     param_names = [r"$\mu_I(t_{init})$", r"$\mu_R(t_{init})$",
-                   r"$R_0(\mu(t_{init}))$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
+                   r"$R_{eff}(\mu(t_{init}))$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
     n = len(params)
 
     # per-parameter bin edges; use -np.inf / np.inf for open-ended bins
@@ -89,18 +109,21 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
     def custom_bins_1d(param):
         labels = bin_labels(bin_edges[param])
         cats = pd.cut(df[param], bins=bin_edges[param], labels=labels)
-        counts = nan_weights.groupby(
-            cats, observed=False).sum().reindex(labels)
-        return labels, counts.values
+        grouped = nan_weights.groupby(cats, observed=False)
+        counts = grouped.sum().reindex(labels)
+        n_obs = grouped.size().reindex(labels).fillna(0)
+        return labels, counts.values, n_obs.values
 
     def custom_bins_2d(param_x, param_y):
         labels_x = bin_labels(bin_edges[param_x])
         labels_y = bin_labels(bin_edges[param_y])
         cats_x = pd.cut(df[param_x], bins=bin_edges[param_x], labels=labels_x)
         cats_y = pd.cut(df[param_y], bins=bin_edges[param_y], labels=labels_y)
-        grid = (nan_weights.groupby([cats_y, cats_x], observed=False)
-                .sum().unstack().reindex(index=labels_y, columns=labels_x))
-        return labels_x, labels_y, grid.values
+        grouped = nan_weights.groupby([cats_y, cats_x], observed=False)
+        grid = grouped.sum().unstack().reindex(index=labels_y, columns=labels_x)
+        n_obs = grouped.size().unstack().reindex(
+            index=labels_y, columns=labels_x).fillna(0)
+        return labels_x, labels_y, grid.values, n_obs.values
 
     def valid_x(param_x):
         mask = df[param_x].notna()
@@ -118,7 +141,7 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
                 if i == j:
                     continue
                 if use_custom_edges:
-                    *_, grid = custom_bins_2d(param_x, param_y)
+                    *_, grid, _ = custom_bins_2d(param_x, param_y)
                 else:
                     x, y, w = valid_xy(param_x, param_y)
                     grid, _, _ = np.histogram2d(x, y, bins=30, weights=w)
@@ -129,7 +152,7 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
         max_diag = 0
         for param in params:
             if use_custom_edges:
-                _, counts = custom_bins_1d(param)
+                _, counts, _ = custom_bins_1d(param)
             else:
                 x, w = valid_x(param)
                 counts, _ = np.histogram(x, bins=20, weights=w)
@@ -144,22 +167,28 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
 
                 if i == j:
                     if use_custom_edges:
-                        labels, counts = custom_bins_1d(param_x)
+                        labels, counts, n_obs = custom_bins_1d(param_x)
                         ax.bar(labels, counts, color=colors["middle blue"])
                         ax.tick_params(axis="x", rotation=45)
                         ax.set_ylim(0, max_diag+10)
+                        bar_edges = np.arange(len(labels) + 1) - 0.5
+                        cross_out_bars(
+                            ax, n_obs == 0, bar_edges, 0, ax.get_ylim()[1])
                         if (i != 0):
                             ax.set_yticklabels([])
                         if (i != n-1):
                             ax.set_xticklabels([])
                     else:
                         x, w = valid_x(param_x)
-                        ax.hist(x, bins=20, weights=w,
-                                color=colors["middle blue"])
+                        counts, edges, _ = ax.hist(
+                            x, bins=20, weights=w,
+                            color=colors["middle blue"])
+                        raw_counts, _ = np.histogram(x, bins=edges)
                         ax.set_ylim(0, max_diag)
+                        cross_out_bars(ax, raw_counts == 0, edges, 0, max_diag)
                 else:
                     if use_custom_edges:
-                        labels_x, labels_y, grid = custom_bins_2d(
+                        labels_x, labels_y, grid, n_obs = custom_bins_2d(
                             param_x, param_y)
                         im = ax.pcolormesh(
                             grid, cmap=cmap, vmin=0, vmax=max_count)
@@ -169,13 +198,21 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
                             labels_x if j == n - 1 else [],
                             rotation=45, ha="right")
                         ax.set_yticklabels(labels_y if i == 0 else [])
+                        cross_out_cells(
+                            ax, n_obs == 0,
+                            np.arange(len(labels_x) + 1),
+                            np.arange(len(labels_y) + 1))
                     else:
                         x, y, w = valid_xy(param_x, param_y)
                         grid, xedges, yedges = np.histogram2d(
                             x, y, bins=20, weights=w)
+                        counts_2d, _, _ = np.histogram2d(
+                            x, y, bins=[xedges, yedges])
                         im = ax.pcolormesh(
                             xedges, yedges, np.log1p(grid).T,
                             cmap=cmap, vmin=0, vmax=max_count)
+                        cross_out_cells(
+                            ax, counts_2d.T == 0, xedges, yedges)
                         if j != n - 1:
                             ax.set_xticklabels([])
                         if i != 0:
@@ -186,6 +223,7 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
                 if i == 0:
                     ax.set_ylabel(param_names[j])
 
+        fig.align_labels()
         assert im is not None
         cbar_label = "NaN values [#]" if use_custom_edges else "log(NaN count + 1)"
         cbar = fig.colorbar(im, ax=axes, fraction=0.03,
@@ -198,7 +236,7 @@ def plot_parameter_nan_grid(df, save_path, figsize, quantity):
 def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=False):
     params = ["I_init_mean", "R_init_mean", "R0_mean", "std_I_init_norm"]
     param_names = [r"$\mu_I(t_{init})$", r"$\mu_R(t_{init})$",
-                   r"$R_0(\mu(t_{init}))$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
+                   r"$R_{eff}(\mu(t_{init}))$", r"$\sigma_I(t_{init})/\mu_I(t_{init})$"]
     n = len(params)
 
     # per-parameter bin edges; use -np.inf / np.inf for open-ended bins
@@ -215,18 +253,26 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
 
     def custom_bins_1d(param):
         labels = bin_labels(bin_edges[param])
-        cats = pd.cut(df[param], bins=bin_edges[param], labels=labels)
-        means = smape.groupby(cats, observed=False).mean().reindex(labels)
-        return labels, means.values
+        mask = df[param].notna() & smape.notna()
+        cats = pd.cut(df[param][mask], bins=bin_edges[param], labels=labels)
+        grouped = smape[mask].groupby(cats, observed=False)
+        means = grouped.mean().reindex(labels)
+        n_obs = grouped.size().reindex(labels).fillna(0)
+        return labels, means.values, n_obs.values
 
     def custom_bins_2d(param_x, param_y):
         labels_x = bin_labels(bin_edges[param_x])
         labels_y = bin_labels(bin_edges[param_y])
-        cats_x = pd.cut(df[param_x], bins=bin_edges[param_x], labels=labels_x)
-        cats_y = pd.cut(df[param_y], bins=bin_edges[param_y], labels=labels_y)
-        grid = (smape.groupby([cats_y, cats_x], observed=False)
-                .mean().unstack().reindex(index=labels_y, columns=labels_x))
-        return labels_x, labels_y, grid.values
+        mask = df[param_x].notna() & df[param_y].notna() & smape.notna()
+        cats_x = pd.cut(
+            df[param_x][mask], bins=bin_edges[param_x], labels=labels_x)
+        cats_y = pd.cut(
+            df[param_y][mask], bins=bin_edges[param_y], labels=labels_y)
+        grouped = smape[mask].groupby([cats_y, cats_x], observed=False)
+        grid = grouped.mean().unstack().reindex(index=labels_y, columns=labels_x)
+        n_obs = grouped.size().unstack().reindex(
+            index=labels_y, columns=labels_x).fillna(0)
+        return labels_x, labels_y, grid.values, n_obs.values
 
     def valid_x(param_x):
         mask = df[param_x].notna() & smape.notna()
@@ -241,7 +287,7 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
         sums, _ = np.histogram(x, bins=edges, weights=w)
         with np.errstate(invalid="ignore"):
             means = np.where(counts > 0, sums / counts, np.nan)
-        return means, edges
+        return means, edges, counts
 
     def binned_mean_2d(x, y, w, bins=20):
         counts, xedges, yedges = np.histogram2d(x, y, bins=bins)
@@ -249,7 +295,7 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
             x, y, bins=[xedges, yedges], weights=w)
         with np.errstate(invalid="ignore"):
             means = np.where(counts > 0, sums / counts, np.nan)
-        return means, xedges, yedges
+        return means, xedges, yedges, counts
 
     for use_custom_edges, suffix in [(False, "reg_bins"), (True, "bin_edges")]:
         # shared color scale across all off-diagonal panels of this figure
@@ -260,10 +306,10 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
                 if i == j:
                     continue
                 if use_custom_edges:
-                    *_, grid = custom_bins_2d(param_x, param_y)
+                    *_, grid, _ = custom_bins_2d(param_x, param_y)
                 else:
                     x, y, w = valid_xy(param_x, param_y)
-                    grid, _, _ = binned_mean_2d(x, y, w, bins=20)
+                    grid, _, _, _ = binned_mean_2d(x, y, w, bins=20)
                 max_smape = max(max_smape, np.nanmax(grid))
                 positive = grid[grid > 0]
                 if positive.size:
@@ -280,10 +326,10 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
         min_positive_diag = np.inf
         for param in params:
             if use_custom_edges:
-                _, means = custom_bins_1d(param)
+                _, means, _ = custom_bins_1d(param)
             else:
                 x, w = valid_x(param)
-                means, _ = binned_mean_1d(x, w, bins=20)
+                means, _, _ = binned_mean_1d(x, w, bins=20)
             max_diag = max(max_diag, np.nanmax(means))
             positive = means[means > 0]
             if positive.size:
@@ -305,23 +351,28 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
                         ax.yaxis.set_major_locator(LogLocator(base=10.0))
                         ax.yaxis.set_minor_locator(NullLocator())
                     if use_custom_edges:
-                        labels, means = custom_bins_1d(param_x)
+                        labels, means, n_obs = custom_bins_1d(param_x)
                         ax.bar(labels, means, color=colors["middle blue"])
                         ax.tick_params(axis="x", rotation=45)
                         ax.set_ylim(*ylim)
+                        bar_edges = np.arange(len(labels) + 1) - 0.5
+                        cross_out_bars(
+                            ax, n_obs == 0, bar_edges, ylim[0], ylim[1])
                         if (i != 0):
                             ax.set_yticklabels([])
                         if (i != n-1):
                             ax.set_xticklabels([])
                     else:
                         x, w = valid_x(param_x)
-                        means, edges = binned_mean_1d(x, w, bins=20)
+                        means, edges, counts = binned_mean_1d(x, w, bins=20)
                         ax.stairs(means, edges, fill=True,
                                   color=colors["middle blue"])
                         ax.set_ylim(*ylim)
+                        cross_out_bars(
+                            ax, counts == 0, edges, ylim[0], ylim[1])
                 else:
                     if use_custom_edges:
-                        labels_x, labels_y, grid = custom_bins_2d(
+                        labels_x, labels_y, grid, n_obs = custom_bins_2d(
                             param_x, param_y)
                         im = ax.pcolormesh(
                             grid, cmap=cmap, norm=norm)
@@ -331,13 +382,19 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
                             labels_x if j == n - 1 else [],
                             rotation=45, ha="right")
                         ax.set_yticklabels(labels_y if i == 0 else [])
+                        cross_out_cells(
+                            ax, n_obs == 0,
+                            np.arange(len(labels_x) + 1),
+                            np.arange(len(labels_y) + 1))
                     else:
                         x, y, w = valid_xy(param_x, param_y)
-                        grid, xedges, yedges = binned_mean_2d(
+                        grid, xedges, yedges, counts_2d = binned_mean_2d(
                             x, y, w, bins=20)
                         im = ax.pcolormesh(
                             xedges, yedges, grid.T,
                             cmap=cmap, norm=norm)
+                        cross_out_cells(
+                            ax, counts_2d.T == 0, xedges, yedges)
                         if j != n - 1:
                             ax.set_xticklabels([])
                         if i != 0:
@@ -348,6 +405,7 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
                 if i == 0:
                     ax.set_ylabel(param_names[j])
 
+        fig.align_labels()
         assert im is not None
         cbar = fig.colorbar(im, ax=axes, fraction=0.03,
                             pad=0.5, shrink=0.8, anchor=(2, 0.7))
@@ -364,13 +422,13 @@ def plot_parameter_err_grid(df, save_path, figsize, quantity, error, log_scale=F
             save_path + f"{error}_grid_{suffix}_{quantity}{log_suffix}.png", dpi=dpi)
 
 
-base_folder = "/Users/julia/sim_outputs/output/ParameterStudy/SIR/"
+base_folder = "/Users/julia/sim_outputs/output/ParameterStudy/SIRS/"
 df = pd.read_csv(base_folder + "results.csv")
 figsize = (4, 2.5)
 
-plot_parameter_distributions(df, base_folder, figsize=(2.7, 2))
-# plot_parameter_nan_grid(df, base_folder, figsize=figsize, quantity="mean")
-# plot_parameter_nan_grid(df, base_folder, figsize=figsize, quantity="var")
+# plot_parameter_distributions(df, base_folder, figsize=(2.7, 2))
+plot_parameter_nan_grid(df, base_folder, figsize=figsize, quantity="mean")
+plot_parameter_nan_grid(df, base_folder, figsize=figsize, quantity="var")
 # plot_parameter_err_grid(df, base_folder, figsize=figsize,
 #                         quantity="mean", error="sMAPE")
 # plot_parameter_err_grid(df, base_folder, figsize=figsize,
@@ -379,7 +437,7 @@ plot_parameter_distributions(df, base_folder, figsize=(2.7, 2))
 #                         quantity="mean", error="MSE")
 # plot_parameter_err_grid(df, base_folder, figsize=figsize,
 #                         quantity="var", error="MSE")
-# plot_parameter_err_grid(df, base_folder, figsize=figsize,
-#                         quantity="mean", error="MSE", log_scale=True)
-# plot_parameter_err_grid(df, base_folder, figsize=figsize,
-#                         quantity="var", error="MSE", log_scale=True)
+plot_parameter_err_grid(df, base_folder, figsize=figsize,
+                        quantity="mean", error="MSE", log_scale=True)
+plot_parameter_err_grid(df, base_folder, figsize=figsize,
+                        quantity="var", error="MSE", log_scale=True)

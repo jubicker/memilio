@@ -1017,7 +1017,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
     dir_smm="",
     plot_smm=True,
     region_titles=None,
-    r0_ylabel=r"$R_0(\mu)$",
+    r0_ylabel=r"$R_{eff}(\mu)$",
     ratio_ylabel=r"$\sigma_I/\mu_I$",
 ):
     # conditions_info: list of dicts with keys:
@@ -1060,6 +1060,9 @@ def _plot_figure_r0_std_mean_ratio_multi(
         ax2 = ax.twinx()
         region_axes.append((ax, ax2))
 
+        left_colors = set()
+        right_colors = set()
+
         base = 1 + r * n_comp
 
         moment_index = [0 for _ in range(n_comp * num_regions)]
@@ -1079,10 +1082,12 @@ def _plot_figure_r0_std_mean_ratio_multi(
             y_ratio_smm = std_smm / mean_smm_comp
 
             ax.plot(smm_mean.Time, y_r0_smm, color=colors["dark grey"],
-                    linestyle="solid", label=r"Stochastic $R_0(\mu)$")
-            ax.set_ylim(bottom=0, top=4.1)
-            ax2.plot(smm_moments.Time, y_ratio_smm, color=colors["dark grey"],
-                     linestyle="dashed", label=r"Stochastic $\sigma_I/\mu_I$")
+                    linestyle="solid", label=r"Stochastic $R_{eff}(\mu)$")
+            ax.set_ylim(bottom=0, top=2.1)
+            left_colors.add(colors["dark grey"])
+            ax2.plot(smm_moments.Time, y_ratio_smm, color=colors["brown"],
+                     linestyle="solid", label=r"Stochastic $\sigma_I/\mu_I$")
+            right_colors.add(colors["brown"])
 
         # For each condition overlay R0 (left axis) and std/mean (right axis)
         for cond in loaded:
@@ -1100,6 +1105,13 @@ def _plot_figure_r0_std_mean_ratio_multi(
             mean_comp = mean_df.iloc[:, 1 + comp_index + r * n_comp].values
             y_ratio = std / mean_comp
 
+            if 1 in region_mask:
+                left_colors.add(cond["ode_color"])
+                right_colors.add(cond["ode_color"])
+            if 0 in region_mask:
+                left_colors.add(cond["stoch_color"])
+                right_colors.add(cond["stoch_color"])
+
             _plot_segmented_line_interval_multi(
                 ax,
                 time_vals,
@@ -1108,7 +1120,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
                 region_mask,
                 cond["ode_color"],
                 cond["stoch_color"],
-                label=f"{cond['name']} ($R_0(\mu)$)",
+                label=f"{cond['name']}" + r"($R_{eff}(\mu)$)",
                 override_linestyle="solid",
                 solid_linestyle="solid",
             )
@@ -1127,9 +1139,9 @@ def _plot_figure_r0_std_mean_ratio_multi(
             )
 
         # Reference lines
-        ax.axhline(1.0, color=colors['dark red'], linestyle="solid",
-                   linewidth=1, label=r"$R_0=1$")
-        ax2.axhline(0.7, color=colors['dark red'], linestyle="dashed",
+        ax.axhline(1.0, color=colors['dark grey'], linestyle="dashed",
+                   linewidth=1, label=r"$R_{eff}=1$")
+        ax2.axhline(0.7, color=colors['brown'], linestyle="dashed",
                     linewidth=1, label=r"$\sigma_I/\mu_I=0.7$")
         # ax2.axhline(0.4, color=colors['red'], linestyle="dashed",
         #             linewidth=1, label=r"$\sigma/\mu=0.4$")
@@ -1147,6 +1159,19 @@ def _plot_figure_r0_std_mean_ratio_multi(
         else:
             ax.set_xticks([])
 
+        # Color the y-axis (label, ticks, spine) to match its data, but only
+        # when a single color is unambiguously associated with that axis.
+        if len(left_colors) == 1:
+            color = next(iter(left_colors))
+            ax.yaxis.label.set_color(color)
+            ax.tick_params(axis='y', colors=color)
+            # ax.spines['left'].set_color(color)
+        if len(right_colors) == 1:
+            color = next(iter(right_colors))
+            ax2.yaxis.label.set_color(color)
+            ax2.tick_params(axis='y', colors=color)
+            # ax2.spines['right'].set_color(color)
+
     # Legend (aggregate both axes of every subplot, since a given condition's
     # ODE/stochastic segment may not appear in every region)
     all_axes = [ax for pair in region_axes for ax in pair]
@@ -1154,7 +1179,7 @@ def _plot_figure_r0_std_mean_ratio_multi(
     base_labels = [
         base
         for cond in loaded
-        for base in (f"{cond['name']} ($R_0$)", fr"{cond['name']} ($\sigma/\mu$)")
+        for base in (f"{cond['name']}" + r"($R_{eff}$)", fr"{cond['name']} ($\sigma/\mu$)")
     ]
     handles, labels = _order_legend_entries_by_condition(
         handles, labels, base_labels)
@@ -1218,7 +1243,7 @@ if __name__ == "__main__":
     dir = "/Users/julia/sim_outputs/output"
     save_dir = "/Users/julia/sim_outputs/output"
     hybrid_model = "Spatial-Hybrid2"
-    config = "config_SIR_R0_1_1.5_2_4_exchange"
+    config = "config_SIRS_I0_0_1_10_100_no_exchange"
     num_regions = 4
     condition = "combined_relation_var_gradient_condition_region"
     closure_method = "truncation"
@@ -1228,10 +1253,10 @@ if __name__ == "__main__":
     condition_name = ""
     # region_titles = [r"Region 1 - $I_{init}=0$, $R_0\approx2$", r"Region 2 - $I_{init}=1$, $R_0\approx2$",
     #                  r"Region 3 - $I_{init}=10$, $R_0\approx2$", r"Region 4 - $I_{init}=100$, $R_0\approx2$"]
-    region_titles = [r"$I_{init}^{(1)}=10$, $R_0^{(1)}\approx1$", r"$I_{init}^{(2)}=10$, $R_0^{(2)}\approx1.5$",
-                     r"$I_{init}^{(3)}=10$, $R_0^{(3)}\approx2$", r"$I_{init}^{(4)}=10$, $R_0^{(4)}\approx4$"]
+    region_titles = [r"$I_{init}^{(1)}=0$, $R_0^{(1)}\approx2$", r"$I_{init}^{(2)}=1$, $R_0^{(2)}\approx2$",
+                     r"$I_{init}^{(3)}=10$, $R_0^{(3)}\approx2$", r"$I_{init}^{(4)}=100$, $R_0^{(4)}\approx2$"]
     gamma = 1/7.
-    lamdas = [0.000001432, 0.00000215, 0.00000286, 0.00000572]
+    lamdas = [0.00000286, 0.00000286, 0.00000286, 0.00000286]
     num_runs = 10000
 
     smm_dir = f"{dir}/SMM/{config}"
@@ -1252,12 +1277,12 @@ if __name__ == "__main__":
          "ode_color": colors['middle green'], "stoch_color": colors['middle green']},
         {"name": r"$\tau_{\mu_I}$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/abs_threshold_region/{closure_method}/{closure_order}",
             "ode_color": colors['rose'], "stoch_color": colors['purple']},
-        {"name": "combined", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
-            "ode_color": colors['middle blue'], "stoch_color": colors['dark blue']},
+        {"name": r"$R_{eff}(\mu_I)$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/R0_region/{closure_method}/{closure_order}",
+         "ode_color": colors['light teal'], "stoch_color": colors['teal']},
         {"name": r"$\sigma_I/\mu_I$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/mean_stddev_relation_region/{closure_method}/{closure_order}",
             "ode_color": colors['orange'], "stoch_color": colors['brown']},
-        {"name": r"$R_0(\mu_I)$", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/R0_region/{closure_method}/{closure_order}",
-            "ode_color": colors['light teal'], "stoch_color": colors['teal']},
+        {"name": "combined", "hybrid_dir": f"{dir}/{hybrid_model}/{config}/combined_region/{closure_method}/{closure_order}",
+         "ode_color": colors['middle blue'], "stoch_color": colors['dark blue']},
     ]
 
     conditions2 = [
