@@ -97,6 +97,99 @@ smm_regions_1_core_SIRS = {
     },
 }
 
+smm_regions_fixed_pop_w_spatial_SIR = {
+    1: {
+        1: [],
+        1000: [],
+    },
+    2: {
+        1: [],
+        1000: [],
+    },
+    4: {
+        1: [0.958945, 0.970116, 0.952182],
+        1000: [949.825, 958.031, 968.853],
+    },
+    8: {
+        1: [2.5274, 2.51801, 2.54943],
+        1000: [2434.29, 2418.46, 2426.69],
+    },
+    16: {
+        1: [8.32002, 8.32631, 8.43601],
+        1000: [7525.44, 7519.02, 7557.18],
+    },
+}
+
+smm_regions_fixed_pop_w_spatial_SIRS = {
+    1: {
+        1: [],
+        1000: [],
+    },
+    2: {
+        1: [],
+        1000: [],
+    },
+    4: {
+        1: [],
+        1000: [],
+    },
+    8: {
+        1: [14.6015, 14.9211, 14.7448],
+        1000: [14580.8, 14511.5, 14463.3],
+    },
+    16: {
+        1: [43.4253, 43.7765, 43.9178],
+        1000: [43367.6],
+    },
+}
+
+smm_regions_fixed_pop_wo_spatial_SIR = {
+    1: {
+        1: [],
+        1000: [],
+    },
+    2: {
+        1: [],
+        1000: [],
+    },
+    4: {
+        1: [0.504712, 0.495513, 0.490131],
+        1000: [484.961, 492.647, 494.545],
+    },
+    8: {
+        1: [1.02852, 1.01227, 1.03463],
+        1000: [883.416, 890.864, 871.154],
+    },
+    16: {
+        1: [2.58079, 2.59119, 2.58511],
+        1000: [1690.03, 1731.48, 1697.54],
+    },
+}
+
+smm_regions_fixed_pop_wo_spatial_SIRS = {
+    1: {
+        1: [],
+        1000: [],
+    },
+    2: {
+        1: [],
+        1000: [],
+    },
+    4: {
+        1: [],
+        1000: [],
+    },
+    8: {
+        1: [5.31619, 5.27769, 5.33338],
+        1000: [5124.53, 5180.15, 5150.35],
+    },
+    16: {
+        1: [10.3339, 10.2974, 10.2825],
+        1000: [9374.44, 9545.95, 9360.39],
+    },
+}
+
+
 # dictionary has as first key num agnets and as second key integrator settings
 moment_times_1_core_SIR = {
     1000: {
@@ -196,6 +289,98 @@ moment_regions_1_core_SIRS = {
     }
 }
 
+moment_regions_fixed_pop_w_spatial_SIR = {
+    1: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    2: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    4: {
+        r"adaptive $\Delta t$": [0.132485, 0.132729, 0.131971],
+        r"adaptive $\Delta t_{max}=0.1$": [2.1816, 2.1835, 2.16238],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.37744, 2.3834, 2.38373],
+        r"adaptive $\Delta t_{max}=0.1$": [40.6301, 40.6358, 40.5548],
+    },
+    16: {
+        r"adaptive $\Delta t$": [34.6261, 34.6163, 34.6531],
+        r"adaptive $\Delta t_{max}=0.1$": [582.48, 582.921, 582.94],
+    }
+}
+
+moment_regions_fixed_pop_w_spatial_SIRS = {
+    1: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    2: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    4: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.71482, 2.70971, 2.7169],
+        r"adaptive $\Delta t_{max}=0.1$": [40.6376, 40.5786, 40.5486],
+    },
+    16: {
+        r"adaptive $\Delta t$": [35.7, 35.7233, 35.666],
+        r"adaptive $\Delta t_{max}=0.1$": [586.613, 586.784, 586.053],
+    }
+}
+
+moment_regions_fixed_pop_wo_spatial_SIR = {
+    1: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    2: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    4: {
+        r"adaptive $\Delta t$": [0.116952, 0.116822, 0.116385],
+        r"adaptive $\Delta t_{max}=0.1$": [2.20128, 2.2023, 2.20751],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.01798, 2.0218, 2.01475],
+        r"adaptive $\Delta t_{max}=0.1$": [40.5487, 40.5139, 40.5747],
+    },
+    16: {
+        r"adaptive $\Delta t$": [29.0344, 29.0406, 29.0516],
+        r"adaptive $\Delta t_{max}=0.1$": [581.621, 581.879, 581.342],
+    }
+}
+
+moment_regions_fixed_pop_wo_spatial_SIRS = {
+    1: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    2: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    4: {
+        r"adaptive $\Delta t$": [],
+        r"adaptive $\Delta t_{max}=0.1$": [],
+    },
+    8: {
+        r"adaptive $\Delta t$": [2.35522, 2.35766, 2.35288],
+        r"adaptive $\Delta t_{max}=0.1$": [40.9162, 40.9673, 40.9691],
+    },
+    16: {
+        r"adaptive $\Delta t$": [30.619, 30.6228, 30.619],
+        r"adaptive $\Delta t_{max}=0.1$": [581.406, 581.625, 581.449],
+    }
+}
+
 
 def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig, ax = plt.subplots(figsize=figsize)
@@ -230,7 +415,7 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
             linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel("Population size [#]")
     ax.set_ylabel("Runtime [s]")
-    fig.subplots_adjust(left=0.16, bottom=0.18, top=0.98, right=0.98)
+    fig.subplots_adjust(left=0.16, bottom=0.2, top=0.98, right=0.98)
     fig.savefig(save_dir + "scaling.png", dpi=dpi)
     plt.close(fig)
     handles, labels = ax.get_legend_handles_labels()
@@ -272,16 +457,19 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize):
             linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel("Regions [#]")
     ax.set_ylabel("Runtime [s]")
-    fig.subplots_adjust(left=0.16, bottom=0.18, top=0.98, right=0.98)
+    fig.subplots_adjust(left=0.16, bottom=0.2, top=0.98, right=0.98)
     fig.savefig(save_dir + "scaling.png", dpi=dpi)
     plt.close(fig)
     handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=figsize)
+    fig_leg = plt.figure(figsize=(1.5*figsize[0], figsize[1]))
     fig_leg.legend(handles, labels, loc='center', ncol=2)
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
-save_dir = "/Users/julia/sim_outputs/output/region_scaling/OneCoreSIRS/"
+save_dir_pop = "/Users/julia/sim_outputs/output/pop_scaling/OneCoreSIRS/"
+save_dir_regions = "/Users/julia/sim_outputs/output/region_scaling/OneCoreSIRS/"
 # fig_size = (5, 4)
+plot_scaling(ode_dict=moment_times_1_core_SIRS,
+             stoch_dict=smm_times_1_core_SIRS, save_dir=save_dir_pop, figsize=(5, 3.5))
 plot_region_scaling(ode_dict=moment_regions_1_core_SIRS,
-                    stoch_dict=smm_regions_1_core_SIRS, save_dir=save_dir, figsize=(6.5, 4))
+                    stoch_dict=smm_regions_1_core_SIRS, save_dir=save_dir_regions, figsize=(5, 3.5))

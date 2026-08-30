@@ -27,7 +27,7 @@ def plot_scenarios_legend(scenarios, base_color, scenario_start_date, base_dir, 
                   label=scenarios["Name"][sc]))
 
     fig_legend = plt.figure(figsize=(figsize[0]*1.5, figsize[1]))
-    fig_legend.legend(handles=handles, loc='center', ncol=1, frameon=False)
+    fig_legend.legend(handles=handles, loc='center', ncol=4, frameon=False)
     fig_legend.savefig(base_dir + f"legend_scenarios_{id}.png",
                        bbox_inches='tight')
     plt.close(fig_legend)
@@ -51,7 +51,7 @@ def plot_scenarios(
     scenario_end_date = start_date + pd.Timedelta(days=num_days)
 
     fig, ax = plt.subplots(figsize=figsize)
-    fig2, ax2 = plt.subplots(figsize=(0.7*figsize[0], 0.9*figsize[1]))
+    fig2, ax2 = plt.subplots(figsize=(0.7*figsize[0], figsize[1]))
 
     for sc in range(len(scenarios["Path"])):
         # Read means and moments
@@ -94,8 +94,6 @@ def plot_scenarios(
                  color=scenarios["Color"][sc], zorder=2)
 
     real_df = pd.read_csv(real_data_file, parse_dates=["Datum"])
-    interval = int(4*7)
-    interval_from_scenario = int(1*7)
 
     ax1 = ax.twinx()
     filtered_df = real_df[(real_df["Datum"] >= start_date)
@@ -111,8 +109,7 @@ def plot_scenarios(
 
     ax.set_xlabel("Date")
     ax.set_ylabel("Infected [#]")
-    dates = filtered_df["Datum"]
-    ax.set_xticks(dates.iloc[::interval])
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
@@ -136,8 +133,7 @@ def plot_scenarios(
 
     ax2.set_xlabel("Date")
     ax2.set_ylabel("Infected [#]")
-    dates_from_scenario = filtered_df_from_scenario["Datum"]
-    ax2.set_xticks(dates_from_scenario.iloc[::interval_from_scenario])
+    ax2.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
     ax2.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     plt.setp(ax2.get_xticklabels(), rotation=45, ha="right")
 
@@ -163,7 +159,7 @@ def plot_scenario_names_legend(scenarios, base_dir, figsize, id):
         for sc in range(len(scenarios["Path"]))]
 
     fig_legend = plt.figure(figsize=figsize)
-    fig_legend.legend(handles=handles, loc='center', ncol=2, frameon=False)
+    fig_legend.legend(handles=handles, loc='center', ncol=1, frameon=False)
     fig_legend.savefig(base_dir + f"legend_scenario_names_{id}.png",
                        bbox_inches='tight')
     plt.close(fig_legend)
@@ -249,7 +245,7 @@ if __name__ == "__main__":
             "Global NPIs",
             "No NPIs\nin the South",
             "Stricter\nNPIs in the South",
-            "Global NPIs\ntotal lifting"],
+            "Global NPIs\nwith lifting"],
         "Color": [
             colors["dark blue"],
             colors["purple"],
@@ -265,7 +261,7 @@ if __name__ == "__main__":
         "Name": [
             "Base",
             "Global NPIs",
-            "Global NPIs\ntotal lifting"
+            "Global NPIs\nwith lifting"
         ],
         "Color": [
             colors["dark teal"],
@@ -273,7 +269,7 @@ if __name__ == "__main__":
             colors["middle green"],
         ]}
 
-    figsize = (9, 4)
+    figsize = (8, 4)
     fig_size_bar = (0.5*figsize[0], 0.85*figsize[1])
 
     for r, region in enumerate(regions):
@@ -283,9 +279,9 @@ if __name__ == "__main__":
     plot_model_usage_and_runtime(
         base_dir, scenarios, fig_size_bar, id="regions")
 
-    for r, region in enumerate(regions_germany):
-        plot_scenarios(real_data_df_germany, base_dir, scenarios_germany, base_color, num_days, scenario_start, num_regions=len(
-            regions_germany), region=region, region_index=r, start_date=start_date, pop_size=pop_size_germany[r], figsize=figsize, intervention_tps=intervention_tps)
+    # for r, region in enumerate(regions_germany):
+    #     plot_scenarios(real_data_df_germany, base_dir, scenarios_germany, base_color, num_days, scenario_start, num_regions=len(
+    #         regions_germany), region=region, region_index=r, start_date=start_date, pop_size=pop_size_germany[r], figsize=figsize, intervention_tps=intervention_tps)
 
-    plot_model_usage_and_runtime(
-        base_dir, scenarios_germany, fig_size_bar, id="germany")
+    # plot_model_usage_and_runtime(
+    #     base_dir, scenarios_germany, fig_size_bar, id="germany")
