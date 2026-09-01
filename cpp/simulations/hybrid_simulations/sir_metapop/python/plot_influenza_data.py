@@ -11,7 +11,7 @@ def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_dat
     df = pd.read_csv(sim_output_filepath + "/new_infections_mean.csv")
     current_date = start_date
     for week in range(0, len(df)):
-        incidence = (df.iloc[week, region + 1]) / pop_size * 100000
+        incidence = (df.iloc[week, region + 1])
         sim_outputs["Date"].append(current_date)
         sim_outputs["Mean"].append(incidence)
         current_date += pd.Timedelta(days=7)
@@ -26,7 +26,8 @@ def plot_new_infections(sim_output_filepath, save_dir, real_data_file, start_dat
         end_date = start_date + pd.Timedelta(days=tmax)
         filtered_df = real_df[(real_df["Datum"] >= start_date)
                               & (real_df["Datum"] <= end_date) & (real_df["Region"] == region_name) & (real_df["Altersgruppe"] == real_Altersgruppe)]
-        ax.scatter(filtered_df["Datum"], filtered_df["Inzidenz"],
+        scaled_incidence = filtered_df["Inzidenz"]/ 100000 * pop_size
+        ax.scatter(filtered_df["Datum"], scaled_incidence,
                    marker='x', color='black', label='real')
 
     ax.set_xlabel("Date")
@@ -77,7 +78,7 @@ def plot_infected_mean_std(sim_output_filepath, save_dir, start_date, region_nam
             df = pd.read_csv(sim_output_filepath + "/new_infections_mean.csv")
             current_date = start_date
             for week in range(0, len(df)):
-                incidence = (df.iloc[week, region + 1]) / pop_size * 100000
+                incidence = (df.iloc[week, region + 1])
                 sim_outputs_new_inf["Date"].append(current_date)
                 sim_outputs_new_inf["Mean"].append(incidence)
                 current_date += pd.Timedelta(days=7)
@@ -88,7 +89,8 @@ def plot_infected_mean_std(sim_output_filepath, save_dir, start_date, region_nam
         end_date = start_date + pd.Timedelta(days=tmax)
         filtered_df = real_df[(real_df["Datum"] >= start_date)
                               & (real_df["Datum"] <= end_date) & (real_df["Region"] == region_name) & (real_df["Altersgruppe"] == real_Altersgruppe)]
-        ax1.scatter(filtered_df["Datum"], filtered_df["Inzidenz"],
+        scaled_incidence =  filtered_df["Inzidenz"]/ 100000 * pop_size
+        ax1.scatter(filtered_df["Datum"], scaled_incidence,
                     marker='x', color='black', label='real incidence', zorder=10)
         ax1.set_ylabel("Real incidence")
         lines1, labels1 = ax.get_legend_handles_labels()
@@ -164,7 +166,7 @@ config = "config_influenza_agegroups"
 sim_output_dir += config
 save_dir += config + "/"
 region = 0
-pop_size = 100000
+pop_size = 83577140
 region_name = "Bundesweit"
 tmax = 3 * 365 - 3
 cols = ["C2", "C5", "C8", "C11", "C14"]
