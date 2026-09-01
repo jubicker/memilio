@@ -159,13 +159,13 @@ def plot_scenario_names_legend(scenarios, base_dir, figsize, id):
         for sc in range(len(scenarios["Path"]))]
 
     fig_legend = plt.figure(figsize=figsize)
-    fig_legend.legend(handles=handles, loc='center', ncol=1, frameon=False)
+    fig_legend.legend(handles=handles, loc='center', ncol=2, frameon=False)
     fig_legend.savefig(base_dir + f"legend_scenario_names_{id}.png",
                        bbox_inches='tight')
     plt.close(fig_legend)
 
 
-def plot_model_usage_and_runtime(base_dir, scenarios, figsize, id):
+def plot_model_usage_and_runtime(base_dir, scenarios, figsize, id, smm_runtime=0.):
     percentages = []
     runtimes = []
 
@@ -181,12 +181,23 @@ def plot_model_usage_and_runtime(base_dir, scenarios, figsize, id):
             base_dir + scenarios["Path"][sc] + "/total_time.csv")
         runtimes.append(runtime_df["Runtime"].iloc[0])
 
-    labels = scenarios["Name"]
-    bar_colors = scenarios["Color"]
+    labels = list(scenarios["Name"])
+    bar_colors = list(scenarios["Color"])
+
+    has_smm = smm_runtime != 0
     x = np.arange(len(labels))
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=figsize)
+    if has_smm:
+
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_axes([0, 0.15,
+                           1, 0.75])
+        ax_smm = fig.add_axes([1.1, 0.15,
+                               0.25, 0.75])
+    else:
+        fig, ax = plt.subplots(figsize=figsize)
+        ax_smm = None
     ax2 = ax.twinx()
 
     ax.bar(x - width/2, percentages, width, color=bar_colors,
@@ -198,9 +209,25 @@ def plot_model_usage_and_runtime(base_dir, scenarios, figsize, id):
 
     ax.set_ylabel("Stochastic model usage [%]")
     ax.set_ylim(0, 100)
-    ax2.set_ylabel("Runtime [s]")
+    if (ax_smm is None):
+        ax2.set_ylabel("Runtime [s]")
     ax.set_xticks(x)
     ax.set_xticklabels(["" for _ in range(len(x))])
+
+    if ax_smm is not None:
+        x_smm = np.array([0])
+        width_smm = 0.1
+        ax_smm.bar(x_smm - width_smm/2, [100], width_smm,
+                   color=colors["middle grey"], edgecolor=colors["middle grey"])
+        ax2_smm = ax_smm.twinx()
+        ax2_smm.bar(x_smm + width_smm/2, [smm_runtime], width_smm,
+                    color=to_rgba(colors["middle grey"], alpha=0.2),
+                    edgecolor=to_rgba(colors["middle grey"], alpha=1.0), hatch="//")
+        ax_smm.set_ylim(0, 100)
+        ax_smm.set_yticklabels([])
+        ax2_smm.set_ylabel("Runtime [s]")
+        ax_smm.set_xticks(x_smm)
+        ax_smm.set_xticklabels([""])
 
     handles = [Patch(facecolor=colors["dark grey"], edgecolor=colors["dark grey"],
                      label="Stochastic model usage [%]"),
@@ -210,12 +237,18 @@ def plot_model_usage_and_runtime(base_dir, scenarios, figsize, id):
     ax.legend(handles=handles, loc="lower center",
               bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False)
 
-    fig.tight_layout()
+    if ax_smm is None:
+        fig.tight_layout()
     fig.savefig(base_dir + f"model_usage_and_runtime_{id}.png",
                 dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 
-    plot_scenario_names_legend(scenarios, base_dir, figsize, id=id)
+    if has_smm:
+        labels = labels + ["Base\n(fully stochastic)"]
+        bar_colors = bar_colors + [colors["middle grey"]]
+
+    plot_scenario_names_legend(
+        {"Path": labels, "Name": labels, "Color": bar_colors}, base_dir, figsize, id=id)
 
 
 if __name__ == "__main__":
@@ -269,19 +302,19 @@ if __name__ == "__main__":
             colors["middle green"],
         ]}
 
-    figsize = (8, 4)
-    fig_size_bar = (0.5*figsize[0], 0.85*figsize[1])
+    figsize = (9, 4)
+    fig_size_bar = (0.5*figsize[0], 1.5*figsize[1])
 
-    for r, region in enumerate(regions):
-        plot_scenarios(real_data_df, base_dir, scenarios, base_color, num_days, scenario_start, num_regions=len(
-            regions), region=region, region_index=r, start_date=start_date, pop_size=pop_sizes[r], figsize=figsize, intervention_tps=intervention_tps)
+    # for r, region in enumerate(regions):
+    #     plot_scenarios(real_data_df, base_dir, scenarios, base_color, num_days, scenario_start, num_regions=len(
+    #         regions), region=region, region_index=r, start_date=start_date, pop_size=pop_sizes[r], figsize=figsize, intervention_tps=intervention_tps)
 
-    plot_model_usage_and_runtime(
-        base_dir, scenarios, fig_size_bar, id="regions")
+    # plot_model_usage_and_runtime(
+    #     base_dir, scenarios, fig_size_bar, id="regions")
 
     # for r, region in enumerate(regions_germany):
     #     plot_scenarios(real_data_df_germany, base_dir, scenarios_germany, base_color, num_days, scenario_start, num_regions=len(
     #         regions_germany), region=region, region_index=r, start_date=start_date, pop_size=pop_size_germany[r], figsize=figsize, intervention_tps=intervention_tps)
 
-    # plot_model_usage_and_runtime(
-    #     base_dir, scenarios_germany, fig_size_bar, id="germany")
+    plot_model_usage_and_runtime(
+        base_dir, scenarios_germany, fig_size_bar, id="germany", smm_runtime=186)
