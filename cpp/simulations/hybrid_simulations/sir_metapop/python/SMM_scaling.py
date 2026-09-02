@@ -393,14 +393,14 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
             np.mean(ode_dict[x_value][r"adaptive $\Delta t$"]))
         adaptive_restricted.append(
             np.mean(ode_dict[x_value][r"adaptive $\Delta t_{max}=0.1$"]))
-    
+
     run1 = []
     runs1000 = []
     for x_value in stoch_dict.keys():
         run1.append(np.mean(stoch_dict[x_value][1]))
         runs1000.append(
             np.mean(stoch_dict[x_value][1000]))
-        
+
     # set y-ticks at every power of 10
     all_y = np.concatenate([np.array(adaptive_full),
                             np.array(adaptive_restricted),
@@ -414,11 +414,9 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
         ymax_pow = int(np.ceil(np.log10(all_y.max())))
         yticks = [10.0 ** i for i in range(ymin_pow, ymax_pow + 1)]
         ax.set_yticks(yticks)
-        ax.set_yticklabels([rf"$10^{{{i}}}$" for i in range(ymin_pow, ymax_pow + 1)])
-        
-    ax.plot(smm_times_1_core_SIR.keys(), [(10**(ymin_pow-3))*x for x in smm_times_1_core_SIR.keys()], color=colors["black"], linestyle="dashed",alpha=0.5)
-    ax.plot(smm_times_1_core_SIR.keys(), [(10**(ymin_pow-10))*x**(np.log2(10)) for x in smm_times_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed",alpha=0.5)
-    
+        ax.set_yticklabels(
+            [rf"$10^{{{i}}}$" for i in range(ymin_pow, ymax_pow + 1)])
+
     ax.plot(list(ode_dict.keys()), adaptive_full,
             label=r"MoM full adaptive $\Delta t$", color=colors["purple"], marker="o")
     ax.plot(list(ode_dict.keys()), adaptive_restricted,
@@ -428,7 +426,12 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     ax.plot(list(stoch_dict.keys()), runs1000,
             label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
 
-    ax.set_ylim(10**(ymin_pow)-10, 10**(ymax_pow + 1))
+    ax.plot(smm_times_1_core_SIR.keys(), [
+        (10**(ymin_pow-2.1))*x for x in smm_times_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$f(x)=ax$")
+    ax.plot(smm_times_1_core_SIR.keys(), [(10**(ymin_pow-9))*x**(np.log2(10))
+                                          for x in smm_times_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$f(x)=bx^{\log_2(10)}$")
+
+    ax.set_ylim(10**(-3)-10, 10**(5.2))
     ax.set_xticks(list(ode_dict.keys()))
     ax.set_xticklabels([rf"$10^{{{label}}}$" for label in x_labels])
     ax.grid(visible=True, color=colors["middle grey"],
@@ -439,8 +442,8 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig.savefig(save_dir + "scaling_p.png", dpi=dpi)
     plt.close(fig)
     handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=figsize)
-    fig_leg.legend(handles, labels, loc='center', ncol=2)
+    fig_leg = plt.figure(figsize=(figsize[0]*2, figsize[1]))
+    fig_leg.legend(handles, labels, loc='center', ncol=3)
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
@@ -473,20 +476,24 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize, x_postfix):
     if all_y.size > 0:
         ymin_pow = int(np.floor(np.log10(all_y.min())))
         ymax_pow = int(np.ceil(np.log10(all_y.max())))
-        yticks = [10.0 ** i for i in range(ymin_pow, ymax_pow + 1)]
+        yticks = [10.0 ** i for i in range(ymin_pow, ymax_pow + 3)]
         ax.set_yticks(yticks)
-        ax.set_yticklabels([rf"$10^{{{i}}}$" for i in range(ymin_pow, ymax_pow + 1)])
-        
-    ax.plot(smm_regions_1_core_SIR.keys(), [(10**(ymin_pow))*x for x in smm_regions_1_core_SIR.keys()], color=colors["black"], linestyle="dashed",alpha=0.5)
-    ax.plot(smm_regions_1_core_SIR.keys(), [(10**(ymin_pow))*x**(np.log2(10)) for x in smm_regions_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed",alpha=0.5)
+        ax.set_yticklabels(
+            [rf"$10^{{{i}}}$" for i in range(ymin_pow, ymax_pow + 3)])
+
     ax.plot(list(ode_dict.keys()), adaptive_full,
-                label=r"MoM full adaptive $\Delta t$", color=colors["purple"], marker="o")
+            label=r"MoM full adaptive $\Delta t$", color=colors["purple"], marker="o")
     ax.plot(list(ode_dict.keys()), adaptive_restricted,
-                label=r"MoM adaptive $\Delta t_{max}=0.1$", color=colors["rose"], marker="o")
+            label=r"MoM adaptive $\Delta t_{max}=0.1$", color=colors["rose"], marker="o")
     ax.plot(list(stoch_dict.keys()), run1,
             label=r"Stochastic $n_{sims}=1$", color=colors["dark teal"], marker="^")
     ax.plot(list(stoch_dict.keys()), runs1000,
             label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
+
+    ax.plot(smm_regions_1_core_SIR.keys(), [
+            (10**(ymin_pow))*x for x in smm_regions_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$f(x)=ax$")
+    ax.plot(smm_regions_1_core_SIR.keys(), [(10**(ymin_pow))*x**(np.log2(10))
+            for x in smm_regions_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$f(x)=bx^{\log_2(10)}$")
 
     ax.set_xticks(list(ode_dict.keys()))
     ax.set_xticklabels([rf"$2^{{{label}}}$" for label in x_labels])
@@ -494,21 +501,22 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize, x_postfix):
             linestyle='--', linewidth=0.5, alpha=0.7)
     ax.set_xlabel(f"Regions ({x_postfix}) [#]")
     ax.set_ylabel("Runtime [s]")
+    ax.set_ylim(10**(-3)-10, 10**(5.2))
     fig.subplots_adjust(left=0.17, bottom=0.2, top=0.97, right=0.98)
     fig.savefig(save_dir + "scaling_r.png", dpi=dpi)
     plt.close(fig)
     handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=(1.5*figsize[0], figsize[1]))
-    fig_leg.legend(handles, labels, loc='center', ncol=2)
+    fig_leg = plt.figure(figsize=((figsize[0]*2, figsize[1])))
+    fig_leg.legend(handles, labels, loc='center', ncol=3)
     fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
 
 
 save_dir_pop = ""
 save_dir_regions = ""
 # fig_size = (5, 4)
-plot_scaling(ode_dict=moment_times_1_core_SIR,
-             stoch_dict=smm_times_1_core_SIR, save_dir=save_dir_pop, figsize=(5, 3.5))
-plot_region_scaling(ode_dict=moment_regions_fixed_pop_w_spatial_SIR,
-                    stoch_dict=smm_regions_fixed_pop_w_spatial_SIR, save_dir=save_dir_regions + "w_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_i^{(k,l)}>0$")
-plot_region_scaling(ode_dict=moment_regions_fixed_pop_wo_spatial_SIR,
-                    stoch_dict=smm_regions_fixed_pop_wo_spatial_SIR, save_dir=save_dir_regions + "wo_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_i^{(k,l)}=0$")
+plot_scaling(ode_dict=moment_times_1_core_SIRS,
+             stoch_dict=smm_times_1_core_SIRS, save_dir=save_dir_pop, figsize=(5, 3.5))
+plot_region_scaling(ode_dict=moment_regions_fixed_pop_w_spatial_SIRS,
+                    stoch_dict=smm_regions_fixed_pop_w_spatial_SIRS, save_dir=save_dir_regions + "w_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}>0$")
+plot_region_scaling(ode_dict=moment_regions_fixed_pop_wo_spatial_SIRS,
+                    stoch_dict=smm_regions_fixed_pop_wo_spatial_SIRS, save_dir=save_dir_regions + "wo_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}=0$")
