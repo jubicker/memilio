@@ -83,7 +83,7 @@ int main()
         }
     }
     // Moment are all zero
-    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 2> moments_array;
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, 1> moments_array;
     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> zero_index;
     zero_index.fill(0);
     moments_array.moments()[moments_array.flatten_index(zero_index)] = 1.0;

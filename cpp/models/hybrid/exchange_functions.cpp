@@ -115,8 +115,6 @@ template <>
 void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from, mio::smm_moments::Simulation<2, 3>& model_to,
                      size_t /*region_from*/, size_t region_to)
 {
-    const int closure_order = 3; // Caution
-
     // Check if agents need to be exchanged
     auto& model_from_result = model_from.get_result();
     auto& model_from_model  = model_from.get_model();
@@ -158,26 +156,24 @@ void exchange_agents(mio::smm_moments::Simulation<2, 3>& model_from, mio::smm_mo
          index < model_to_result.get_last_value().size() - model_to_model.populations.get_num_compartments(); ++index) {
         auto multiindex = model_to_model.moments.unflatten_index(index);
         int order       = std::accumulate(multiindex.begin(), multiindex.end(), 0.0);
-        if (order <= closure_order) {
-            int order_region_to =
-                std::accumulate(multiindex.begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to,
-                                multiindex.begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
-                                    static_cast<size_t>(mio::osir::InfectionState::Count),
-                                0.0);
-            // If the moment indices for all comps in region two are zero, the moment does not have to be considered
-            if (order_region_to == 0) {
-                continue;
-            }
-            else if (order == order_region_to) {
-                // If the moment is "fully" in region_to it's value is added to model_to
-                model_to_result.get_last_value()[index] += model_from_result.get_last_value()[index];
-                model_from_result.get_last_value()[index] = 0;
-            }
-            else {
-                // Mixed moments between regions are set to zero
-                model_to_result.get_last_value()[index]   = 0;
-                model_from_result.get_last_value()[index] = 0;
-            }
+        int order_region_to =
+            std::accumulate(multiindex.begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to,
+                            multiindex.begin() + static_cast<size_t>(mio::osir::InfectionState::Count) * region_to +
+                                static_cast<size_t>(mio::osir::InfectionState::Count),
+                            0.0);
+        // If the moment indices for all comps in region two are zero, the moment does not have to be considered
+        if (order_region_to == 0) {
+            continue;
+        }
+        else if (order == order_region_to) {
+            // If the moment is "fully" in region_to it's value is added to model_to
+            model_to_result.get_last_value()[index] += model_from_result.get_last_value()[index];
+            model_from_result.get_last_value()[index] = 0;
+        }
+        else {
+            // Mixed moments between regions are set to zero
+            model_to_result.get_last_value()[index]   = 0;
+            model_from_result.get_last_value()[index] = 0;
         }
     }
 }
@@ -238,8 +234,9 @@ void exchange_agents(mio::smm::SimulationSet<2, mio::osir::InfectionState, 3>& m
                 static_cast<size_t>(mio::osir::InfectionState::Count),
             0.0);
         if (order_region_to != 0) { // If the moment has no indices in region_to, it does not have to be considered
-            if (order_region_to ==
-                order) { // Mixed source-target-region moments are also not considered for the moment model
+            // Mixed source-target-region moments are also not considered for the moment model. Moments of
+            // order >= closure order are not part of the moment model.
+            if (order_region_to == order && static_cast<size_t>(order) <= moment_model.moments.max_order) {
                 auto index = moment_model.moments.flatten_index(moment_indices_smm_set[i]);
                 // If the moment is "fully" in region_to it's value is added to the moment model
                 moment_result.get_last_value()[moment_model.populations.get_num_compartments() + index] +=

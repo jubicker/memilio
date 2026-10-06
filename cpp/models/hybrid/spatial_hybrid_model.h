@@ -57,6 +57,8 @@ namespace hybrid
 template <size_t num_regions, size_t closure_order>
 class SpatialHybridSimulation
 {
+    // The variances of the moment model are needed for the exchange with the stochastic model
+    static_assert(closure_order >= 3, "The spatial hybrid model requires a closure order of at least 3.");
 
 public:
     using SMMSetSim           = mio::smm::SimulationSet<num_regions, mio::osir::InfectionState, closure_order>;
@@ -236,7 +238,8 @@ public:
      */
     std::pair<TimeSeries<double>, std::vector<std::string>> get_deterministic_moments(double interpolation_step_size)
     {
-        auto moment_ts = m_moment_simulation.get_moment_time_series(closure_order);
+        // The moment model only contains moments of order < closure_order
+        auto moment_ts = m_moment_simulation.get_moment_time_series(closure_order - 1);
         int num_steps  = static_cast<int>((moment_ts.first.get_last_time() - moment_ts.first.get_time(0)) /
                                          interpolation_step_size) +
                         1;
@@ -255,16 +258,34 @@ public:
             .value();
     }
 
+    /**
+     * @brief Get joint moment time series of stochastic and moment simulation.
+     * As the moment model only contains moments of order < closure_order, the joint time series is restricted to
+     * these moments.
+     * @param[in] interpolation_step_size Step size for interpolation of moment time series.
+     */
     std::pair<TimeSeries<double>, std::vector<std::string>> get_joint_moments(double interpolation_step_size)
     {
         auto stochastic_moments    = get_stochastic_moments(interpolation_step_size);
         auto deterministic_moments = get_deterministic_moments(interpolation_step_size);
-        assert(stochastic_moments.second.size() == deterministic_moments.second.size());
-        for (size_t i = 0; i < stochastic_moments.second.size(); ++i) {
-            assert(stochastic_moments.second[i] == deterministic_moments.second[i]);
+        // Restrict the stochastic moments to the moments that are part of the moment model
+        auto& moment_array       = m_moment_simulation.get_model().moments;
+        auto& stochastic_indices = m_stochastic_simulation.get_moment_indices();
+        auto& stochastic_orders  = m_stochastic_simulation.get_moment_orders();
+        TimeSeries<double> stochastic_moments_restricted(deterministic_moments.first.get_num_elements());
+        for (Eigen::Index t = 0; t < stochastic_moments.first.get_num_time_points(); ++t) {
+            Eigen::VectorXd values = Eigen::VectorXd::Zero(stochastic_moments_restricted.get_num_elements());
+            for (size_t i = 0; i < stochastic_indices.size(); ++i) {
+                if (stochastic_orders[i] < closure_order) {
+                    values[moment_array.flatten_index(stochastic_indices[i])] =
+                        stochastic_moments.first.get_value(t)[i];
+                }
+            }
+            stochastic_moments_restricted.add_time_point(stochastic_moments.first.get_time(t), values);
         }
-        return std::make_pair(merge_time_series(stochastic_moments.first, deterministic_moments.first, true).value(),
-                              stochastic_moments.second);
+        return std::make_pair(
+            merge_time_series(stochastic_moments_restricted, deterministic_moments.first, true).value(),
+            deterministic_moments.second);
     }
 
     TimeSeries<int> get_model_used_ts()
@@ -361,6 +382,11 @@ private:
         // Copy moments of switching regions to moment model
         for (size_t i = 0; i < m_stochastic_simulation.get_moment_indices().size(); ++i) {
             const auto moment_index = m_stochastic_simulation.get_moment_indices()[i];
+
+            // The moment model only contains moments of order < closure_order
+            if (m_stochastic_simulation.get_moment_orders()[i] >= closure_order) {
+                continue;
+            }
 
             // Copy only moments that are partially or fully in switching regions
             bool switch_moment = moment_only_in_regions(moment_index, regions_to_switch);

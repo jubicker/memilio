@@ -42,19 +42,23 @@ namespace smm_moments
 /**
  * @brief Moment equation model for SIR-SMM.
  * @tparam NumRegions Number of regions.
- * @tparam ClosureOrder Order used for zero cumulant closure.
+ * @tparam ClosureOrder Order used for zero cumulant closure. Only moments of order < ClosureOrder are part of the
+ * model, moments of order ClosureOrder are approximated by the closure function.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 class Model
 {
+    static_assert(ClosureOrder >= 2, "The closure order has to be at least 2.");
+
 public:
     using Region         = mio::regions::Region;
     using InfectionState = mio::osir::InfectionState;
+    /// Array type holding all moments of order < ClosureOrder.
+    using MomentArrayType = MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>;
 
-    using ClosureFunctionType = ScalarType (*)(
-        std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
-        Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-        const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments);
+    using ClosureFunctionType =
+        ScalarType (*)(std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
+                       Eigen::Ref<const Eigen::VectorX<ScalarType>> y, const MomentArrayType& moments);
 
     Model(ClosureFunctionType closure_func = &truncation_closure<NumRegions, ClosureOrder>)
         : parameters(NumRegions)
@@ -64,7 +68,7 @@ public:
     }
 
     /**
-     * @brief Evaluates right-hand-side of ODEs describing expected values and moments up to ClosureOrder.
+     * @brief Evaluates right-hand-side of ODEs describing expected values and moments of order < ClosureOrder.
      * @param[in] y Current state of the expected values (first entries) and the moments (following entries).
      * @param[in] dydt Reference to the calculated output.
      */
@@ -91,7 +95,6 @@ public:
                         static_cast<size_t>(InfectionState::Susceptible)] = 1;
                 indices[infl_r.first * static_cast<size_t>(InfectionState::Count) +
                         static_cast<size_t>(InfectionState::Infected)]    = 1;
-                assert(ClosureOrder >= 2);
                 double M_1SlIk =
                     ClosureOrder > 2 ? y[moments.flatten_index(indices) + populations.get_num_compartments()] : 0;
                 transmission_contr += seasonality_factor * infl_r.second *
@@ -135,7 +138,7 @@ public:
 #endif
             for (size_t flat = 0; flat < multi_indices.size(); ++flat) {
                 size_t order = moments.order(flat);
-                if (order < 2 || order >= ClosureOrder)
+                if (order < 2)
                     continue;
                 get_rhs_for_moment(flat + populations.get_num_compartments(), multi_indices[flat], order, y, dydt,
                                    seasonality_factor);
@@ -152,7 +155,7 @@ public:
     {
         // Expected values are stored as Populations
         auto expected_values = populations.get_compartments();
-        // Moment array (this contains also entries for moments > ClosureOrder as the MomentArray gets ClosureOrder as maximum value for every index)
+        // Moment array (contains all moments of order < ClosureOrder)
         auto moment_vec = moments.moments();
         Eigen::VectorX<ScalarType> initial_values(expected_values.size() + moment_vec.size());
         initial_values.setZero();
@@ -182,8 +185,7 @@ public:
     }
 
     ParametersBase parameters{}; ///< Model's parameter set.
-    MomentArray<static_cast<size_t>(InfectionState::Count), NumRegions, ClosureOrder>
-        moments{}; ///< Array with initial moment values
+    MomentArrayType moments{}; ///< Array with initial values for all moments of order < ClosureOrder
     mio::Populations<ScalarType, Region, InfectionState> populations; ///< Array with initial values for expected values
 
 private:

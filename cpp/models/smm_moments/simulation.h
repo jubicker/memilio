@@ -96,12 +96,13 @@ public:
 
     /**
      * @brief Extracts time series of all moments up to given order from simulation result.
-     * @param order Maximum order of moments to extract.
+     * @param order Maximum order of moments to extract. Has to be smaller than ClosureOrder as the model only contains
+     * moments of order < ClosureOrder.
      * @return Pair of time series of moments and corresponding moment names.
      */
     std::pair<mio::TimeSeries<double>, std::vector<std::string>> get_moment_time_series(size_t order)
     {
-        assert(order <= ClosureOrder);
+        assert(order < ClosureOrder);
         mio::TimeSeries<double> moment_ts(Base::get_model().moments.get_indices().size());
         // Add first moments and fill name vector
         size_t index               = 0;

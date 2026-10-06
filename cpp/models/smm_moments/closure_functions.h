@@ -31,6 +31,7 @@
 #include <boost/math/special_functions/math_fwd.hpp>
 #include <cmath>
 #include <cstddef>
+#include <mutex>
 #include <numeric>
 
 namespace mio
@@ -54,7 +55,7 @@ template <size_t NumRegions, size_t ClosureOrder>
 ScalarType truncation_closure(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
     if (order != ClosureOrder) {
@@ -94,12 +95,12 @@ ScalarType get_log_cov(ScalarType cov, ScalarType mean1, ScalarType mean2);
  * @param[in] lI Power of X_I in the raw moment.
  * @param[in] lR Power of X_R in the raw moment.
  * @param[in] y Current value of expected value and all central moments.
- * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
+ * @param[in] moments Moment array containing all moments of order < ClosureOrder. Is only used to get the correct flat index of a moment in y.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType get_E_XS_lS_XI_lI_XR_lR(
     size_t lS, size_t lI, size_t lR, Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     ScalarType res = 0;
     for (int iS = 0; iS <= (int)lS; ++iS) {
@@ -122,14 +123,14 @@ ScalarType get_E_XS_lS_XI_lI_XR_lR(
  * @tparam ClosureOrder Order to be closed.
  * @param[in] index Index of the moment that should be approximated.
  * @param[in] y Current value of expected value and all central moments.
- * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
+ * @param[in] moments Moment array containing all moments of order < ClosureOrder. Is only used to get the correct flat index of a moment in y.
  * @param[in] E_XS_rS_XI_rI_XR_rR Approximation of raw moment corresponding to central moment that should be calculated.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType get_central_mom_by_raw(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments,
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments,
     ScalarType E_XS_rS_XI_rI_XR_rR)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
@@ -148,9 +149,10 @@ ScalarType get_central_mom_by_raw(
     for (int lS = 0; lS <= rS; ++lS) {
         for (int lI = 0; lI <= rI; ++lI) {
             for (int lR = 0; lR <= rR; ++lR) {
-                double E_XS_lS_XI_lI_XR_lR = int(ClosureOrder) > (lS + lI + lR)
-                                                 ? get_E_XS_lS_XI_lI_XR_lR(lS, lI, lR, y, moments)
-                                                 : E_XS_rS_XI_rI_XR_rR;
+                double E_XS_lS_XI_lI_XR_lR =
+                    int(ClosureOrder) > (lS + lI + lR)
+                        ? get_E_XS_lS_XI_lI_XR_lR<NumRegions, ClosureOrder>(lS, lI, lR, y, moments)
+                        : E_XS_rS_XI_rI_XR_rR;
                 M_rS_rI_rR += boost::math::binomial_coefficient<double>(rS, lS) * std::pow(-1 * mean_S, rS - lS) *
                               boost::math::binomial_coefficient<double>(rI, lI) * std::pow(-1 * mean_I, rI - lI) *
                               boost::math::binomial_coefficient<double>(rR, lR) * std::pow(-1 * mean_R, rR - lR) *
@@ -167,13 +169,13 @@ ScalarType get_central_mom_by_raw(
  * @tparam ClosureOrder Order to be closed.
  * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Current value of expected value and all moments.
- * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
+ * @param[in] moments Moment array containing all moments of order < ClosureOrder. Is only used to get the correct flat index of a moment in y.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType lognormal_closure(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
     if (order != ClosureOrder) {
@@ -222,22 +224,23 @@ ScalarType lognormal_closure(
     //          rS * rI * get_log_cov(cov_SI, mean_S, mean_I) + rS * rR * get_log_cov(cov_SR, mean_S, mean_R) +
     //          rI * rR * get_log_cov(cov_IR, mean_I, mean_R));
 
-    return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+    return get_central_mom_by_raw<NumRegions, ClosureOrder>(index, y, moments, E_XS_rS_XI_rI_XR_rR);
 }
 
 /**
  * @brief Implements a closure for a given moment assuming that the underlying random variables are lognormally distributed and assuming a mixture distribution with zero inflation for I.
+ * The closure needs the third order moments and therefore requires ClosureOrder >= 4. For smaller closure orders, lognormal_closure is used.
  * @tparam NumRegions Number of regions.
  * @tparam ClosureOrder Order to be closed.
  * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Current value of expected value and all moments.
- * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
+ * @param[in] moments Moment array containing all moments of order < ClosureOrder. Is only used to get the correct flat index of a moment in y.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType lognormal_zero_inflation_closure(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
     if (order != ClosureOrder) {
@@ -248,6 +251,16 @@ ScalarType lognormal_zero_inflation_closure(
     if (NumRegions > 1) {
         mio::unused(index, y, moments);
         return 0;
+    }
+    if (ClosureOrder < 4) {
+        // The zero inflation probability is calculated from the third order moments which are only part of the
+        // model for ClosureOrder >= 4. Without them, the closure reduces to the lognormal closure (p = 0).
+        static std::once_flag warned;
+        std::call_once(warned, [] {
+            mio::log_warning("The lognormal zero inflation closure requires a closure order >= 4. Using the lognormal "
+                             "closure instead.");
+        });
+        return lognormal_closure<NumRegions, ClosureOrder>(index, y, moments);
     }
     auto rS               = index[0];
     auto rI               = index[1];
@@ -264,17 +277,19 @@ ScalarType lognormal_zero_inflation_closure(
     ScalarType skewness_S = y[moments.flatten_index({3, 0, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
     ScalarType skewness_I = y[moments.flatten_index({0, 3, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
     ScalarType skewness_R = y[moments.flatten_index({0, 0, 3}) + static_cast<size_t>(osir::InfectionState::Count)];
-    ScalarType p          = 1. - (std::pow(mean_S, 6.) * (1. + 3. * var_S) + std::pow(mean_S, 3.) * skewness_S) /
-                            std::pow(var_S + std::pow(mean_S, 2.), 3.);
+    // 1 - p = E[X_S]^3 * E[X_S^3] / E[X_S^2]^3
+    ScalarType p          = 1. - (std::pow(mean_S, 6.) + 3. * std::pow(mean_S, 4.) * var_S +
+                                  std::pow(mean_S, 3.) * skewness_S) /
+                                     std::pow(var_S + std::pow(mean_S, 2.), 3.);
     ScalarType mean_fac_S = (mean_S == 0.) && (1 - rI - rR < 0) ? 1. : std::pow(mean_S, rS * (1 - rI - rR));
     ScalarType mean_fac_I = (mean_I == 0.) && (1 - rS - rR < 0) ? 1. : std::pow(mean_I, rI * (1 - rS - rR));
     ScalarType mean_fac_R = (mean_R == 0.) && (1 - rS - rI < 0) ? 1. : std::pow(mean_R, rR * (1 - rS - rI));
-    ScalarType sqrt_fac_S =
-        std::pow(std::sqrt(std::pow(mean_S, 4.) * (1 + 3 * var_S) + mean_S * skewness_S), rS * rS - rS);
-    ScalarType sqrt_fac_I =
-        std::pow(std::sqrt(std::pow(mean_I, 4.) * (1 + 3 * var_I) + mean_I * skewness_I), rI * rI - rI);
-    ScalarType sqrt_fac_R =
-        std::pow(std::sqrt(std::pow(mean_R, 4.) * (1 + 3 * var_R) + mean_R * skewness_R), rR * rR - rR);
+    ScalarType sqrt_fac_S = std::pow(
+        std::sqrt(std::pow(mean_S, 4.) + 3 * std::pow(mean_S, 2.) * var_S + mean_S * skewness_S), rS * rS - rS);
+    ScalarType sqrt_fac_I = std::pow(
+        std::sqrt(std::pow(mean_I, 4.) + 3 * std::pow(mean_I, 2.) * var_I + mean_I * skewness_I), rI * rI - rI);
+    ScalarType sqrt_fac_R = std::pow(
+        std::sqrt(std::pow(mean_R, 4.) + 3 * std::pow(mean_R, 2.) * var_R + mean_R * skewness_R), rR * rR - rR);
     ScalarType fac_S =
         (mean_S * mean_S + var_S == 0.) && (rS - rS * rS < 0) ? 0. : std::pow(mean_S * mean_S + var_S, rS - rS * rS);
     ScalarType fac_I =
@@ -290,14 +305,14 @@ ScalarType lognormal_zero_inflation_closure(
                                      mean_fac_I * mean_fac_R * sqrt_fac_S * sqrt_fac_I * sqrt_fac_R * fac_S * fac_I *
                                      fac_R * cov_SI_fac * cov_SR_fac * cov_IR_fac;
 
-    return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+    return get_central_mom_by_raw<NumRegions, ClosureOrder>(index, y, moments, E_XS_rS_XI_rI_XR_rR);
 }
 
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType lognormal_zero_inflation_cap_closure(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
     if (order != ClosureOrder) {
@@ -308,6 +323,16 @@ ScalarType lognormal_zero_inflation_cap_closure(
     if (NumRegions > 1) {
         mio::unused(index, y, moments);
         return 0;
+    }
+    if (ClosureOrder < 4) {
+        // See lognormal_zero_inflation_closure. The cap for even moments is still applied.
+        auto moment = lognormal_zero_inflation_closure<NumRegions, ClosureOrder>(index, y, moments);
+        return std::all_of(index.begin(), index.end(),
+                           [](int x) {
+                               return x % 2 == 0;
+                           })
+                   ? std::max(moment, 0.0)
+                   : moment;
     }
     auto rS               = index[0];
     auto rI               = index[1];
@@ -324,17 +349,19 @@ ScalarType lognormal_zero_inflation_cap_closure(
     ScalarType skewness_S = y[moments.flatten_index({3, 0, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
     ScalarType skewness_I = y[moments.flatten_index({0, 3, 0}) + static_cast<size_t>(osir::InfectionState::Count)];
     ScalarType skewness_R = y[moments.flatten_index({0, 0, 3}) + static_cast<size_t>(osir::InfectionState::Count)];
-    ScalarType p          = 1. - (std::pow(mean_S, 6.) * (1. + 3. * var_S) + std::pow(mean_S, 3.) * skewness_S) /
-                            std::pow(var_S + std::pow(mean_S, 2.), 3.);
+    // 1 - p = E[X_S]^3 * E[X_S^3] / E[X_S^2]^3
+    ScalarType p          = 1. - (std::pow(mean_S, 6.) + 3. * std::pow(mean_S, 4.) * var_S +
+                                  std::pow(mean_S, 3.) * skewness_S) /
+                                     std::pow(var_S + std::pow(mean_S, 2.), 3.);
     ScalarType mean_fac_S = (mean_S == 0.) && (1 - rI - rR < 0) ? 1. : std::pow(mean_S, rS * (1 - rI - rR));
     ScalarType mean_fac_I = (mean_I == 0.) && (1 - rS - rR < 0) ? 1. : std::pow(mean_I, rI * (1 - rS - rR));
     ScalarType mean_fac_R = (mean_R == 0.) && (1 - rS - rI < 0) ? 1. : std::pow(mean_R, rR * (1 - rS - rI));
-    ScalarType sqrt_fac_S =
-        std::pow(std::sqrt(std::pow(mean_S, 4.) * (1 + 3 * var_S) + mean_S * skewness_S), rS * rS - rS);
-    ScalarType sqrt_fac_I =
-        std::pow(std::sqrt(std::pow(mean_I, 4.) * (1 + 3 * var_I) + mean_I * skewness_I), rI * rI - rI);
-    ScalarType sqrt_fac_R =
-        std::pow(std::sqrt(std::pow(mean_R, 4.) * (1 + 3 * var_R) + mean_R * skewness_R), rR * rR - rR);
+    ScalarType sqrt_fac_S = std::pow(
+        std::sqrt(std::pow(mean_S, 4.) + 3 * std::pow(mean_S, 2.) * var_S + mean_S * skewness_S), rS * rS - rS);
+    ScalarType sqrt_fac_I = std::pow(
+        std::sqrt(std::pow(mean_I, 4.) + 3 * std::pow(mean_I, 2.) * var_I + mean_I * skewness_I), rI * rI - rI);
+    ScalarType sqrt_fac_R = std::pow(
+        std::sqrt(std::pow(mean_R, 4.) + 3 * std::pow(mean_R, 2.) * var_R + mean_R * skewness_R), rR * rR - rR);
     ScalarType fac_S =
         (mean_S * mean_S + var_S == 0.) && (rS - rS * rS < 0) ? 0. : std::pow(mean_S * mean_S + var_S, rS - rS * rS);
     ScalarType fac_I =
@@ -349,7 +376,7 @@ ScalarType lognormal_zero_inflation_cap_closure(
     ScalarType E_XS_rS_XI_rI_XR_rR = std::pow(1 - p, 1 - rS - rI - rR + rS * rI + rS * rR + rI * rR) * mean_fac_S *
                                      mean_fac_I * mean_fac_R * sqrt_fac_S * sqrt_fac_I * sqrt_fac_R * fac_S * fac_I *
                                      fac_R * cov_SI_fac * cov_SR_fac * cov_IR_fac;
-    auto moment = get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+    auto moment = get_central_mom_by_raw<NumRegions, ClosureOrder>(index, y, moments, E_XS_rS_XI_rI_XR_rR);
     return std::all_of(index.begin(), index.end(),
                        [](int x) {
                            return x % 2 == 0;
@@ -364,13 +391,13 @@ ScalarType lognormal_zero_inflation_cap_closure(
  * @tparam ClosureOrder Order to be closed.
  * @param[in] index Index of the central moment that should be approximated.
  * @param[in] y Current value of expected value and all moments.
- * @param[in] moments Moment array. Is only used to get the correct flat index of a moment in y.
+ * @param[in] moments Moment array containing all moments of order < ClosureOrder. Is only used to get the correct flat index of a moment in y.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 ScalarType pairapprox_closure(
     std::array<int, static_cast<size_t>(osir::InfectionState::Count) * NumRegions> index,
     Eigen::Ref<const Eigen::VectorX<ScalarType>> y,
-    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder>& moments)
+    const MomentArray<static_cast<size_t>(osir::InfectionState::Count), NumRegions, ClosureOrder - 1>& moments)
 {
     int order = std::accumulate(index.begin(), index.end(), 0);
     if (order != ClosureOrder) {
@@ -391,7 +418,7 @@ ScalarType pairapprox_closure(
     // Raw moment (r_S, r_I, r_R) which is approximated: E[X_S^r_S * X_I^r_I * X_R^r_R]
     ScalarType E_XS_rS_XI_rI_XR_rR = std::pow(mean_S, rS) * std::pow(mean_I, rI) * std::pow(mean_R, rR);
 
-    return get_central_mom_by_raw(index, y, moments, E_XS_rS_XI_rI_XR_rR);
+    return get_central_mom_by_raw<NumRegions, ClosureOrder>(index, y, moments, E_XS_rS_XI_rI_XR_rR);
 }
 
 } // namespace smm_moments

@@ -183,7 +183,7 @@ int main()
 
         // Save means and moments
         auto means   = sim.get_expected_values_time_series();
-        auto moments = sim.get_moment_time_series(closure_order);
+        auto moments = sim.get_moment_time_series(closure_order - 1);
 
         int num_steps = static_cast<int>((config.tmax - init_time) / config.dt) + 1;
         std::vector<double> interpolation_tps(num_steps);

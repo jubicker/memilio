@@ -269,20 +269,20 @@ void moments_two_regions(Eigen::Ref<const Eigen::VectorX<ScalarType>> y, ScalarT
     double M_100100 = y[model.moments.flatten_index({1, 0, 0, 1, 0, 0}) + model.populations.get_num_compartments()];
     double M_010010 = y[model.moments.flatten_index({0, 1, 0, 0, 1, 0}) + model.populations.get_num_compartments()];
     double M_001001 = y[model.moments.flatten_index({0, 0, 1, 0, 0, 1}) + model.populations.get_num_compartments()];
-    // 3rd order
-    double M_210000 = y[model.moments.flatten_index({2, 1, 0, 0, 0, 0}) + model.populations.get_num_compartments()];
-    double M_120000 = y[model.moments.flatten_index({1, 2, 0, 0, 0, 0}) + model.populations.get_num_compartments()];
-    double M_111000 = y[model.moments.flatten_index({1, 1, 1, 0, 0, 0}) + model.populations.get_num_compartments()];
-    double M_000210 = y[model.moments.flatten_index({0, 0, 0, 2, 1, 0}) + model.populations.get_num_compartments()];
-    double M_000120 = y[model.moments.flatten_index({0, 0, 0, 1, 2, 0}) + model.populations.get_num_compartments()];
-    double M_000111 = y[model.moments.flatten_index({0, 0, 0, 1, 1, 1}) + model.populations.get_num_compartments()];
-    double M_110100 = y[model.moments.flatten_index({1, 1, 0, 1, 0, 0}) + model.populations.get_num_compartments()];
-    double M_100110 = y[model.moments.flatten_index({1, 0, 0, 1, 1, 0}) + model.populations.get_num_compartments()];
-    double M_110010 = y[model.moments.flatten_index({1, 1, 0, 0, 1, 0}) + model.populations.get_num_compartments()];
-    double M_110001 = y[model.moments.flatten_index({1, 1, 0, 0, 0, 1}) + model.populations.get_num_compartments()];
-    double M_010110 = y[model.moments.flatten_index({0, 1, 0, 1, 1, 0}) + model.populations.get_num_compartments()];
-    double M_001110 = y[model.moments.flatten_index({0, 0, 1, 1, 1, 0}) + model.populations.get_num_compartments()];
-    double M_011001 = y[model.moments.flatten_index({0, 1, 1, 0, 0, 1}) + model.populations.get_num_compartments()];
+    // 3rd order: not part of the model for closure order 3, they are set to zero by the truncation closure
+    double M_210000 = 0.;
+    double M_120000 = 0.;
+    double M_111000 = 0.;
+    double M_000210 = 0.;
+    double M_000120 = 0.;
+    double M_000111 = 0.;
+    double M_110100 = 0.;
+    double M_100110 = 0.;
+    double M_110010 = 0.;
+    double M_110001 = 0.;
+    double M_010110 = 0.;
+    double M_001110 = 0.;
+    double M_011001 = 0.;
     //expected values
     dydt[static_cast<size_t>(mio::osir::InfectionState::Susceptible)] =
         -lambda1 * mu_S1 * mu_I1 - lambda1 * M_110000 - k12_S * mu_S1 + k21_S * mu_S2;

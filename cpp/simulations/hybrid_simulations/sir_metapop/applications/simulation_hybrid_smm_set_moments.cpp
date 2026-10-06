@@ -120,7 +120,7 @@ int main()
         }
     }
     // Initial moments are all zero
-    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, closure_order> moments_array;
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), num_regions, closure_order - 1> moments_array;
     std::array<int, static_cast<size_t>(mio::osir::InfectionState::Count) * num_regions> zero_index;
     zero_index.fill(0);
     moments_array[zero_index] = 1.0;
@@ -159,7 +159,7 @@ int main()
     auto done        = means_smm.export_csv(save_file + "means_smm.csv");
     done = moments_smm.export_csv(save_file + "moments_smm.csv", hybrid_sim.get_model1().get_moment_names());
     auto expected_values = hybrid_sim.get_model2().get_expected_values_time_series();
-    auto moments_moments = hybrid_sim.get_model2().get_moment_time_series(closure_order);
+    auto moments_moments = hybrid_sim.get_model2().get_moment_time_series(closure_order - 1);
     done                 = expected_values.export_csv(save_file + "expected_values_moments.csv");
     done                 = moments_moments.first.export_csv(save_file + "moments_moments.csv", moments_moments.second);
 

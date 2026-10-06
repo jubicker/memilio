@@ -32,9 +32,9 @@
 
 int main()
 {
-    auto config                = Config::get_config(Config::ConfigType::ConfigSIRVaryI0NoExchange);
+    auto config                = Config::get_config(Config::ConfigType::ConfigTest);
     const size_t closure_order = 3;
-    const size_t num_regions   = 4;
+    const size_t num_regions   = 2;
     double min_step_size       = 0.0001;
     double init_time           = 0.0;
     size_t closure             = 0;
@@ -119,7 +119,7 @@ int main()
 
     //Save expected values time series
     auto means   = sim.get_expected_values_time_series();
-    auto moments = sim.get_moment_time_series(closure_order);
+    auto moments = sim.get_moment_time_series(closure_order - 1);
 
     int num_steps = static_cast<int>((config.tmax - init_time) / config.dt) + 1;
     std::vector<double> interpolation_tps(num_steps);

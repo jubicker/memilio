@@ -174,7 +174,7 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_expected_values(const std::string& 
  * @brief Read moments from csv timeseries file.
 * @param[in] file_path Csv file.
  * @param[in] time Time point from which values should be taken.
- * @return Array with moments.
+ * @return Array with all moments of order < ClosureOrder.
  */
 template <size_t NumRegions, size_t ClosureOrder>
 Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_path, double time)
@@ -200,7 +200,8 @@ Eigen::Array<double, Eigen::Dynamic, 1> read_moments(const std::string& file_pat
         index.insert({title, col_count});
         col_count++;
     }
-    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, ClosureOrder> moments_array;
+    // The moment model only contains moments of order < ClosureOrder
+    MomentArray<static_cast<size_t>(mio::osir::InfectionState::Count), NumRegions, ClosureOrder - 1> moments_array;
     // Read until the correct time is found
     std::vector<double> row;
     while (std::getline(fin_f, line_f)) {

@@ -44,6 +44,8 @@ public:
     using ArrayType  = Eigen::Array<double, Eigen::Dynamic, 1>;
     using MultiIndex = std::array<int, NumInfectionStates * NumRegions>;
 
+    static constexpr size_t max_order = MaxOrder; ///< Maximum order of moments that are stored.
+
     MomentArray()
     {
         // Once add all MultiIndices with order <= MaxOrder to m_indices
