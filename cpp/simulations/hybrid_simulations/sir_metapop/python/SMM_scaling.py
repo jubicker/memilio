@@ -1,6 +1,18 @@
 from settings import *
 import matplotlib.pyplot as plt
 
+pop_sizes = [1000, 10000, 100000, 1000000, 10000000]
+region_size = [1, 2, 4, 8, 16]
+linear_pop = [10**-3, 10**-2, 10**-1, 10**0, 10**1]
+quadratic_pop = [10**-3, 10**-1, 10**1, 10**3, 10**5]
+linear_regions = [10**-3, (2)*10**-3, (4)*10**-3, (8)*10**-3, (16)*10**-3]
+quadratic_regions = [10**-3, (2**2)*10**-3, (4**2)
+                     * 10**-3, (8**2)*10**-3, (16**2)*10**-3]
+moment_regions = [10**-3, 2.62*10**-3, 3.03*2.62*10**-
+                  3, 3.39*3.03*2.62*10**-3, 3.65*3.39*3.03*2.62*10**-3]
+moment_quadratic_regions = [10**-3, (2**2*2.62)*10**-3, (4**2*3.03*2.62)
+                            * 10**-3, (8**2*3.39*3.03*2.62)*10**-3, (16**2*3.65*3.39*3.03*2.62)*10**-3]
+
 # dictionary has as first keys num agents and as second keys num runs
 smm_times_1_core_SIR = {
     1000: {
@@ -193,52 +205,47 @@ smm_regions_fixed_pop_wo_spatial_SIRS = {
 # dictionary has as first key num agnets and as second key integrator settings
 moment_times_1_core_SIR = {
     1000: {
-        r"adaptive $\Delta t$": [0.00179063, 0.00124788, 0.00118606, 0.0011651, 0.00119818, 0.00116157],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0259234, 0.0253203, 0.0254147, 0.0253381, 0.0249482, 0.0253664],
-        r"fixed $\Delta t=0.1$": [0.0256068, 0.0251347, 0.0253303, 0.0252013, 0.0250974, 0.0251725],
+        r"adaptive $\Delta t$": [0.000912166, 0.000847095, 0.000849015],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0205028, 0.0197733, 0.0198291],
     },
     10000: {
-        r"adaptive $\Delta t$": [0.00139621, 0.00133496, 0.00139941, 0.00136951, 0.00135934, 0.00138147],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0257225, 0.0251899, 0.025322, 0.0252465, 0.0251303, 0.0253503],
-        r"fixed $\Delta t=0.1$": [0.0261432, 0.0256741, 0.025165, 0.0251148, 0.0256364, 0.0250841],
+        r"adaptive $\Delta t$": [0.00100269, 0.00098405, 0.000967711],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0197418, 0.0196858, 0.0196099],
     },
     100000: {
-        r"adaptive $\Delta t$": [0.00145307, 0.00144076, 0.00143607, 0.0014666, 0.00147857, 0.00144746],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0253991, 0.0256705, 0.0253495, 0.0255249, 0.0259488, 0.0255245],
-        r"fixed $\Delta t=0.1$": [0.0255541, 0.0254212, 0.0252059, 0.0253196, 0.025387, 0.0253036],
+        r"adaptive $\Delta t$": [0.00109466, .00107103, 0.00106616],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0196336, 0.0196551, 0.0195718],
     },
     1000000: {
-        r"adaptive $\Delta t$": [0.00169478, 0.00162213, 0.00167822, 0.0016258, 0.00166331, 0.00159577],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0252094, 0.0253392, 0.0251693, 0.0253259, 0.0256441, 0.0257146],
-        r"fixed $\Delta t=0.1$": [0.0253915, 0.0251108, 0.0252109, 0.0254144, 0.0251818, 0.0249921],
+        r"adaptive $\Delta t$": [0.00118854, 0.00114375, 0.00114727],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0199979, 0.0196208, 0.0198075],
     },
     10000000: {
-        r"adaptive $\Delta t$": [0.00183093, 0.00168246, 0.00176486, 0.00176509, 0.00164463, 0.00171075],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0254599, 0.0253249, 0.0252574, 0.0252438, 0.0254014, 0.0254253],
-        r"fixed $\Delta t=0.1$": [0.0252072, 0.0252698, 0.0252897, 0.0251589, 0.0250423, 0.0253353],
+        r"adaptive $\Delta t$": [0.00122279, 0.00119657, 0.00120483],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0195449, 0.0197373, 0.0194327],
     }
 }
 
 moment_times_1_core_SIRS = {
     1000: {
-        r"adaptive $\Delta t$": [0.000965175, 0.000912255, 0.000898445, 0.000910435, 0.000906565, 0.000897986],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0215145, 0.0213532, 0.021674, 0.0214449, 0.0216336, 0.0215983],
+        r"adaptive $\Delta t$": [0.000860244, 0.000818103, 0.000827784],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0197402, 0.0198888, 0.0197024],
     },
     10000: {
-        r"adaptive $\Delta t$": [0.00158296, 0.00113684, 0.00108351, 0.00111839, 0.00108809, 0.0010838],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0210945, 0.0215784, 0.0215448, 0.0216074, 0.0213278, 0.0215885],
+        r"adaptive $\Delta t$": [0.0010365, 0.000970914, 0.000972674],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0195802, 0.0198618, 0.0194906],
     },
     100000: {
-        r"adaptive $\Delta t$": [0.0013486, 0.00130609, 0.00132178, 0.001292, 0.00130638, 0.00130805],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0226892, 0.0219435, 0.0216905, 0.0219941, 0.0221015, 0.022194],
+        r"adaptive $\Delta t$": [0.00120201, 0.00117634, 0.0011618],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0197018, 0.0198889, 0.0197945],
     },
     1000000: {
-        r"adaptive $\Delta t$": [0.00147051, 0.00143203, 0.00143698, 0.00142414, 0.00143347, 0.00143784],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0219897, 0.0212882, 0.0215868, 0.0215646, 0.0214043, 0.0213693],
+        r"adaptive $\Delta t$": [0.0013366, 0.00133855, 0.00134141],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0195958, 0.0196706, 0.0197181],
     },
     10000000: {
-        r"adaptive $\Delta t$": [0.00220207, 0.00168009, 0.0016345, 0.00164243, 0.00160726, 0.00168393],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0216463, 0.0214257, 0.0215064, 0.0214426, 0.0214875, 0.0216528],
+        r"adaptive $\Delta t$": [0.00160484, 0.00154687, 0.00156641],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0197281, 0.0196126, 0.0198854],
     }
 }
 
@@ -291,95 +298,110 @@ moment_regions_1_core_SIRS = {
 
 moment_regions_fixed_pop_w_spatial_SIR = {
     1: {
-        r"adaptive $\Delta t$": [0.00157328, 0.00158372, 0.0016458],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0276941, 0.0278368, 0.0280559],
+        r"adaptive $\Delta t$": [0.00114108, 0.00111319, 0.00112762],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0193596, 0.0194053, 0.0193037],
     },
     2: {
-        r"adaptive $\Delta t$": [0.0123895, 0.0123951, 0.0124374],
-        r"adaptive $\Delta t_{max}=0.1$": [0.196337, 0.195979, 0.195457],
+        r"adaptive $\Delta t$": [0.0102234, 0.010259, 0.010418],
+        r"adaptive $\Delta t_{max}=0.1$": [0.16247, 0.162177, 0.161401],
     },
     4: {
-        r"adaptive $\Delta t$": [0.132485, 0.132729, 0.131971],
-        r"adaptive $\Delta t_{max}=0.1$": [2.1816, 2.1835, 2.16238],
+        r"adaptive $\Delta t$": [0.113578, 0.114378, 0.113785],
+        r"adaptive $\Delta t_{max}=0.1$": [1.88329, 1.8878, 1.89014],
     },
     8: {
-        r"adaptive $\Delta t$": [2.37744, 2.3834, 2.38373],
-        r"adaptive $\Delta t_{max}=0.1$": [40.6301, 40.6358, 40.5548],
+        r"adaptive $\Delta t$": [2.00702, 2.0075, 2.00724],
+        r"adaptive $\Delta t_{max}=0.1$": [34.3889, 34.3955, 34.405],
     },
     16: {
-        r"adaptive $\Delta t$": [34.6261, 34.6163, 34.6531],
-        r"adaptive $\Delta t_{max}=0.1$": [582.48, 582.921, 582.94],
+        r"adaptive $\Delta t$": [23.3569, 23.3567, 23.3439],
+        r"adaptive $\Delta t_{max}=0.1$": [392.654, 392.716, 392.66],
     }
 }
 
 moment_regions_fixed_pop_w_spatial_SIRS = {
     1: {
-        r"adaptive $\Delta t$": [0.00184571, 0.0018389, 0.0018584],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0276068, 0.027902, 0.0278125],
+        r"adaptive $\Delta t$": [0.00182819, 0.00128907, 0.00127542],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0198133, 0.0192949, 0.0196479],
     },
     2: {
-        r"adaptive $\Delta t$": [0.0140666, 0.0140307, 0.0143401],
-        r"adaptive $\Delta t_{max}=0.1$": [0.196296, 0.194881, 0.195945],
+        r"adaptive $\Delta t$": [0.0115611, 0.011624, 0.0116741],
+        r"adaptive $\Delta t_{max}=0.1$": [0.161299, 0.161371, 0.162185],
     },
     4: {
-        r"adaptive $\Delta t$": [0.157535, 0.156437, 0.156698],
-        r"adaptive $\Delta t_{max}=0.1$": [2.19392, 2.19241, 2.19456],
+        r"adaptive $\Delta t$": [0.133818, 0.134561, 0.13405],
+        r"adaptive $\Delta t_{max}=0.1$": [1.87947, 1.89004, 1.88599],
     },
     8: {
-        r"adaptive $\Delta t$": [2.71482, 2.70971, 2.7169],
-        r"adaptive $\Delta t_{max}=0.1$": [40.6376, 40.5786, 40.5486],
+        r"adaptive $\Delta t$": [2.28469, 2.28418, 2.28524],
+        r"adaptive $\Delta t_{max}=0.1$": [34.409, 34.407, 34.389],
     },
     16: {
-        r"adaptive $\Delta t$": [35.7, 35.7233, 35.666],
-        r"adaptive $\Delta t_{max}=0.1$": [586.613, 586.784, 586.053],
+        r"adaptive $\Delta t$": [24.0277, 23.9882, 24.0323],
+        r"adaptive $\Delta t_{max}=0.1$": [392.247, 392.335, 392.901],
     }
 }
 
 moment_regions_fixed_pop_wo_spatial_SIR = {
     1: {
-        r"adaptive $\Delta t$": [0.00157328, 0.00158372, 0.0016458],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0276941, 0.0278368, 0.0280559],
+        r"adaptive $\Delta t$": [0.00172833, 0.00114751, 0.00113551],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0197243, 0.0195539, 0.0196301],
     },
     2: {
-        r"adaptive $\Delta t$": [0.0104868, 0.0105089, 0.0104807],
-        r"adaptive $\Delta t_{max}=0.1$": [0.196666, 0.197809, 0.19745],
+        r"adaptive $\Delta t$": [0.00642788, 0.00580122, 0.00574156],
+        r"adaptive $\Delta t_{max}=0.1$": [0.108306, 0.107967, 0.108339],
     },
     4: {
-        r"adaptive $\Delta t$": [0.116952, 0.116822, 0.116385],
-        r"adaptive $\Delta t_{max}=0.1$": [2.20128, 2.2023, 2.20751],
+        r"adaptive $\Delta t$": [0.0334687, 0.0336104, 0.0335257],
+        r"adaptive $\Delta t_{max}=0.1$": [0.633772, 0.633355, 0.637646],
     },
     8: {
-        r"adaptive $\Delta t$": [2.01798, 2.0218, 2.01475],
-        r"adaptive $\Delta t_{max}=0.1$": [40.5487, 40.5139, 40.5747],
+        r"adaptive $\Delta t$": [0.352347, 0.351245, 0.352093],
+        r"adaptive $\Delta t_{max}=0.1$": [7.11487, 7.14482, 7.14497],
     },
     16: {
-        r"adaptive $\Delta t$": [29.0344, 29.0406, 29.0516],
-        r"adaptive $\Delta t_{max}=0.1$": [581.621, 581.879, 581.342],
+        r"adaptive $\Delta t$": [2.57063, 2.57961, 2.58441],
+        r"adaptive $\Delta t_{max}=0.1$": [51.8698, 51.8843, 51.8754],
     }
 }
 
 moment_regions_fixed_pop_wo_spatial_SIRS = {
     1: {
-        r"adaptive $\Delta t$": [0.00184571, 0.0018389, 0.0018584],
-        r"adaptive $\Delta t_{max}=0.1$": [0.0276068, 0.027902, 0.0278125],
+        r"adaptive $\Delta t$": [0.00183568, 0.00132248, 0.00134133],
+        r"adaptive $\Delta t_{max}=0.1$": [0.0196285, 0.0197345, 0.019624],
     },
     2: {
-        r"adaptive $\Delta t$": [0.0123029, 0.0123534, 0.0132237],
-        r"adaptive $\Delta t_{max}=0.1$": [0.196953, 0.197585, 0.198775],
+        r"adaptive $\Delta t$": [0.00705451, 0.00702802, 0.0067509],
+        r"adaptive $\Delta t_{max}=0.1$": [0.109635, 0.109349, 0.109183],
     },
     4: {
-        r"adaptive $\Delta t$": [0.128695, 0.12797, 0.127537],
-        r"adaptive $\Delta t_{max}=0.1$": [2.18487, 2.18524, 2.19017],
+        r"adaptive $\Delta t$": [0.0368772, 0.0369805, 0.0369522],
+        r"adaptive $\Delta t_{max}=0.1$": [0.627141, 0.63235, 0.631196],
     },
     8: {
-        r"adaptive $\Delta t$": [2.35522, 2.35766, 2.35288],
-        r"adaptive $\Delta t_{max}=0.1$": [40.9162, 40.9673, 40.9691],
+        r"adaptive $\Delta t$": [0.409035, 0.409538, 0.408569],
+        r"adaptive $\Delta t_{max}=0.1$": [7.08212, 7.10519, 7.10707],
     },
     16: {
-        r"adaptive $\Delta t$": [30.619, 30.6228, 30.619],
-        r"adaptive $\Delta t_{max}=0.1$": [581.406, 581.625, 581.449],
+        r"adaptive $\Delta t$": [2.71083, 2.70973, 2.70624],
+        r"adaptive $\Delta t_{max}=0.1$": [51.8427, 51.8316, 51.8781],
     }
 }
+
+
+def save_legends(ax, save_dir, figsize, complexity_file):
+    # the complexity reference lines (O(...)) get their own legend png
+    handles, labels = ax.get_legend_handles_labels()
+    is_complexity = [r"\mathcal{O}" in label for label in labels]
+    for file_name, select in [("legend.png", False), (complexity_file, True)]:
+        sel_handles = [h for h, c in zip(
+            handles, is_complexity) if c == select]
+        sel_labels = [l for l, c in zip(labels, is_complexity) if c == select]
+        fig_leg = plt.figure(figsize=(figsize[0]*3, figsize[1]))
+        fig_leg.legend(sel_handles, sel_labels, loc='center',
+                       ncol=len(sel_labels))
+        fig_leg.savefig(save_dir + file_name, dpi=dpi)
+        plt.close(fig_leg)
 
 
 def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
@@ -426,10 +448,10 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     ax.plot(list(stoch_dict.keys()), runs1000,
             label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
 
-    ax.plot(smm_times_1_core_SIR.keys(), [
-        (10**(ymin_pow-2.1))*x for x in smm_times_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$f(x)=ax$")
-    ax.plot(smm_times_1_core_SIR.keys(), [(10**(ymin_pow-9))*x**(np.log2(10))
-                                          for x in smm_times_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$f(x)=bx^{\log_2(10)}$")
+    ax.plot(pop_sizes, linear_pop,
+            color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$\mathcal{O}(N)$")
+    ax.plot(pop_sizes, quadratic_pop,
+            color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$\mathcal{O}(N^2)$")
 
     ax.set_ylim(10**(-3)-10, 10**(5.2))
     ax.set_xticks(list(ode_dict.keys()))
@@ -441,10 +463,7 @@ def plot_scaling(ode_dict, stoch_dict, save_dir, figsize):
     fig.subplots_adjust(left=0.17, bottom=0.2, top=0.97, right=0.98)
     fig.savefig(save_dir + "scaling_p.png", dpi=dpi)
     plt.close(fig)
-    handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=(figsize[0]*2, figsize[1]))
-    fig_leg.legend(handles, labels, loc='center', ncol=3)
-    fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
+    save_legends(ax, save_dir, figsize, "legend_complexity_p.png")
 
 
 def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize, x_postfix):
@@ -490,10 +509,14 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize, x_postfix):
     ax.plot(list(stoch_dict.keys()), runs1000,
             label=r"Stochastic $n_{sims}=1000$", color=colors["teal"], marker="^")
 
-    ax.plot(smm_regions_1_core_SIR.keys(), [
-            (10**(ymin_pow))*x for x in smm_regions_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$f(x)=ax$")
-    ax.plot(smm_regions_1_core_SIR.keys(), [(10**(ymin_pow))*x**(np.log2(10))
-            for x in smm_regions_1_core_SIR.keys()], color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$f(x)=bx^{\log_2(10)}$")
+    ax.plot(region_size, linear_regions,
+            color=colors["dark grey"], linestyle=(0, (5, 10)), alpha=0.8, label=r"$\mathcal{O}(3n_R)$")
+    ax.plot(region_size, quadratic_regions,
+            color=colors["dark grey"], linestyle="dashed", alpha=0.8, label=r"$\mathcal{O}(3n_R^2)$")
+    ax.plot(region_size, moment_regions,
+            color=colors["dark grey"], linestyle="dotted", alpha=0.8, label=r"$\mathcal{O}(n_m+3n_R)$")
+    ax.plot(region_size, moment_quadratic_regions,
+            color=colors["dark grey"], linestyle="dashdot", alpha=0.8, label=r"$\mathcal{O}(3n_R^2(n_m+3n_R))$")
 
     ax.set_xticks(list(ode_dict.keys()))
     ax.set_xticklabels([rf"$2^{{{label}}}$" for label in x_labels])
@@ -505,18 +528,15 @@ def plot_region_scaling(ode_dict, stoch_dict, save_dir, figsize, x_postfix):
     fig.subplots_adjust(left=0.17, bottom=0.2, top=0.97, right=0.98)
     fig.savefig(save_dir + "scaling_r.png", dpi=dpi)
     plt.close(fig)
-    handles, labels = ax.get_legend_handles_labels()
-    fig_leg = plt.figure(figsize=((figsize[0]*2, figsize[1])))
-    fig_leg.legend(handles, labels, loc='center', ncol=3)
-    fig_leg.savefig(save_dir + "legend.png", dpi=dpi)
+    save_legends(ax, save_dir, figsize, "legend_complexity_r.png")
 
 
 save_dir_pop = ""
 save_dir_regions = ""
 # fig_size = (5, 4)
-plot_scaling(ode_dict=moment_times_1_core_SIRS,
-             stoch_dict=smm_times_1_core_SIRS, save_dir=save_dir_pop, figsize=(5, 3.5))
-plot_region_scaling(ode_dict=moment_regions_fixed_pop_w_spatial_SIRS,
-                    stoch_dict=smm_regions_fixed_pop_w_spatial_SIRS, save_dir=save_dir_regions + "w_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}>0$")
-plot_region_scaling(ode_dict=moment_regions_fixed_pop_wo_spatial_SIRS,
-                    stoch_dict=smm_regions_fixed_pop_wo_spatial_SIRS, save_dir=save_dir_regions + "wo_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}=0$")
+plot_scaling(ode_dict=moment_times_1_core_SIR,
+             stoch_dict=smm_times_1_core_SIR, save_dir=save_dir_pop, figsize=(5, 3.5))
+plot_region_scaling(ode_dict=moment_regions_fixed_pop_w_spatial_SIR,
+                    stoch_dict=smm_regions_fixed_pop_w_spatial_SIR, save_dir=save_dir_regions + "w_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}>0$")
+plot_region_scaling(ode_dict=moment_regions_fixed_pop_wo_spatial_SIR,
+                    stoch_dict=smm_regions_fixed_pop_wo_spatial_SIR, save_dir=save_dir_regions + "wo_spatial", figsize=(5, 3.5), x_postfix=r"$\kappa_z^{(k,l)}=0$")
